@@ -1,0 +1,396 @@
+/* =============================================
+   Prode Chacho - Estilos base
+   ============================================= */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-bg: #f4f4f5;
+  --color-surface: #ffffff;
+  --color-surface2: #f4f4f5;
+  --color-border: #e4e4e7;
+  --color-text: #18181b;
+  --color-muted: #71717a;
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-empate: #71717a;
+  --radius: 8px;
+  --font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.main-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ---- Navbar ---- */
+.navbar {
+  background: #0a0a0a;
+  border-bottom: 1px solid #222;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  font-size: 18px;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex: 1;
+}
+
+.navbar-links a {
+  color: #a1a1aa;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.navbar-links a:hover { color: #ffffff; }
+.navbar-links a.active { color: #ffffff; font-weight: 600; }
+
+.navbar-user {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #a1a1aa;
+}
+
+/* ---- Cards ---- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---- Botones ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+  text-decoration: none;
+}
+
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary { background: var(--color-primary); color: white; }
+.btn-success { background: var(--color-success); color: white; }
+.btn-danger { background: var(--color-danger); color: white; }
+.btn-secondary { background: #ffffff; color: var(--color-text); border: 1px solid var(--color-border); box-shadow: var(--shadow); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-lg { padding: 10px 20px; font-size: 15px; }
+
+/* ---- Formularios ---- */
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input, select, textarea {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  transition: border-color 0.15s;
+  box-shadow: var(--shadow);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+input.small { width: 70px; text-align: center; }
+
+/* ---- Tabla estilo Excel ---- */
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.excel-table th {
+  background: #fafafa;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+}
+
+.excel-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.excel-table tr:hover td { background: #fafafa; }
+
+.excel-table input,
+.excel-table select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 13px;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+
+.excel-table input.pts-input {
+  text-align: center;
+  padding: 4px 2px;
+}
+
+/* ---- Estado chips ---- */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-borrador { background: #f4f4f5; color: #71717a; border: 1px solid #e4e4e7; }
+.badge-abierta { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.badge-cerrada { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
+.badge-finalizada { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+
+/* ---- Resultado fecha (Mi Fecha) ---- */
+.resultado-live {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.resultado-live .nombre { font-size: 13px; color: var(--color-muted); }
+.resultado-live .puntos { font-size: 28px; font-weight: 700; }
+.resultado-live .puntos.ganando { color: var(--color-success); }
+.resultado-live .puntos.perdiendo { color: var(--color-danger); }
+.resultado-live .vs { font-size: 14px; color: var(--color-muted); font-weight: 600; }
+
+.resultado-bloque {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--color-surface2);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.resultado-bloque .bloque-nombre { color: var(--color-muted); }
+.resultado-bloque .marcador { font-weight: 600; font-size: 15px; }
+.resultado-bloque .icon-ganando { color: var(--color-success); }
+.resultado-bloque .icon-perdiendo { color: var(--color-danger); }
+.resultado-bloque .icon-empate { color: var(--color-empate); }
+
+/* ---- Eventos lista (Mi Fecha) ---- */
+.evento-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.evento-row:last-child { border-bottom: none; }
+
+.evento-num {
+  color: var(--color-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.evento-nombre { flex: 1; }
+.evento-pronostico { color: var(--color-muted); font-size: 12px; }
+.evento-resultado { font-weight: 600; }
+
+.evento-puntos {
+  font-weight: 700;
+  font-size: 13px;
+  min-width: 30px;
+  text-align: right;
+}
+
+.evento-puntos.positivo { color: var(--color-success); }
+.evento-puntos.cero { color: var(--color-muted); }
+
+.evento-acierto { color: var(--color-success); }
+.evento-fallo { color: var(--color-danger); }
+.evento-pendiente { color: var(--color-muted); }
+
+/* ---- Bloque colapsable ---- */
+.bloque-section {
+  margin-bottom: 16px;
+}
+
+.bloque-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+
+.bloque-header:hover { background: #fafafa; }
+.bloque-content { padding: 12px 14px 4px; background: var(--color-surface); border: 1px solid var(--color-border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+
+/* ---- Tabla estilo liga ---- */
+.liga-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.liga-table th {
+  color: var(--color-muted);
+  font-size: 11px;
+  text-align: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.liga-table th:first-child { text-align: left; }
+
+.liga-table td {
+  text-align: center;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.liga-table td:first-child { text-align: left; }
+.liga-table tr:hover td { background: #fafafa; }
+
+.liga-table .pos { color: var(--color-muted); font-size: 12px; width: 28px; }
+.liga-table .pts { font-weight: 700; font-size: 15px; color: var(--color-primary); }
+.liga-table .highlight-top { background: #f0fdf4; }
+.liga-table .highlight-last { background: #fef2f2; }
+
+/* ---- Misc ---- */
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--color-muted);
+}
+
+.text-success { color: var(--color-success); }
+.text-danger { color: var(--color-danger); }
+.text-muted { color: var(--color-muted); }
+.text-warning { color: var(--color-warning); }
+
+.flex { display: flex; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mt-16 { margin-top: 16px; }
+
+.loading { text-align: center; padding: 40px; color: var(--color-muted); }
+.error-msg { background: rgba(239,68,68,0.1); border: 1px solid var(--color-danger); color: var(--color-danger); padding: 10px 14px; border-radius: var(--radius); margin-bottom: 12px; }
+.success-msg { background: rgba(34,197,94,0.1); border: 1px solid var(--color-success); color: var(--color-success); padding: 10px 14px; border-radius: var(--radius); margin-bottom: 12px; }
+
+/* Input pronóstico estilo resultado */
+.pronostico-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pronostico-input-group input {
+  width: 48px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 6px;
+}
+.pronostico-input-group .separator { color: var(--color-muted); font-weight: 700; }
