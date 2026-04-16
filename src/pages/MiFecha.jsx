@@ -116,10 +116,17 @@ function BloquePronos({ nombre, eventos, pronosticos, onChangePronostico, editan
                 {/* Nombre del evento */}
                 <div className="evento-nombre">
                   {ev.tipo === 'partido' ? (
-                    <span>
-                      {ev.local} <span className="text-muted">vs</span> {ev.visitante}
-                      {ev.condicion && <span className="text-muted" style={{fontSize: 11, marginLeft: 6}}>({ev.condicion})</span>}
-                    </span>
+                    <>
+                      <span>
+                        {ev.local} <span className="text-muted">vs</span> {ev.visitante}
+                        {ev.condicion && <span className="text-muted" style={{fontSize: 11, marginLeft: 6}}>({ev.condicion})</span>}
+                      </span>
+                      {ev.condicion && (
+                        <div style={{fontSize: 10, color: 'var(--color-primary)', marginTop: 2, opacity: 0.75}}>
+                          L:{ev.pts_local} · E:{ev.pts_empate} · V:{ev.pts_visitante} · ★:{ev.pts_exacto}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <span>❓ {ev.pregunta_texto}</span>
                   )}

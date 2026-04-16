@@ -20,19 +20,21 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
   const [eventosData, setEventosData] = useState(null)
   const [eventosCargando, setEventosCargando] = useState(false)
 
+  const puedeVerRival = fecha.estado === 'cerrada' || fecha.estado === 'finalizada'
+
   const toggleBloque = async (bloque) => {
     if (bloqueAbierto === bloque) { setBloqueAbierto(null); return }
     setBloqueAbierto(bloque)
     if (!eventosData && !eventosCargando) {
       setEventosCargando(true)
       try {
-        const [evs, pronos] = await Promise.all([
-          api.getEventos(fecha.id),
-          api.getPronosticos(fecha.id)
-        ])
-        const pronoMap = {}
+        const loads = [api.getEventos(fecha.id), api.getPronosticos(fecha.id)]
+        if (puedeVerRival && cruce.rival_id) loads.push(api.getPronosticos(fecha.id, cruce.rival_id))
+        const [evs, pronos, rivalPronos] = await Promise.all(loads)
+        const pronoMap = {}, pronoRivalMap = {}
         for (const p of pronos) pronoMap[p.evento_id] = p
-        setEventosData({ evs, pronoMap })
+        if (rivalPronos) for (const p of rivalPronos) pronoRivalMap[p.evento_id] = p
+        setEventosData({ evs, pronoMap, pronoRivalMap })
       } catch (_) {}
       setEventosCargando(false)
     }
@@ -145,50 +147,89 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
             const inicio = bloqueAbierto === 'A' ? 1 : 16
             const fin    = bloqueAbierto === 'A' ? 15 : 30
             const evs    = eventosData.evs.filter(e => e.orden >= inicio && e.orden <= fin)
+            const th = {padding:'5px 8px', fontSize:10, fontWeight:600, textTransform:'uppercase'}
+            const td = {padding:'5px 8px'}
+            const showPron = (p, ev) => {
+              if (!p) return '—'
+              if (ev.tipo === 'partido') return p.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : '—'
+              return p.opcion_elegida || '—'
+            }
             return (
               <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
                 <thead>
                   <tr style={{background: '#fafafa', borderBottom: '1px solid var(--color-border)'}}>
-                    <th style={{padding:'5px 8px', textAlign:'left', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>#</th>
-                    <th style={{padding:'5px 8px', textAlign:'left', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Partido</th>
-                    <th style={{padding:'5px 8px', textAlign:'center', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Pron.</th>
-                    <th style={{padding:'5px 8px', textAlign:'center', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Res.</th>
-                    <th style={{padding:'5px 8px', textAlign:'center', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Pts</th>
+                    <th style={{...th, textAlign:'left', color:'var(--color-muted)'}}>#</th>
+                    <th style={{...th, textAlign:'left', color:'var(--color-muted)'}}>Partido</th>
+                    {puedeVerRival ? (
+                      <>
+                        <th style={{...th, textAlign:'center', color:'var(--color-primary)'}}>{cruce.yo_nombre}</th>
+                        <th style={{...th, textAlign:'center', color:'var(--color-muted)'}}>Res.</th>
+                        <th style={{...th, textAlign:'center', color:'var(--color-muted)'}}>{cruce.rival_nombre}</th>
+                      </>
+                    ) : (
+                      <>
+                        <th style={{...th, textAlign:'center', color:'var(--color-muted)'}}>Pron.</th>
+                        <th style={{...th, textAlign:'center', color:'var(--color-muted)'}}>Res.</th>
+                        <th style={{...th, textAlign:'center', color:'var(--color-muted)'}}>Pts</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {evs.map(ev => {
-                    const p = eventosData.pronoMap[ev.id]
-                    const tieneRes = ev.lev_real || ev.resultado_json
-                    const acerto = ev.tipo === 'partido'
-                      ? p?.lev_pronostico === ev.lev_real
-                      : false
+                    const p      = eventosData.pronoMap[ev.id]
+                    const pRival = eventosData.pronoRivalMap?.[ev.id]
+                    const tieneRes   = ev.lev_real != null || ev.resultado_json != null
+                    const acerto      = tieneRes && ev.tipo === 'partido' ? p?.lev_pronostico === ev.lev_real : false
+                    const acertoRival = tieneRes && ev.tipo === 'partido' ? pRival?.lev_pronostico === ev.lev_real : false
                     return (
                       <tr key={ev.id} style={{borderBottom: '1px solid var(--color-border)'}}>
-                        <td style={{padding:'5px 8px', color:'var(--color-muted)'}}>{ev.orden}</td>
-                        <td style={{padding:'5px 8px'}}>
+                        <td style={{...td, color:'var(--color-muted)'}}>{ev.orden}</td>
+                        <td style={td}>
                           {ev.tipo === 'partido'
                             ? <>{ev.local} <span style={{color:'var(--color-muted)'}}>vs</span> {ev.visitante}</>
                             : <span style={{color:'var(--color-muted)'}}>❓ {ev.pregunta_texto}</span>
                           }
                         </td>
-                        <td style={{padding:'5px 8px', textAlign:'center', color:'var(--color-muted)'}}>
-                          {ev.tipo === 'partido'
-                            ? (p?.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : '—')
-                            : (p?.opcion_elegida || '—')
-                          }
-                        </td>
-                        <td style={{padding:'5px 8px', textAlign:'center', fontWeight:600}}>
-                          {ev.tipo === 'partido' && ev.resultado_local != null
-                            ? `${ev.resultado_local}-${ev.resultado_visitante}`
-                            : '—'
-                          }
-                        </td>
-                        <td style={{padding:'5px 8px', textAlign:'center', fontWeight:700,
-                          color: (p?.puntos_obtenidos || 0) > 0 ? 'var(--color-success)' : 'var(--color-muted)'
-                        }}>
-                          {tieneRes ? (p?.puntos_obtenidos ?? 0) : '—'}
-                        </td>
+                        {puedeVerRival ? (
+                          <>
+                            <td style={{...td, textAlign:'center', fontWeight: acerto ? 700 : 400,
+                              color: tieneRes ? (acerto ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
+                            }}>
+                              {showPron(p, ev)}
+                              {tieneRes && p?.puntos_obtenidos != null && (
+                                <span style={{fontSize:10, marginLeft:3, opacity:0.8}}>({p.puntos_obtenidos})</span>
+                              )}
+                            </td>
+                            <td style={{...td, textAlign:'center', fontWeight:600}}>
+                              {ev.tipo === 'partido' && ev.resultado_local != null
+                                ? `${ev.resultado_local}-${ev.resultado_visitante}` : '—'}
+                            </td>
+                            <td style={{...td, textAlign:'center', fontWeight: acertoRival ? 700 : 400,
+                              color: tieneRes ? (acertoRival ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
+                            }}>
+                              {showPron(pRival, ev)}
+                              {tieneRes && pRival?.puntos_obtenidos != null && (
+                                <span style={{fontSize:10, marginLeft:3, opacity:0.8}}>({pRival.puntos_obtenidos})</span>
+                              )}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{...td, textAlign:'center', color:'var(--color-muted)'}}>
+                              {showPron(p, ev)}
+                            </td>
+                            <td style={{...td, textAlign:'center', fontWeight:600}}>
+                              {ev.tipo === 'partido' && ev.resultado_local != null
+                                ? `${ev.resultado_local}-${ev.resultado_visitante}` : '—'}
+                            </td>
+                            <td style={{...td, textAlign:'center', fontWeight:700,
+                              color: (p?.puntos_obtenidos || 0) > 0 ? 'var(--color-success)' : 'var(--color-muted)'
+                            }}>
+                              {tieneRes ? (p?.puntos_obtenidos ?? 0) : '—'}
+                            </td>
+                          </>
+                        )}
                       </tr>
                     )
                   })}
