@@ -164,7 +164,7 @@ export default function TablaGeneral() {
           <th>V</th>
           <th>E</th>
           <th>D</th>
-          {!esMensual && <th title="Victorias perfectas">Bonus</th>}
+          <th title="Victorias perfectas">Bonus</th>
           <th>Pts</th>
         </tr>
       </thead>
@@ -191,7 +191,7 @@ export default function TablaGeneral() {
               <td className="text-success">{row.victorias}</td>
               <td className="text-muted">{row.empates}</td>
               <td className="text-danger">{row.derrotas}</td>
-              {!esMensual && <td style={{color: 'var(--color-warning)'}}>{row.bonus || 0}</td>}
+              <td style={{color: 'var(--color-warning)'}}>{row.bonus || 0}</td>
               <td className="pts">{row.puntos}</td>
             </tr>
           )
