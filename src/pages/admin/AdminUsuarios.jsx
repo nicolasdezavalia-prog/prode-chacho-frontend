@@ -27,11 +27,19 @@ export default function AdminUsuarios() {
     }
   }
 
+  const ROL_LABEL = { user: 'JUGADOR', admin: 'ADMIN', superadmin: 'SUPER' }
+  const ROL_SIGUIENTE = { user: 'admin', admin: 'superadmin', superadmin: 'user' }
+  const ROL_BTN = {
+    user:       { label: '↑ Dar admin',    color: undefined },
+    admin:      { label: '⬆ Dar super',   color: '#7c3aed' },
+    superadmin: { label: '↓ Quitar admin', color: undefined },
+  }
+
   const handleToggleRol = async (u) => {
     if (toggling[u.id]) return
-    const nuevoRol = u.role === 'admin' ? 'user' : 'admin'
+    const siguiente = ROL_SIGUIENTE[u.role] || 'user'
     const confirmar = window.confirm(
-      `¿Cambiar rol de ${u.nombre} a ${nuevoRol === 'admin' ? 'ADMIN' : 'JUGADOR'}?`
+      `¿Cambiar rol de ${u.nombre} de ${ROL_LABEL[u.role]} a ${ROL_LABEL[siguiente]}?`
     )
     if (!confirmar) return
     setToggling(p => ({ ...p, [u.id]: true }))
@@ -100,10 +108,10 @@ export default function AdminUsuarios() {
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                     <span style={{
                       display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                      background: u.role === 'admin' ? 'rgba(59,130,246,0.12)' : 'var(--color-surface2)',
-                      color: u.role === 'admin' ? 'var(--color-primary)' : 'var(--color-muted)',
+                      background: u.role === 'superadmin' ? 'rgba(124,58,237,0.12)' : u.role === 'admin' ? 'rgba(59,130,246,0.12)' : 'var(--color-surface2)',
+                      color: u.role === 'superadmin' ? '#7c3aed' : u.role === 'admin' ? 'var(--color-primary)' : 'var(--color-muted)',
                     }}>
-                      {u.role === 'admin' ? 'ADMIN' : 'JUGADOR'}
+                      {ROL_LABEL[u.role] || u.role}
                     </span>
                   </td>
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
@@ -112,14 +120,9 @@ export default function AdminUsuarios() {
                         className="btn btn-secondary btn-sm"
                         onClick={() => handleToggleRol(u)}
                         disabled={toggling[u.id]}
-                        style={{ minWidth: 130 }}
+                        style={{ minWidth: 130, color: toggling[u.id] ? undefined : ROL_BTN[u.role]?.color }}
                       >
-                        {toggling[u.id]
-                          ? 'Guardando...'
-                          : u.role === 'admin'
-                            ? '↓ Quitar admin'
-                            : '↑ Dar admin'
-                        }
+                        {toggling[u.id] ? 'Guardando...' : (ROL_BTN[u.role]?.label || '↑ Cambiar rol')}
                       </button>
                     )}
                   </td>

@@ -10,6 +10,18 @@ const ESTADO_LABEL = {
   finalizada: { label: 'Finalizada', cls: 'badge-finalizada' },
 }
 
+// Formatea un timestamp ISO a "DD/MM HH:MM"
+function fmtEnvio(ts) {
+  if (!ts) return null
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return null
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm} ${hh}:${min}`
+}
+
 // Muestra el score de un pronóstico de partido
 function scorePron(p) {
   if (!p) return '—'
@@ -112,6 +124,11 @@ function CruceCard({ cruce, fecha, esMio }) {
                 {cruce.pts_torneo_u1} pts torneo
               </div>
             )}
+            {fmtEnvio(cruce.envio_u1) && (
+              <div style={{fontSize: 10, color: 'var(--color-muted)', marginTop: 2}}>
+                env. {fmtEnvio(cruce.envio_u1)}
+              </div>
+            )}
           </div>
 
           {/* Centro */}
@@ -139,6 +156,11 @@ function CruceCard({ cruce, fecha, esMio }) {
             {cruce.pts_torneo_u2 != null && (
               <div style={{fontSize: 11, color: 'var(--color-muted)', justifyContent: 'flex-end', display: 'flex'}}>
                 {cruce.pts_torneo_u2} pts torneo
+              </div>
+            )}
+            {fmtEnvio(cruce.envio_u2) && (
+              <div style={{fontSize: 10, color: 'var(--color-muted)', marginTop: 2, textAlign: 'right'}}>
+                env. {fmtEnvio(cruce.envio_u2)}
               </div>
             )}
           </div>

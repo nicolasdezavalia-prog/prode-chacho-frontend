@@ -360,9 +360,8 @@ export default function MiFecha() {
         } catch (_) {}
       }
 
-      // Admin real (sin preview) puede editar siempre
-      // Admin en preview y jugadores normales: solo si fecha abierta
-      const esAdminReal = user.role === 'admin' && !modoPreview
+      // Superadmin (sin preview) puede editar siempre. Admins y jugadores: solo si fecha abierta.
+      const esAdminReal = user.role === 'superadmin' && !modoPreview
       if (f.estado === 'abierta' || esAdminReal) setEditando(true)
 
     } catch (err) {
@@ -455,9 +454,8 @@ export default function MiFecha() {
   if (loading) return <div className="loading">Cargando fecha...</div>
   if (error && !fecha) return <div className="error-msg">{error}</div>
 
-  // Admin real (sin ?preview): puede editar siempre
-  // Admin en preview + jugadores normales: solo si fecha === 'abierta'
-  const esAdminReal = user.role === 'admin' && !modoPreview
+  // Superadmin (sin ?preview): puede editar siempre. Admin y user: solo si fecha abierta.
+  const esAdminReal = user.role === 'superadmin' && !modoPreview
   const puedeEditar = esAdminReal || fecha?.estado === 'abierta'
 
   const bloque1 = eventos.filter(ev => ev.orden >= 1 && ev.orden <= 15)
