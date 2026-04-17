@@ -147,6 +147,21 @@ export default function AdminFecha() {
     } catch (err) { setError(err.message) }
   }
 
+  const [recalculando, setRecalculando] = useState(false)
+  const handleRecalcular = async () => {
+    if (!fecha || fecha.estado === 'borrador') return
+    setRecalculando(true)
+    setError('')
+    try {
+      await api.recalcularFecha(fechaId)
+      setSuccess('Recálculo completado: puntos, cruces y tabla actualizados')
+    } catch (err) {
+      setError('Error al recalcular: ' + err.message)
+    } finally {
+      setRecalculando(false)
+    }
+  }
+
   if (loading) return <div className="loading">Cargando...</div>
 
   return (
@@ -178,6 +193,17 @@ export default function AdminFecha() {
                 onClick={handleCambiarEstado}
               >
                 {ESTADO_BTN[fecha.estado].label}
+              </button>
+            )}
+            {fecha.estado !== 'borrador' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleRecalcular}
+                disabled={recalculando}
+                title="Recalcula puntos, cruces y tabla general para esta fecha"
+                style={{ fontSize: 12 }}
+              >
+                {recalculando ? '⏳ Recalculando...' : '🔄 Recalcular'}
               </button>
             )}
             <button
