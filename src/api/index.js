@@ -35,6 +35,8 @@ export const api = {
   removeJugadorTorneo: (torneoId, userId) => request('DELETE', `/torneos/${torneoId}/jugadores/${userId}`),
   getTablaGeneral: (torneoId) => request('GET', `/torneos/${torneoId}/tabla`),
   getTablaMensual: (torneoId, mes, anio) => request('GET', `/torneos/${torneoId}/tabla-mensual?mes=${mes}&anio=${anio}`),
+  getCierre: (torneoId, mes, anio) => request('GET', `/torneos/${torneoId}/tabla-mensual-cierre?mes=${mes}&anio=${anio}`),
+  saveCierre: (torneoId, data) => request('PUT', `/torneos/${torneoId}/tabla-mensual-cierre`, data),
   recalcularTabla: (torneoId) => request('POST', `/torneos/${torneoId}/recalcular-tabla`),
   getH2H: (torneoId, userId) => request('GET', `/torneos/${torneoId}/h2h/${userId}`),
 

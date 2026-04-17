@@ -53,6 +53,12 @@ export default function TablaGeneral() {
   const [h2hLoading, setH2hLoading] = useState(false)
   const [h2hExpandido, setH2hExpandido] = useState(null)
 
+  // Cierre mensual
+  const [cierre, setCierre] = useState(null)          // null = no cargado todavía
+  const [cierreEditando, setCierreEditando] = useState(false)
+  const [cierreForm, setCierreForm] = useState({ ganadoresIds: ['', '', '', ''], organizadorId: '', nota: '' })
+  const [cierreSaving, setCierreSaving] = useState(false)
+
   useEffect(() => {
     loadData()
   }, [torneoId])
@@ -107,10 +113,42 @@ export default function TablaGeneral() {
 
   const loadMensual = async () => {
     try {
-      const tm = await api.getTablaMensual(torneoId, mesSeleccionado, anioSeleccionado)
+      const [tm, c] = await Promise.all([
+        api.getTablaMensual(torneoId, mesSeleccionado, anioSeleccionado),
+        api.getCierre(torneoId, mesSeleccionado, anioSeleccionado),
+      ])
       setTablaMensual(tm)
+      setCierre(c)
+      setCierreEditando(false)
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const abrirEditCierre = (ganadoresEfectivos, organizadorEfectivo) => {
+    setCierreForm({
+      ganadoresIds: [0, 1, 2, 3].map(i => ganadoresEfectivos[i]?.id?.toString() || ''),
+      organizadorId: organizadorEfectivo?.id?.toString() || '',
+      nota: cierre?.nota || '',
+    })
+    setCierreEditando(true)
+  }
+
+  const guardarCierre = async () => {
+    setCierreSaving(true)
+    try {
+      await api.saveCierre(torneoId, {
+        mes: mesSeleccionado,
+        anio: anioSeleccionado,
+        ganadores_ids: cierreForm.ganadoresIds.map(id => parseInt(id)).filter(Boolean),
+        organizador_user_id: parseInt(cierreForm.organizadorId) || null,
+        nota: cierreForm.nota.trim() || null,
+      })
+      await loadMensual()
+    } catch (e) {
+      alert('Error: ' + e.message)
+    } finally {
+      setCierreSaving(false)
     }
   }
 
@@ -171,7 +209,7 @@ export default function TablaGeneral() {
           </Link>
           <div className="page-title" style={{marginTop: 4}}>{torneo?.nombre}</div>
         </div>
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleRecalcular}
@@ -339,42 +377,199 @@ export default function TablaGeneral() {
       )}
 
       {vista === 'mensual' && (
-        <div className="card">
-          <div className="card-header">
-            <div>
-              Tabla Mensual
-              <div style={{fontSize: 11, color: 'var(--color-muted)', marginTop: 2}}>
-                🍖 Último paga la comida · 🥇 Top 4 comen gratis
+        <>
+          <div className="card">
+            <div className="card-header">
+              <div>
+                Tabla Mensual
+                <div style={{fontSize: 11, color: 'var(--color-muted)', marginTop: 2}}>
+                  🍖 Último paga la comida · 🥇 Top 4 comen gratis
+                </div>
+              </div>
+              <div style={{display: 'flex', gap: 8}}>
+                <select
+                  value={mesSeleccionado}
+                  onChange={e => setMesSeleccionado(parseInt(e.target.value))}
+                  style={{width: 130}}
+                >
+                  {MESES.map((m, i) => (
+                    <option key={i+1} value={i+1}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={anioSeleccionado}
+                  onChange={e => setAnioSeleccionado(parseInt(e.target.value))}
+                  style={{width: 80}}
+                >
+                  {[2024, 2025, 2026].map(a => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div style={{display: 'flex', gap: 8}}>
-              <select
-                value={mesSeleccionado}
-                onChange={e => setMesSeleccionado(parseInt(e.target.value))}
-                style={{width: 130}}
-              >
-                {MESES.map((m, i) => (
-                  <option key={i+1} value={i+1}>{m}</option>
-                ))}
-              </select>
-              <select
-                value={anioSeleccionado}
-                onChange={e => setAnioSeleccionado(parseInt(e.target.value))}
-                style={{width: 80}}
-              >
-                {[2024, 2025, 2026].map(a => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            </div>
+            {tablaMensual.length === 0
+              ? <p className="text-muted" style={{textAlign: 'center', padding: 24}}>
+                  Sin partidos en {MESES[mesSeleccionado-1]} {anioSeleccionado}
+                </p>
+              : renderTabla(tablaMensual, true)
+            }
           </div>
-          {tablaMensual.length === 0
-            ? <p className="text-muted" style={{textAlign: 'center', padding: 24}}>
-                Sin partidos en {MESES[mesSeleccionado-1]} {anioSeleccionado}
-              </p>
-            : renderTabla(tablaMensual, true)
-          }
-        </div>
+
+          {/* Tarjetas de cierre mensual — solo cuando hay datos o hay cierre manual */}
+          {(tablaMensual.length > 0 || cierre?.manual) && (() => {
+            const jugadores = torneo?.jugadores || []
+            const ganadoresEfectivos = cierre?.manual
+              ? cierre.ganadores
+              : tablaMensual.slice(0, 4).map(r => ({ id: r.user_id, nombre: r.nombre }))
+            const organizadorEfectivo = cierre?.manual
+              ? cierre.organizador
+              : tablaMensual.length > 0
+                ? { id: tablaMensual[tablaMensual.length - 1].user_id, nombre: tablaMensual[tablaMensual.length - 1].nombre }
+                : null
+            const esSuperAdmin = user?.role === 'superadmin'
+            const labelPos = ['🥇', '🥈', '🥉', '4°']
+
+            return (
+              <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+                {/* Card: Ganadores de las comidas */}
+                <div className="card" style={{ flex: '1 1 260px', minWidth: 240 }}>
+                  <div className="card-header" style={{ paddingBottom: 8 }}>
+                    🍗 Ganadores de las comidas
+                    {cierre?.manual && (
+                      <span style={{ fontSize: 10, color: 'var(--color-primary)', marginLeft: 8, fontWeight: 400 }}>manual</span>
+                    )}
+                  </div>
+                  {!cierreEditando ? (
+                    <div style={{ padding: '4px 0' }}>
+                      {ganadoresEfectivos.length === 0
+                        ? <p className="text-muted" style={{ fontSize: 13, padding: '4px 0' }}>Sin datos</p>
+                        : ganadoresEfectivos.map((g, i) => (
+                          <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < ganadoresEfectivos.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
+                            <span style={{ fontSize: 16, width: 24 }}>{labelPos[i]}</span>
+                            <span style={{ fontWeight: 600 }}>{g.nombre}</span>
+                          </div>
+                        ))
+                      }
+                      {cierre?.nota && (
+                        <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--color-surface2)', borderRadius: 6, fontSize: 12, color: 'var(--color-muted)', borderLeft: '3px solid var(--color-primary)' }}>
+                          <strong style={{ color: 'var(--color-text)' }}>Criterio:</strong> {cierre.nota}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
+                      {[0, 1, 2, 3].map(i => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 14, width: 24 }}>{labelPos[i]}</span>
+                          <select
+                            value={cierreForm.ganadoresIds[i]}
+                            onChange={e => {
+                              const ids = [...cierreForm.ganadoresIds]
+                              ids[i] = e.target.value
+                              setCierreForm(f => ({ ...f, ganadoresIds: ids }))
+                            }}
+                            style={{ flex: 1, fontSize: 13 }}
+                          >
+                            <option value="">— sin seleccionar —</option>
+                            {jugadores.map(j => (
+                              <option key={j.id} value={j.id}>{j.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Card: Organizador */}
+                <div className="card" style={{ flex: '1 1 200px', minWidth: 180 }}>
+                  <div className="card-header" style={{ paddingBottom: 8 }}>
+                    💸 Organizador
+                    {cierre?.manual && (
+                      <span style={{ fontSize: 10, color: 'var(--color-primary)', marginLeft: 8, fontWeight: 400 }}>manual</span>
+                    )}
+                  </div>
+                  {!cierreEditando ? (
+                    <div style={{ padding: '4px 0' }}>
+                      {organizadorEfectivo
+                        ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
+                            <span style={{ fontSize: 20 }}>💸</span>
+                            <span style={{ fontWeight: 600 }}>{organizadorEfectivo.nombre}</span>
+                          </div>
+                        )
+                        : <p className="text-muted" style={{ fontSize: 13 }}>Sin datos</p>
+                      }
+                    </div>
+                  ) : (
+                    <div style={{ padding: '4px 0' }}>
+                      <select
+                        value={cierreForm.organizadorId}
+                        onChange={e => setCierreForm(f => ({ ...f, organizadorId: e.target.value }))}
+                        style={{ width: '100%', fontSize: 13 }}
+                      >
+                        <option value="">— sin seleccionar —</option>
+                        {jugadores.map(j => (
+                          <option key={j.id} value={j.id}>{j.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Nota / criterio — solo en modo edición */}
+                  {cierreEditando && (
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ fontSize: 11, color: 'var(--color-muted)', display: 'block', marginBottom: 4 }}>
+                        Criterio de desempate (opcional)
+                      </label>
+                      <textarea
+                        value={cierreForm.nota}
+                        onChange={e => setCierreForm(f => ({ ...f, nota: e.target.value }))}
+                        rows={3}
+                        placeholder="Ej: en caso de empate se priorizó diferencia de goles..."
+                        style={{ width: '100%', fontSize: 12, resize: 'vertical', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Botones de acción */}
+                  {esSuperAdmin && (
+                    <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
+                      {!cierreEditando ? (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: 12 }}
+                          onClick={() => abrirEditCierre(ganadoresEfectivos, organizadorEfectivo)}
+                        >
+                          ✏️ Editar
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: 12 }}
+                            onClick={guardarCierre}
+                            disabled={cierreSaving}
+                          >
+                            {cierreSaving ? 'Guardando...' : '💾 Guardar'}
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: 12 }}
+                            onClick={() => setCierreEditando(false)}
+                            disabled={cierreSaving}
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+        </>
       )}
     </div>
   )
