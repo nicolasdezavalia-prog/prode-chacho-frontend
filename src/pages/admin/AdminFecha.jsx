@@ -46,7 +46,8 @@ export default function AdminFecha() {
     anio: new Date().getFullYear(),
     bloque1_nombre: 'Liga Argentina',
     bloque2_nombre: 'Bloque 2',
-    tipo: 'completa'
+    tipo: 'completa',
+    importe_apuesta: ''
   })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -80,7 +81,8 @@ export default function AdminFecha() {
         anio: f.anio,
         bloque1_nombre: f.bloque1_nombre,
         bloque2_nombre: f.bloque2_nombre,
-        tipo: f.tipo || 'completa'
+        tipo: f.tipo || 'completa',
+        importe_apuesta: f.importe_apuesta ?? ''
       })
     } catch (err) {
       setError(err.message)
@@ -95,7 +97,10 @@ export default function AdminFecha() {
     setError('')
     try {
       if (isNew) {
-        const created = await api.createFecha(form)
+        const created = await api.createFecha({
+          ...form,
+          importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
+        })
         setSuccess('Fecha creada correctamente')
         navigate(`/admin/fecha/${created.id}`)
       } else {
@@ -106,6 +111,7 @@ export default function AdminFecha() {
           mes: form.mes,
           anio: form.anio,
           tipo: form.tipo,
+          importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
         })
         setSuccess('Fecha actualizada')
         loadFecha()
@@ -314,6 +320,21 @@ export default function AdminFecha() {
                 onChange={e => setForm(f => ({ ...f, anio: parseInt(e.target.value) }))}
                 min="2024"
               />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>💰 Apuesta por fecha (ARS)</label>
+            <input
+              type="number"
+              value={form.importe_apuesta}
+              onChange={e => setForm(f => ({ ...f, importe_apuesta: e.target.value }))}
+              placeholder="Ej: 5000 — dejá vacío si no hay apuesta"
+              min="0"
+              style={{ maxWidth: 280 }}
+            />
+            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
+              Si se carga un importe, los empates generan una deuda al pozo automáticamente.
             </div>
           </div>
 
