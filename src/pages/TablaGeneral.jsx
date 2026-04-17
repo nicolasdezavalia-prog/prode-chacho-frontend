@@ -126,7 +126,7 @@ export default function TablaGeneral() {
           <th>V</th>
           <th>E</th>
           <th>D</th>
-          {!esMensual && <th title="Victorias perfectas">★</th>}
+          {!esMensual && <th title="Victorias perfectas">Bonus</th>}
           <th>Pts</th>
         </tr>
       </thead>
@@ -148,11 +148,6 @@ export default function TablaGeneral() {
               </td>
               <td style={{fontWeight: esYo ? 700 : 400}}>
                 {row.nombre}
-                {!esMensual && row.bonus > 0 && (
-                  <span style={{color: 'var(--color-warning)', marginLeft: 6, fontSize: 12}}>
-                    ★{row.bonus}
-                  </span>
-                )}
               </td>
               <td>{row.pj}</td>
               <td className="text-success">{row.victorias}</td>

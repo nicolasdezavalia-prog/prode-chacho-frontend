@@ -556,7 +556,7 @@ export default function Home() {
                     <div style={{fontSize: 13, color: 'var(--color-muted)'}}>{miEntrada.puntos} pts · {miEntrada.pj} PJ</div>
                     <div style={{fontSize: 12, color: 'var(--color-muted)'}}>
                       {miEntrada.victorias}V {miEntrada.empates}E {miEntrada.derrotas}D
-                      {miEntrada.bonus > 0 && ` · ${miEntrada.bonus}★`}
+                      {miEntrada.bonus > 0 && ` · Bonus: ${miEntrada.bonus}`}
                     </div>
                   </div>
                 </div>
@@ -577,7 +577,6 @@ export default function Home() {
                         <td className="pos">{i + 1}</td>
                         <td style={{fontWeight: row.user_id === user.id ? 700 : 400}}>
                           {row.nombre.toUpperCase()}
-                          {row.bonus > 0 && <span style={{color:'var(--color-warning)', marginLeft:4}}>★</span>}
                         </td>
                         <td>{row.pj}</td>
                         <td className="pts">{row.puntos}</td>
