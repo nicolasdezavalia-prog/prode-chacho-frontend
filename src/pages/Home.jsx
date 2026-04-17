@@ -301,6 +301,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
 
 // ─── Item colapsable de fecha en la lista ────────────────────────────────────
 function FechaItem({ fecha, cruce, user }) {
+  const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [abierto, setAbierto] = useState(fecha.estado === 'abierta' || fecha.estado === 'cerrada')
   const [gdtResultado, setGdtResultado] = useState(null)
   const [gdtCargado, setGdtCargado] = useState(false)
