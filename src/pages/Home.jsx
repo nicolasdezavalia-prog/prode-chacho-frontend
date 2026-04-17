@@ -13,6 +13,10 @@ const ESTADO_LABEL = {
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+function formatARS(importe) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(importe)
+}
+
 // ─── Componente reutilizable de detalle de cruce ─────────────────────────────
 function CruceDetalle({ cruce, fecha, gdtResultado }) {
   const [gdtAbierto, setGdtAbierto] = useState(false)
@@ -300,11 +304,13 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
 }
 
 // ─── Item colapsable de fecha en la lista ────────────────────────────────────
-function FechaItem({ fecha, cruce, user }) {
+function FechaItem({ fecha, cruce, user, economia }) {
   const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [abierto, setAbierto] = useState(fecha.estado === 'abierta' || fecha.estado === 'cerrada')
   const [gdtResultado, setGdtResultado] = useState(null)
   const [gdtCargado, setGdtCargado] = useState(false)
+
+  const deudaFecha = economia?.porFecha?.[fecha.id]
 
   // Carga el GDT la primera vez que se expande
   const handleToggle = async () => {
@@ -347,7 +353,13 @@ function FechaItem({ fecha, cruce, user }) {
           <div>
             <div style={{fontWeight: 600, fontSize: 14}}>{fecha.nombre}</div>
             <div style={{fontSize: 11, color: 'var(--color-muted)'}}>
-              {fecha.bloque1_nombre} · {fecha.bloque2_nombre}
+              {MESES[(fecha.mes || 1) - 1]} {fecha.anio}
+              {' · '}{fecha.bloque1_nombre} · {fecha.bloque2_nombre}
+              {fecha.importe_apuesta > 0 && (
+                <span style={{marginLeft: 6, color: 'var(--color-warning)', fontWeight: 600}}>
+                  💰 {formatARS(fecha.importe_apuesta)}
+                </span>
+              )}
               {/* Resumen rival cuando está colapsado */}
               {cruce && !abierto && (
                 <span style={{marginLeft: 8}}>
@@ -380,6 +392,16 @@ function FechaItem({ fecha, cruce, user }) {
       {/* Detalle colapsable */}
       {abierto && cruce && (
         <div style={{paddingBottom: 12}}>
+          {deudaFecha && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: '#fef9ec', border: '1px solid #fcd34d',
+              borderRadius: 6, padding: '7px 10px', marginBottom: 8, fontSize: 12
+            }}>
+              <span>💸</span>
+              <span>Debés <strong>{formatARS(deudaFecha.total)}</strong> al pozo por empate en esta fecha</span>
+            </div>
+          )}
           <CruceDetalle cruce={cruce} fecha={fecha} gdtResultado={gdtResultado} />
         </div>
       )}
@@ -404,6 +426,7 @@ export default function Home() {
   const [cruce, setCruce] = useState(null)
   const [misCruces, setMisCruces] = useState({})
   const [gdtResultado, setGdtResultado] = useState(null)
+  const [economia, setEconomia] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -437,6 +460,11 @@ export default function Home() {
         const map = {}
         for (const c of mc) map[c.fecha_id] = c
         setMisCruces(map)
+      } catch (_) {}
+
+      try {
+        const eco = await api.getResumenEconomico()
+        setEconomia(eco)
       } catch (_) {}
 
       const fechaActiva = [...fs].reverse().find(f => f.estado === 'abierta' || f.estado === 'cerrada')
@@ -506,11 +534,29 @@ export default function Home() {
                   <div>
                     <div style={{fontSize: 11, color: 'var(--color-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.5px'}}>Fecha actual</div>
                     <div style={{fontSize: 18, fontWeight: 700}}>{ultimaFecha.nombre}</div>
-                    <div style={{fontSize: 12, color: 'var(--color-muted)'}}>{ultimaFecha.bloque1_nombre} · {ultimaFecha.bloque2_nombre}</div>
+                    <div style={{fontSize: 12, color: 'var(--color-muted)'}}>
+                      {MESES[(ultimaFecha.mes || 1) - 1]} {ultimaFecha.anio}
+                      {' · '}{ultimaFecha.bloque1_nombre} · {ultimaFecha.bloque2_nombre}
+                      {ultimaFecha.importe_apuesta > 0 && (
+                        <span style={{marginLeft: 6, color: 'var(--color-warning)', fontWeight: 600}}>
+                          💰 {formatARS(ultimaFecha.importe_apuesta)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span className={`badge ${ESTADO_LABEL[ultimaFecha.estado].cls}`}>{ESTADO_LABEL[ultimaFecha.estado].label}</span>
                 </div>
 
+                {economia?.porFecha?.[ultimaFecha.id] && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: '#fef9ec', border: '1px solid #fcd34d',
+                    borderRadius: 6, padding: '7px 10px', marginBottom: 10, fontSize: 12
+                  }}>
+                    <span>💸</span>
+                    <span>Debés <strong>{formatARS(economia.porFecha[ultimaFecha.id].total)}</strong> al pozo por empate en esta fecha</span>
+                  </div>
+                )}
                 {cruce
                   ? <div style={{marginBottom: 14}}><CruceDetalle cruce={cruce} fecha={ultimaFecha} gdtResultado={gdtResultado} /></div>
                   : <div style={{background:'var(--color-surface2)', borderRadius:'var(--radius)', padding:'12px 14px', marginBottom:14, fontSize:13, color:'var(--color-muted)', textAlign:'center'}}>Sin cruce asignado para esta fecha</div>
@@ -539,7 +585,7 @@ export default function Home() {
                 <div>
                   {fechasVisibles.slice().reverse().map(fecha => {
                     const c = misCruces[fecha.id]
-                    return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} />
+                    return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} economia={economia} />
                   })}
                 </div>
               )}
@@ -586,6 +632,16 @@ export default function Home() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {economia?.totalPendiente > 0 && (
+              <div className="card" style={{marginBottom: 16, borderColor: '#fcd34d', background: '#fffbeb'}}>
+                <div className="card-header" style={{paddingBottom: 6}}>💸 Deuda al pozo</div>
+                <div style={{fontSize: 22, fontWeight: 800, color: '#b45309'}}>{formatARS(economia.totalPendiente)}</div>
+                <div style={{fontSize: 11, color: 'var(--color-muted)', marginTop: 4}}>
+                  {Object.keys(economia.porFecha || {}).length} fecha{Object.keys(economia.porFecha || {}).length !== 1 ? 's' : ''} pendiente{Object.keys(economia.porFecha || {}).length !== 1 ? 's' : ''}
+                </div>
               </div>
             )}
 

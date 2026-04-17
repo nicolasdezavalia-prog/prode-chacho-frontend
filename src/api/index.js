@@ -131,4 +131,12 @@ export const api = {
   gdtAprobarPendiente: (id, data) => request('POST', `/gdt/pendientes/${id}/aprobar`, data || {}),
   gdtRechazarPendiente: (id) => request('POST', `/gdt/pendientes/${id}/rechazar`),
   gdtUnificarPendiente: (id, keepId) => request('POST', `/gdt/pendientes/${id}/unificar`, { keep_id: keepId }),
+
+  // Movimientos económicos
+  getResumenEconomico: () => request('GET', '/movimientos/resumen-home'),
+  getMovimientosFecha: (fechaId) => request('GET', `/movimientos/fecha/${fechaId}`),
+  getPozoMensual: (torneoId, mes, anio) => request('GET', `/movimientos/pozo-mensual?torneo_id=${torneoId}&mes=${mes}&anio=${anio}`),
+  crearMovimientoManual: (data) => request('POST', '/movimientos/manual', data),
+  togglePagadoMovimiento: (id) => request('PATCH', `/movimientos/${id}/pagar`),
+  eliminarMovimiento: (id) => request('DELETE', `/movimientos/${id}`),
 };

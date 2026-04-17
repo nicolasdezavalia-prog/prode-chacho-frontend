@@ -6,6 +6,10 @@ import { useAuth } from '../App.jsx'
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+function formatARS(importe) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(importe)
+}
+
 const thS = { padding: '8px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', color: 'var(--color-muted)' }
 const tdS = { padding: '10px 10px', verticalAlign: 'middle' }
 
@@ -58,6 +62,9 @@ export default function TablaGeneral() {
   const [cierreEditando, setCierreEditando] = useState(false)
   const [cierreForm, setCierreForm] = useState({ ganadoresIds: ['', '', '', ''], organizadorId: '', nota: '' })
   const [cierreSaving, setCierreSaving] = useState(false)
+
+  // Pozo económico mensual
+  const [pozo, setPozo] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -122,6 +129,12 @@ export default function TablaGeneral() {
       setCierreEditando(false)
     } catch (err) {
       console.error(err)
+    }
+    try {
+      const p = await api.getPozoMensual(torneoId, mesSeleccionado, anioSeleccionado)
+      setPozo(p)
+    } catch (_) {
+      setPozo(null)
     }
   }
 
@@ -431,6 +444,39 @@ export default function TablaGeneral() {
 
             return (
               <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+                {/* Card: Pozo recaudado */}
+                {pozo && pozo.total > 0 && (
+                  <div className="card" style={{ flex: '0 0 auto', minWidth: 180 }}>
+                    <div className="card-header" style={{ paddingBottom: 8 }}>💰 Pozo</div>
+                    <div style={{ padding: '4px 0' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-success)' }}>
+                        {formatARS(pozo.total)}
+                      </div>
+                      {pozo.pendiente > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 2 }}>
+                          {formatARS(pozo.pendiente)} pendiente
+                        </div>
+                      )}
+                      {pozo.pagado > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--color-success)', marginTop: 2 }}>
+                          {formatARS(pozo.pagado)} cobrado ✓
+                        </div>
+                      )}
+                      {pozo.porFecha && pozo.porFecha.length > 0 && (
+                        <div style={{ marginTop: 8, borderTop: '1px solid var(--color-border)', paddingTop: 6 }}>
+                          {pozo.porFecha.map((pf, i) => (
+                            <div key={i} style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 2 }}>
+                              F{pf.fecha_numero} {pf.fecha_nombre}:
+                              {' '}{pf.usuarios.map(u => u.pagado ? '✅' : '⏳').join('')}
+                              {' '}{formatARS(pf.importe * pf.usuarios.length)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Card: Ganadores de las comidas */}
                 <div className="card" style={{ flex: '1 1 260px', minWidth: 240 }}>
                   <div className="card-header" style={{ paddingBottom: 8 }}>
