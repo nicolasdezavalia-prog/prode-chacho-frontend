@@ -136,6 +136,7 @@ export const api = {
   getResumenEconomico: () => request('GET', '/movimientos/resumen-home'),
   getMovimientosFecha: (fechaId) => request('GET', `/movimientos/fecha/${fechaId}`),
   getPozoMensual: (torneoId, mes, anio) => request('GET', `/movimientos/pozo-mensual?torneo_id=${torneoId}&mes=${mes}&anio=${anio}`),
+  getDeudores: (torneoId) => request('GET', `/movimientos/deudores${torneoId ? `?torneo_id=${torneoId}` : ''}`),
   crearMovimientoManual: (data) => request('POST', '/movimientos/manual', data),
   togglePagadoMovimiento: (id) => request('PATCH', `/movimientos/${id}/pagar`),
   eliminarMovimiento: (id) => request('DELETE', `/movimientos/${id}`),

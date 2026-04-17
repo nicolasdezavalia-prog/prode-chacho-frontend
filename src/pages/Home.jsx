@@ -303,6 +303,70 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
   )
 }
 
+// ─── Fila de deuda individual con confirmar pago ─────────────────────────────
+function DeudaRow({ mov, onPaid }) {
+  const [confirming, setConfirming] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const aQuien = mov.acreedor_nombre ? mov.acreedor_nombre.toUpperCase() : 'POZO'
+
+  const handlePagar = async () => {
+    setSaving(true)
+    try {
+      await api.togglePagadoMovimiento(mov.id)
+      onPaid()
+    } catch (e) {
+      alert(e.message)
+      setSaving(false)
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '8px 0', borderBottom: '1px solid var(--color-border)', gap: 8
+    }}>
+      <div style={{flex: 1, minWidth: 0}}>
+        <div style={{fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+          {mov.concepto}
+        </div>
+        <div style={{fontSize: 11, color: 'var(--color-muted)'}}>
+          → <strong>{aQuien}</strong> · <span style={{color: '#b45309', fontWeight: 700}}>{formatARS(mov.importe)}</span>
+        </div>
+      </div>
+      {!confirming ? (
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={() => setConfirming(true)}
+          style={{fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0}}
+        >
+          ✓ Ya pagué
+        </button>
+      ) : (
+        <div style={{display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0}}>
+          <span style={{fontSize: 10, color: 'var(--color-muted)'}}>¿Seguro?</span>
+          <button
+            className="btn btn-success btn-sm"
+            onClick={handlePagar}
+            disabled={saving}
+            style={{fontSize: 11}}
+          >
+            {saving ? '...' : 'Sí'}
+          </button>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setConfirming(false)}
+            style={{fontSize: 11}}
+          >
+            No
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Item colapsable de fecha en la lista ────────────────────────────────────
 function FechaItem({ fecha, cruce, user, economia }) {
   const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
@@ -392,14 +456,20 @@ function FechaItem({ fecha, cruce, user, economia }) {
       {/* Detalle colapsable */}
       {abierto && cruce && (
         <div style={{paddingBottom: 12}}>
-          {deudaFecha && (
+          {deudaFecha && deudaFecha.items && deudaFecha.items.length > 0 && (
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
               background: '#fef9ec', border: '1px solid #fcd34d',
               borderRadius: 6, padding: '7px 10px', marginBottom: 8, fontSize: 12
             }}>
-              <span>💸</span>
-              <span>Debés <strong>{formatARS(deudaFecha.total)}</strong> al pozo por empate en esta fecha</span>
+              {deudaFecha.items.map(m => (
+                <div key={m.id} style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                  <span>💸</span>
+                  <span>
+                    Debés <strong>{formatARS(m.importe)}</strong>{' '}
+                    {m.acreedor_nombre ? <>a <strong>{m.acreedor_nombre}</strong></> : <>al <strong>POZO</strong></>}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
           <CruceDetalle cruce={cruce} fecha={fecha} gdtResultado={gdtResultado} />
@@ -547,14 +617,20 @@ export default function Home() {
                   <span className={`badge ${ESTADO_LABEL[ultimaFecha.estado].cls}`}>{ESTADO_LABEL[ultimaFecha.estado].label}</span>
                 </div>
 
-                {economia?.porFecha?.[ultimaFecha.id] && (
+                {economia?.porFecha?.[ultimaFecha.id]?.items?.length > 0 && (
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
                     background: '#fef9ec', border: '1px solid #fcd34d',
                     borderRadius: 6, padding: '7px 10px', marginBottom: 10, fontSize: 12
                   }}>
-                    <span>💸</span>
-                    <span>Debés <strong>{formatARS(economia.porFecha[ultimaFecha.id].total)}</strong> al pozo por empate en esta fecha</span>
+                    {economia.porFecha[ultimaFecha.id].items.map(m => (
+                      <div key={m.id} style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                        <span>💸</span>
+                        <span>
+                          Debés <strong>{formatARS(m.importe)}</strong>{' '}
+                          {m.acreedor_nombre ? <>a <strong>{m.acreedor_nombre}</strong></> : <>al <strong>POZO</strong></>}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {cruce
@@ -636,12 +712,33 @@ export default function Home() {
             )}
 
             {economia?.totalPendiente > 0 && (
-              <div className="card" style={{marginBottom: 16, borderColor: '#fcd34d', background: '#fffbeb'}}>
-                <div className="card-header" style={{paddingBottom: 6}}>💸 Deuda al pozo</div>
-                <div style={{fontSize: 22, fontWeight: 800, color: '#b45309'}}>{formatARS(economia.totalPendiente)}</div>
-                <div style={{fontSize: 11, color: 'var(--color-muted)', marginTop: 4}}>
-                  {Object.keys(economia.porFecha || {}).length} fecha{Object.keys(economia.porFecha || {}).length !== 1 ? 's' : ''} pendiente{Object.keys(economia.porFecha || {}).length !== 1 ? 's' : ''}
+              <div className="card" style={{marginBottom: 16, borderColor: '#fcd34d'}}>
+                <div className="card-header" style={{paddingBottom: 4}}>
+                  💸 Mis deudas
+                  <span style={{fontSize: 13, fontWeight: 700, color: '#b45309'}}>
+                    {formatARS(economia.totalPendiente)}
+                  </span>
                 </div>
+                <div>
+                  {(economia.movimientos || []).filter(m => !m.pagado).map(m => (
+                    <DeudaRow key={m.id} mov={m} onPaid={loadData} />
+                  ))}
+                </div>
+                {esAdmin && (
+                  <div style={{paddingTop: 8}}>
+                    <Link to="/admin/deudores" className="btn btn-secondary btn-sm" style={{width: '100%', justifyContent: 'center'}}>
+                      📊 Ver cuadro de deudores
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+            {economia?.totalPendiente === 0 && esAdmin && (
+              <div className="card" style={{marginBottom: 16}}>
+                <div className="card-header">💰 Economía</div>
+                <Link to="/admin/deudores" className="btn btn-secondary btn-sm" style={{width: '100%', justifyContent: 'center'}}>
+                  📊 Cuadro de deudores
+                </Link>
               </div>
             )}
 
