@@ -369,7 +369,7 @@ function FechaItem({ fecha, cruce, user }) {
           {fecha.estado !== 'borrador' && (
             <Link to={`/fecha/${fecha.id}/enfrentamientos`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>⚔️</Link>
           )}
-          {user.role === 'admin' && (
+          {esAdmin && (
             <Link to={`/admin/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Admin</Link>
           )}
           <span style={{color: 'var(--color-muted)', fontSize: 12}}>{abierto ? '▲' : '▼'}</span>
@@ -395,6 +395,7 @@ function FechaItem({ fecha, cruce, user }) {
 export default function Home() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [torneoActivo, setTorneoActivo] = useState(null)
   const [fechas, setFechas] = useState([])
   const [tabla, setTabla] = useState([])
@@ -459,7 +460,7 @@ export default function Home() {
 
   if (loading) return <div className="loading">Cargando...</div>
 
-  const fechasVisibles = fechas.filter(f => f.estado !== 'borrador' || user.role === 'admin')
+  const fechasVisibles = fechas.filter(f => f.estado !== 'borrador' || esAdmin)
   const ultimaFecha    = [...fechasVisibles].reverse().find(f => f.estado === 'abierta' || f.estado === 'cerrada')
     || fechasVisibles[fechasVisibles.length - 1]
   const miPosicion     = tabla.findIndex(t => t.user_id === user.id) + 1
@@ -477,7 +478,7 @@ export default function Home() {
             </p>
           )}
         </div>
-        {user.role === 'admin' && (
+        {esAdmin && (
           <Link to="/admin/fecha/nueva" className="btn btn-primary">+ Nueva Fecha</Link>
         )}
       </div>
@@ -487,7 +488,7 @@ export default function Home() {
       {!torneoActivo ? (
         <div className="card" style={{textAlign: 'center', padding: 40}}>
           <p className="text-muted" style={{marginBottom: 12}}>No hay torneos activos</p>
-          {user.role === 'admin' && (
+          {esAdmin && (
             <button className="btn btn-primary" onClick={() => navigate('/admin/torneo/nuevo')}>Crear torneo</button>
           )}
         </div>
@@ -529,7 +530,7 @@ export default function Home() {
             <div className="card">
               <div className="card-header">
                 Fechas del torneo
-                {user.role === 'admin' && <Link to="/admin/fecha/nueva" className="btn btn-secondary btn-sm">+ Nueva</Link>}
+                {esAdmin && <Link to="/admin/fecha/nueva" className="btn btn-secondary btn-sm">+ Nueva</Link>}
               </div>
               {fechasVisibles.length === 0 ? (
                 <p className="text-muted" style={{textAlign: 'center', padding: '24px 0'}}>No hay fechas todavía</p>

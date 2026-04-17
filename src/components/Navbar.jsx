@@ -91,7 +91,8 @@ export default function Navbar() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const isSuperAdmin = user?.role === 'superadmin'
 
   return (
     <nav className="navbar">
@@ -141,8 +142,8 @@ export default function Navbar() {
       {/* Usuario */}
       <div className="navbar-user">
         <span>{user?.nombre}</span>
-        <span className="badge badge-borrador" style={{ fontSize: 10 }}>
-          {isAdmin ? 'ADMIN' : 'JUGADOR'}
+        <span className="badge badge-borrador" style={{ fontSize: 10, ...(isSuperAdmin ? { background: 'rgba(124,58,237,0.15)', color: '#7c3aed' } : {}) }}>
+          {isSuperAdmin ? 'SUPER' : isAdmin ? 'ADMIN' : 'JUGADOR'}
         </span>
         {isAdmin && (
           <Link to="/admin/usuarios" className="btn btn-secondary btn-sm" title="Gestión de usuarios">

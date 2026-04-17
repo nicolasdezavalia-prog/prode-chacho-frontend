@@ -31,7 +31,7 @@ export function useAuth() {
 function PrivateRoute({ children, adminOnly = false }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" />
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/" />
+  if (adminOnly && user.role !== 'admin' && user.role !== 'superadmin') return <Navigate to="/" />
   return children
 }
 
