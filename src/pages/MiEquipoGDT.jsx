@@ -321,7 +321,8 @@ export default function MiEquipoGDT() {
       }
       setForm(f)
 
-      if (!equipoRes.equipo || equipoRes.equipo.length === 0) setModoEdicion(true)
+      // Solo auto-entrar en modo edición si no tiene equipo Y hay ventana abierta
+      if ((!equipoRes.equipo || equipoRes.equipo.length === 0) && ventanaRes.ventana) setModoEdicion(true)
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -392,7 +393,7 @@ export default function MiEquipoGDT() {
     <div className="main-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>⚽ Mi Equipo Gran DT</h2>
-        {tieneEquipo && !modoEdicion && (
+        {tieneEquipo && !modoEdicion && ventanaInfo?.ventana && (
           <button className="btn btn-secondary" onClick={() => setModoEdicion(true)}>Editar equipo</button>
         )}
       </div>
@@ -647,9 +648,15 @@ export default function MiEquipoGDT() {
       {!tieneEquipo && !modoEdicion && (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-muted)' }}>
           <p>Todavía no cargaste tu equipo Gran DT.</p>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setModoEdicion(true)}>
-            Armar mi equipo
-          </button>
+          {ventanaInfo?.ventana ? (
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setModoEdicion(true)}>
+              Armar mi equipo
+            </button>
+          ) : (
+            <p style={{ fontSize: 13, marginTop: 8, color: 'var(--color-muted)' }}>
+              No hay una ventana abierta. Esperá a que el admin abra una para poder inscribirte.
+            </p>
+          )}
         </div>
       )}
     </div>
