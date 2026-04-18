@@ -80,6 +80,14 @@ export default function AdminFecha() {
     } catch (_) {}
   }
 
+  const loadJugadoresTorneo = async (torneoId) => {
+    if (!torneoId) return
+    try {
+      const t = await api.getTorneo(torneoId)
+      setJugadoresTorneo(t.jugadores || [])
+    } catch (_) {}
+  }
+
   const loadTorneos = async () => {
     try {
       const ts = await api.getTorneos()
@@ -105,6 +113,7 @@ export default function AdminFecha() {
         tipo: f.tipo || 'completa',
         importe_apuesta: f.importe_apuesta ?? ''
       })
+      loadJugadoresTorneo(f.torneo_id)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -177,7 +186,8 @@ export default function AdminFecha() {
   const [recalculando, setRecalculando] = useState(false)
   const [cruces, setCruces] = useState([])
   const [movFecha, setMovFecha] = useState([])
-  const [apuestaForm, setApuestaForm] = useState({ cruce_id: '', paga_user_id: '', acreedor: 'rival', importe: '', concepto: 'Apuesta adicional' })
+  const [jugadoresTorneo, setJugadoresTorneo] = useState([])
+  const [apuestaForm, setApuestaForm] = useState({ paga_user_id: '', acreedor_user_id: '', importe: '', concepto: 'Deuda adicional' })
   const [savingApuesta, setSavingApuesta] = useState(false)
   const handleRecalcular = async () => {
     if (!fecha || fecha.estado === 'borrador') return
@@ -195,27 +205,22 @@ export default function AdminFecha() {
 
   const handleAgregarApuesta = async (e) => {
     e.preventDefault()
-    if (!apuestaForm.cruce_id || !apuestaForm.paga_user_id || !apuestaForm.importe) return
-    const cruce = cruces.find(c => c.id === parseInt(apuestaForm.cruce_id))
-    if (!cruce) return
-    const acreedorId = apuestaForm.acreedor === 'rival'
-      ? (cruce.user1_id === parseInt(apuestaForm.paga_user_id) ? cruce.user2_id : cruce.user1_id)
-      : null
+    if (!apuestaForm.paga_user_id || !apuestaForm.importe) return
+    const acreedorId = apuestaForm.acreedor_user_id ? parseInt(apuestaForm.acreedor_user_id) : null
     setSavingApuesta(true)
     try {
       await api.crearMovimientoManual({
         torneo_id: fecha.torneo_id,
         fecha_id: parseInt(fechaId),
-        cruce_id: parseInt(apuestaForm.cruce_id),
         user_id: parseInt(apuestaForm.paga_user_id),
         acreedor_user_id: acreedorId,
-        concepto: apuestaForm.concepto || 'Apuesta adicional',
+        concepto: apuestaForm.concepto || 'Deuda adicional',
         importe: parseInt(apuestaForm.importe),
         signo: '+',
       })
-      setApuestaForm(f => ({ ...f, cruce_id: '', paga_user_id: '', importe: '', concepto: 'Apuesta adicional' }))
+      setApuestaForm(f => ({ ...f, paga_user_id: '', acreedor_user_id: '', importe: '', concepto: 'Deuda adicional' }))
       await loadCrucesYMovimientos()
-      setSuccess('Apuesta agregada')
+      setSuccess('Deuda agregada')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -472,31 +477,14 @@ export default function AdminFecha() {
         </div>
       )}
 
-      {/* Apuestas adicionales — solo superadmin, solo cuando hay cruces con apuesta */}
-      {!isNew && fecha && isSuperAdmin && fecha.estado !== 'borrador' && cruces.length > 0 && fecha.importe_apuesta > 0 && (
+      {/* Deudas adicionales — solo superadmin */}
+      {!isNew && fecha && isSuperAdmin && fecha.estado !== 'borrador' && jugadoresTorneo.length > 0 && (
         <div className="card" style={{marginTop: 16}}>
-          <div className="card-header">💸 Apuestas adicionales por duelo</div>
+          <div className="card-header">💸 Deudas adicionales</div>
 
           {/* Formulario */}
           <form onSubmit={handleAgregarApuesta} style={{marginBottom: 16}}>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12}}>
-              {/* Seleccionar cruce */}
-              <div className="form-group" style={{margin: 0}}>
-                <label style={{fontSize: 12}}>Duelo</label>
-                <select
-                  value={apuestaForm.cruce_id}
-                  onChange={e => setApuestaForm(f => ({ ...f, cruce_id: e.target.value, paga_user_id: '' }))}
-                  required
-                >
-                  <option value="">Seleccionar...</option>
-                  {cruces.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.user1_nombre} vs {c.user2_nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12}}>
               {/* Quién paga */}
               <div className="form-group" style={{margin: 0}}>
                 <label style={{fontSize: 12}}>Quién paga</label>
@@ -504,30 +492,27 @@ export default function AdminFecha() {
                   value={apuestaForm.paga_user_id}
                   onChange={e => setApuestaForm(f => ({ ...f, paga_user_id: e.target.value }))}
                   required
-                  disabled={!apuestaForm.cruce_id}
                 >
                   <option value="">Seleccionar...</option>
-                  {apuestaForm.cruce_id && (() => {
-                    const c = cruces.find(c => c.id === parseInt(apuestaForm.cruce_id))
-                    return c ? [
-                      <option key={c.user1_id} value={c.user1_id}>{c.user1_nombre}</option>,
-                      <option key={c.user2_id} value={c.user2_id}>{c.user2_nombre}</option>,
-                    ] : null
-                  })()}
+                  {jugadoresTorneo.map(j => (
+                    <option key={j.id} value={j.id}>{j.nombre}</option>
+                  ))}
                 </select>
               </div>
-            </div>
 
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12}}>
               {/* A quién le paga */}
               <div className="form-group" style={{margin: 0}}>
-                <label style={{fontSize: 12}}>A quién</label>
+                <label style={{fontSize: 12}}>A quién le paga</label>
                 <select
-                  value={apuestaForm.acreedor}
-                  onChange={e => setApuestaForm(f => ({ ...f, acreedor: e.target.value }))}
+                  value={apuestaForm.acreedor_user_id}
+                  onChange={e => setApuestaForm(f => ({ ...f, acreedor_user_id: e.target.value }))}
                 >
-                  <option value="rival">Al rival</option>
-                  <option value="pozo">Al POZO</option>
+                  <option value="">Al POZO</option>
+                  {jugadoresTorneo
+                    .filter(j => j.id !== parseInt(apuestaForm.paga_user_id))
+                    .map(j => (
+                      <option key={j.id} value={j.id}>{j.nombre}</option>
+                    ))}
                 </select>
               </div>
 
@@ -550,13 +535,13 @@ export default function AdminFecha() {
                 <input
                   value={apuestaForm.concepto}
                   onChange={e => setApuestaForm(f => ({ ...f, concepto: e.target.value }))}
-                  placeholder="Apuesta adicional"
+                  placeholder="Deuda adicional"
                 />
               </div>
             </div>
 
             <button type="submit" className="btn btn-primary btn-sm" disabled={savingApuesta}>
-              {savingApuesta ? 'Agregando...' : '+ Agregar apuesta'}
+              {savingApuesta ? 'Agregando...' : '+ Agregar deuda'}
             </button>
           </form>
 
