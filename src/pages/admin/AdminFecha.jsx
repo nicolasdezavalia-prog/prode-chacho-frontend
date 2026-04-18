@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '../../api/index.js'
+import { useAuth } from '../../App.jsx'
+
+function formatARS(importe) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(importe)
+}
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -34,6 +39,8 @@ const ESTADO_BACK_BTN = {
 export default function AdminFecha() {
   const { fechaId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superadmin'
   const isNew = !fechaId
 
   const [torneos, setTorneos] = useState([])
@@ -56,8 +63,22 @@ export default function AdminFecha() {
 
   useEffect(() => {
     loadTorneos()
-    if (!isNew) loadFecha()
+    if (!isNew) {
+      loadFecha()
+      loadCrucesYMovimientos()
+    }
   }, [fechaId])
+
+  const loadCrucesYMovimientos = async () => {
+    try {
+      const [cs, movs] = await Promise.all([
+        api.getCruces(fechaId),
+        api.getMovimientosFecha(fechaId),
+      ])
+      setCruces(cs)
+      setMovFecha(movs.movimientos || [])
+    } catch (_) {}
+  }
 
   const loadTorneos = async () => {
     try {
@@ -154,6 +175,10 @@ export default function AdminFecha() {
   }
 
   const [recalculando, setRecalculando] = useState(false)
+  const [cruces, setCruces] = useState([])
+  const [movFecha, setMovFecha] = useState([])
+  const [apuestaForm, setApuestaForm] = useState({ cruce_id: '', paga_user_id: '', acreedor: 'rival', importe: '', concepto: 'Apuesta adicional' })
+  const [savingApuesta, setSavingApuesta] = useState(false)
   const handleRecalcular = async () => {
     if (!fecha || fecha.estado === 'borrador') return
     setRecalculando(true)
@@ -166,6 +191,44 @@ export default function AdminFecha() {
     } finally {
       setRecalculando(false)
     }
+  }
+
+  const handleAgregarApuesta = async (e) => {
+    e.preventDefault()
+    if (!apuestaForm.cruce_id || !apuestaForm.paga_user_id || !apuestaForm.importe) return
+    const cruce = cruces.find(c => c.id === parseInt(apuestaForm.cruce_id))
+    if (!cruce) return
+    const acreedorId = apuestaForm.acreedor === 'rival'
+      ? (cruce.user1_id === parseInt(apuestaForm.paga_user_id) ? cruce.user2_id : cruce.user1_id)
+      : null
+    setSavingApuesta(true)
+    try {
+      await api.crearMovimientoManual({
+        torneo_id: fecha.torneo_id,
+        fecha_id: parseInt(fechaId),
+        cruce_id: parseInt(apuestaForm.cruce_id),
+        user_id: parseInt(apuestaForm.paga_user_id),
+        acreedor_user_id: acreedorId,
+        concepto: apuestaForm.concepto || 'Apuesta adicional',
+        importe: parseInt(apuestaForm.importe),
+        signo: '+',
+      })
+      setApuestaForm(f => ({ ...f, cruce_id: '', paga_user_id: '', importe: '', concepto: 'Apuesta adicional' }))
+      await loadCrucesYMovimientos()
+      setSuccess('Apuesta agregada')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingApuesta(false)
+    }
+  }
+
+  const handleEliminarMov = async (id) => {
+    if (!confirm('¿Eliminar este movimiento?')) return
+    try {
+      await api.eliminarMovimiento(id)
+      await loadCrucesYMovimientos()
+    } catch (err) { setError(err.message) }
   }
 
   if (loading) return <div className="loading">Cargando...</div>
@@ -378,7 +441,6 @@ export default function AdminFecha() {
           </div>
           <div style={{display: 'flex', gap: 12, flexWrap: 'wrap'}}>
             {fecha.tipo === 'resumida' ? (
-              // Modo resumido: solo fixture + resultados resumidos
               <>
                 <Link to={`/admin/fecha/${fechaId}/fixture`} className="btn btn-secondary">
                   🔀 Definir fixture de cruces
@@ -388,7 +450,6 @@ export default function AdminFecha() {
                 </Link>
               </>
             ) : (
-              // Modo completo: flujo normal
               <>
                 <Link to={`/admin/fecha/${fechaId}/eventos`} className="btn btn-secondary">
                   📋 Cargar eventos (30)
@@ -408,6 +469,148 @@ export default function AdminFecha() {
               👁 Ver como jugador
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* Apuestas adicionales — solo superadmin, solo cuando hay cruces con apuesta */}
+      {!isNew && fecha && isSuperAdmin && fecha.estado !== 'borrador' && cruces.length > 0 && fecha.importe_apuesta > 0 && (
+        <div className="card" style={{marginTop: 16}}>
+          <div className="card-header">💸 Apuestas adicionales por duelo</div>
+
+          {/* Formulario */}
+          <form onSubmit={handleAgregarApuesta} style={{marginBottom: 16}}>
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12}}>
+              {/* Seleccionar cruce */}
+              <div className="form-group" style={{margin: 0}}>
+                <label style={{fontSize: 12}}>Duelo</label>
+                <select
+                  value={apuestaForm.cruce_id}
+                  onChange={e => setApuestaForm(f => ({ ...f, cruce_id: e.target.value, paga_user_id: '' }))}
+                  required
+                >
+                  <option value="">Seleccionar...</option>
+                  {cruces.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.user1_nombre} vs {c.user2_nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quién paga */}
+              <div className="form-group" style={{margin: 0}}>
+                <label style={{fontSize: 12}}>Quién paga</label>
+                <select
+                  value={apuestaForm.paga_user_id}
+                  onChange={e => setApuestaForm(f => ({ ...f, paga_user_id: e.target.value }))}
+                  required
+                  disabled={!apuestaForm.cruce_id}
+                >
+                  <option value="">Seleccionar...</option>
+                  {apuestaForm.cruce_id && (() => {
+                    const c = cruces.find(c => c.id === parseInt(apuestaForm.cruce_id))
+                    return c ? [
+                      <option key={c.user1_id} value={c.user1_id}>{c.user1_nombre}</option>,
+                      <option key={c.user2_id} value={c.user2_id}>{c.user2_nombre}</option>,
+                    ] : null
+                  })()}
+                </select>
+              </div>
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12}}>
+              {/* A quién le paga */}
+              <div className="form-group" style={{margin: 0}}>
+                <label style={{fontSize: 12}}>A quién</label>
+                <select
+                  value={apuestaForm.acreedor}
+                  onChange={e => setApuestaForm(f => ({ ...f, acreedor: e.target.value }))}
+                >
+                  <option value="rival">Al rival</option>
+                  <option value="pozo">Al POZO</option>
+                </select>
+              </div>
+
+              {/* Importe */}
+              <div className="form-group" style={{margin: 0}}>
+                <label style={{fontSize: 12}}>Importe (ARS)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={apuestaForm.importe}
+                  onChange={e => setApuestaForm(f => ({ ...f, importe: e.target.value }))}
+                  placeholder="Ej: 5000"
+                  required
+                />
+              </div>
+
+              {/* Concepto */}
+              <div className="form-group" style={{margin: 0}}>
+                <label style={{fontSize: 12}}>Concepto</label>
+                <input
+                  value={apuestaForm.concepto}
+                  onChange={e => setApuestaForm(f => ({ ...f, concepto: e.target.value }))}
+                  placeholder="Apuesta adicional"
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-sm" disabled={savingApuesta}>
+              {savingApuesta ? 'Agregando...' : '+ Agregar apuesta'}
+            </button>
+          </form>
+
+          {/* Lista de movimientos manuales de esta fecha */}
+          {movFecha.filter(m => m.tipo === 'manual').length > 0 && (
+            <div>
+              <div style={{fontSize: 12, fontWeight: 600, color: 'var(--color-muted)', marginBottom: 6, textTransform: 'uppercase'}}>
+                Apuestas cargadas
+              </div>
+              <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
+                <thead>
+                  <tr style={{background: 'var(--color-surface2)', borderBottom: '1px solid var(--color-border)'}}>
+                    {['Jugador', 'Concepto', 'Importe', 'A quién', 'Estado', ''].map((h, i) => (
+                      <th key={i} style={{padding: '5px 8px', fontWeight: 600, fontSize: 11, textAlign: i >= 2 ? 'center' : 'left', color: 'var(--color-muted)', textTransform: 'uppercase'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {movFecha.filter(m => m.tipo === 'manual').map(m => (
+                    <tr key={m.id} style={{borderBottom: '1px solid var(--color-border)', background: m.pagado ? '#f0fdf4' : 'inherit'}}>
+                      <td style={{padding: '5px 8px', fontWeight: 600}}>{m.user_nombre}</td>
+                      <td style={{padding: '5px 8px', color: 'var(--color-muted)'}}>{m.concepto}</td>
+                      <td style={{padding: '5px 8px', textAlign: 'center', fontWeight: 700, color: m.pagado ? 'var(--color-success)' : '#b45309'}}>
+                        {formatARS(m.importe)}
+                      </td>
+                      <td style={{padding: '5px 8px', textAlign: 'center'}}>
+                        {m.acreedor_nombre || <span style={{color: 'var(--color-muted)'}}>POZO</span>}
+                      </td>
+                      <td style={{padding: '5px 8px', textAlign: 'center'}}>
+                        <span style={{fontSize: 11, fontWeight: 600, color: m.pagado ? 'var(--color-success)' : '#b45309'}}>
+                          {m.pagado ? '✓ Pagado' : 'Pendiente'}
+                        </span>
+                      </td>
+                      <td style={{padding: '5px 8px', textAlign: 'center'}}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{fontSize: 11, color: 'var(--color-danger)', borderColor: 'var(--color-danger)'}}
+                          onClick={() => handleEliminarMov(m.id)}
+                        >
+                          🗑
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {movFecha.filter(m => m.tipo === 'manual').length === 0 && (
+            <p style={{fontSize: 12, color: 'var(--color-muted)', margin: 0}}>
+              Sin apuestas adicionales cargadas para esta fecha.
+            </p>
+          )}
         </div>
       )}
     </div>
