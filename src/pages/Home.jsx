@@ -367,14 +367,47 @@ function DeudaRow({ mov, onPaid }) {
   )
 }
 
+// ─── Tarjeta de deudas por fecha ─────────────────────────────────────────────
+function DeudaFechaCard({ fecha, items, onPaid }) {
+  const total = items.reduce((s, m) => s + m.importe, 0)
+  return (
+    <div style={{
+      border: '1px solid #fcd34d',
+      borderRadius: 'var(--radius)',
+      overflow: 'hidden',
+      marginBottom: 10,
+    }}>
+      {/* Header */}
+      <div style={{
+        background: '#fef9ec',
+        borderBottom: '1px solid #fcd34d',
+        padding: '8px 14px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div>
+          <span style={{fontWeight: 700, fontSize: 14}}>💸 {fecha.nombre}</span>
+          <span style={{fontSize: 12, color: 'var(--color-muted)', marginLeft: 8}}>
+            {MESES[(fecha.mes || 1) - 1]} {fecha.anio}
+          </span>
+        </div>
+        <span style={{fontWeight: 800, color: '#b45309', fontSize: 15}}>
+          {formatARS(total)}
+        </span>
+      </div>
+      {/* Filas de deuda */}
+      <div style={{padding: '4px 14px 8px'}}>
+        {items.map(m => <DeudaRow key={m.id} mov={m} onPaid={onPaid} />)}
+      </div>
+    </div>
+  )
+}
+
 // ─── Item colapsable de fecha en la lista ────────────────────────────────────
-function FechaItem({ fecha, cruce, user, economia }) {
+function FechaItem({ fecha, cruce, user }) {
   const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [abierto, setAbierto] = useState(fecha.estado === 'abierta' || fecha.estado === 'cerrada')
   const [gdtResultado, setGdtResultado] = useState(null)
   const [gdtCargado, setGdtCargado] = useState(false)
-
-  const deudaFecha = economia?.porFecha?.[fecha.id]
 
   // Carga el GDT la primera vez que se expande
   const handleToggle = async () => {
@@ -456,22 +489,6 @@ function FechaItem({ fecha, cruce, user, economia }) {
       {/* Detalle colapsable */}
       {abierto && cruce && (
         <div style={{paddingBottom: 12}}>
-          {deudaFecha && deudaFecha.items && deudaFecha.items.length > 0 && (
-            <div style={{
-              background: '#fef9ec', border: '1px solid #fcd34d',
-              borderRadius: 6, padding: '7px 10px', marginBottom: 8, fontSize: 12
-            }}>
-              {deudaFecha.items.map(m => (
-                <div key={m.id} style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                  <span>💸</span>
-                  <span>
-                    Debés <strong>{formatARS(m.importe)}</strong>{' '}
-                    {m.acreedor_nombre ? <>a <strong>{m.acreedor_nombre}</strong></> : <>al <strong>POZO</strong></>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
           <CruceDetalle cruce={cruce} fecha={fecha} gdtResultado={gdtResultado} />
         </div>
       )}
@@ -617,22 +634,6 @@ export default function Home() {
                   <span className={`badge ${ESTADO_LABEL[ultimaFecha.estado].cls}`}>{ESTADO_LABEL[ultimaFecha.estado].label}</span>
                 </div>
 
-                {economia?.porFecha?.[ultimaFecha.id]?.items?.length > 0 && (
-                  <div style={{
-                    background: '#fef9ec', border: '1px solid #fcd34d',
-                    borderRadius: 6, padding: '7px 10px', marginBottom: 10, fontSize: 12
-                  }}>
-                    {economia.porFecha[ultimaFecha.id].items.map(m => (
-                      <div key={m.id} style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                        <span>💸</span>
-                        <span>
-                          Debés <strong>{formatARS(m.importe)}</strong>{' '}
-                          {m.acreedor_nombre ? <>a <strong>{m.acreedor_nombre}</strong></> : <>al <strong>POZO</strong></>}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
                 {cruce
                   ? <div style={{marginBottom: 14}}><CruceDetalle cruce={cruce} fecha={ultimaFecha} gdtResultado={gdtResultado} /></div>
                   : <div style={{background:'var(--color-surface2)', borderRadius:'var(--radius)', padding:'12px 14px', marginBottom:14, fontSize:13, color:'var(--color-muted)', textAlign:'center'}}>Sin cruce asignado para esta fecha</div>
@@ -649,6 +650,43 @@ export default function Home() {
               </div>
             )}
 
+            {/* Mis deudas — una tarjeta por fecha con deudas pendientes */}
+            {economia?.totalPendiente > 0 && (() => {
+              const fechasConDeuda = fechasVisibles.filter(f =>
+                economia.porFecha?.[f.id]?.items?.length > 0
+              )
+              if (fechasConDeuda.length === 0) return null
+              return (
+                <div className="card" style={{marginBottom: 16, borderColor: '#fcd34d'}}>
+                  <div className="card-header" style={{borderBottom: '1px solid #fcd34d'}}>
+                    <span>💸 Mis deudas</span>
+                    <span style={{fontWeight: 800, color: '#b45309'}}>
+                      {formatARS(economia.totalPendiente)}
+                    </span>
+                  </div>
+                  <div style={{paddingTop: 8}}>
+                    {fechasConDeuda.slice().reverse().map(f => (
+                      <DeudaFechaCard
+                        key={f.id}
+                        fecha={f}
+                        items={economia.porFecha[f.id].items}
+                        onPaid={loadData}
+                      />
+                    ))}
+                  </div>
+                  {esAdmin && (
+                    <Link
+                      to="/admin/deudores"
+                      className="btn btn-secondary btn-sm"
+                      style={{width: '100%', justifyContent: 'center', marginTop: 4}}
+                    >
+                      📊 Ver cuadro de deudores
+                    </Link>
+                  )}
+                </div>
+              )
+            })()}
+
             {/* Lista de fechas */}
             <div className="card">
               <div className="card-header">
@@ -661,7 +699,7 @@ export default function Home() {
                 <div>
                   {fechasVisibles.slice().reverse().map(fecha => {
                     const c = misCruces[fecha.id]
-                    return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} economia={economia} />
+                    return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} />
                   })}
                 </div>
               )}
@@ -711,31 +749,8 @@ export default function Home() {
               </div>
             )}
 
-            {economia?.totalPendiente > 0 && (
-              <div className="card" style={{marginBottom: 16, borderColor: '#fcd34d'}}>
-                <div className="card-header" style={{paddingBottom: 4}}>
-                  💸 Mis deudas
-                  <span style={{fontSize: 13, fontWeight: 700, color: '#b45309'}}>
-                    {formatARS(economia.totalPendiente)}
-                  </span>
-                </div>
-                <div>
-                  {(economia.movimientos || []).filter(m => !m.pagado).map(m => (
-                    <DeudaRow key={m.id} mov={m} onPaid={loadData} />
-                  ))}
-                </div>
-                {esAdmin && (
-                  <div style={{paddingTop: 8}}>
-                    <Link to="/admin/deudores" className="btn btn-secondary btn-sm" style={{width: '100%', justifyContent: 'center'}}>
-                      📊 Ver cuadro de deudores
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
-            {economia?.totalPendiente === 0 && esAdmin && (
+            {esAdmin && (
               <div className="card" style={{marginBottom: 16}}>
-                <div className="card-header">💰 Economía</div>
                 <Link to="/admin/deudores" className="btn btn-secondary btn-sm" style={{width: '100%', justifyContent: 'center'}}>
                   📊 Cuadro de deudores
                 </Link>
