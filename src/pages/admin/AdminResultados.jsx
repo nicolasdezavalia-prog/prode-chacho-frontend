@@ -518,11 +518,6 @@ export default function AdminResultados() {
       {renderBloque(bloque1, `🟩 ${fecha?.bloque1_nombre} (1-15)`, 1)}
       {renderBloque(bloque2, `🟦 ${fecha?.bloque2_nombre} (16-30)`, 2)}
 
-      <div style={{textAlign: 'right', marginTop: 8}}>
-        <button className="btn btn-primary btn-lg" onClick={handleGuardar} disabled={saving}>
-          {saving ? 'Calculando...' : '⚽ Guardar y recalcular puntos'}
-        </button>
-      </div>
 
       {/* Corrección manual de LEV */}
       <div className="card" style={{marginTop: 20}}>
