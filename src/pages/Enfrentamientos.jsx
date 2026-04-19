@@ -352,16 +352,25 @@ function CruceCard({ cruce, fecha, esMio }) {
                 <strong style={{color: gdtResultado.ganador_gdt === 'user2' ? 'var(--color-success)' : 'var(--color-muted)'}}>{gdtResultado.duelos_u2}</strong>
                 {' duelos'}
               </span>
-              <strong style={{
-                color: gdtResultado.ganador_gdt === 'empate' ? 'var(--color-muted)' : 'var(--color-success)'
-              }}>
-                {gdtResultado.ganador_gdt === 'empate'
-                  ? 'GDT: Empate 🤝'
-                  : gdtResultado.ganador_gdt === 'user1'
-                    ? `GDT: ${cruce.user1_nombre} ✅`
-                    : `GDT: ${cruce.user2_nombre} ✅`
-                }
-              </strong>
+              {/* Si GDT empató en duelos pero hubo desempate por tabla → mostrar ambos */}
+              {gdtResultado.ganador_gdt === 'empate' && cruce.ganador_gdt && cruce.ganador_gdt !== 'empate' ? (
+                <span style={{textAlign: 'right'}}>
+                  <span style={{color: 'var(--color-muted)'}}>GDT: Empate</span>
+                  {' · '}
+                  <strong style={{color: 'var(--color-success)'}}>
+                    Desempate: {cruce.ganador_gdt === 'user1' ? cruce.user1_nombre : cruce.user2_nombre} ✅
+                  </strong>
+                </span>
+              ) : (
+                <strong style={{color: gdtResultado.ganador_gdt === 'empate' ? 'var(--color-muted)' : 'var(--color-success)'}}>
+                  {gdtResultado.ganador_gdt === 'empate'
+                    ? 'GDT: Empate 🤝'
+                    : gdtResultado.ganador_gdt === 'user1'
+                      ? `GDT: ${cruce.user1_nombre} ✅`
+                      : `GDT: ${cruce.user2_nombre} ✅`
+                  }
+                </strong>
+              )}
             </div>
           </div>
         )}
