@@ -303,20 +303,9 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
           </table>
           <div style={{display:'flex', justifyContent:'space-between', padding:'7px 10px', background:'#fafafa', borderTop:'1px solid var(--color-border)', fontSize:12}}>
             <span>Duelos: <strong style={{color:'var(--color-primary)'}}>{cruce.yo_es_user1 ? gdtResultado.duelos_u1 : gdtResultado.duelos_u2}</strong> – <strong style={{color:'var(--color-muted)'}}>{cruce.yo_es_user1 ? gdtResultado.duelos_u2 : gdtResultado.duelos_u1}</strong></span>
-            {gdtResultado.ganador_gdt === 'empate' && cruce.ganador_gdt && cruce.ganador_gdt !== 'empate' ? (
-              <span>
-                <span style={{color: 'var(--color-muted)'}}>GDT: Empate</span>
-                {' · Desempate: '}
-                {((cruce.yo_es_user1 && cruce.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && cruce.ganador_gdt === 'user2'))
-                  ? <strong style={{color: 'var(--color-success)'}}>Ganaste ✅</strong>
-                  : <strong style={{color: 'var(--color-danger)'}}>Perdiste ❌</strong>
-                }
-              </span>
-            ) : (
-              <strong style={{color: gdtResultado.ganador_gdt === 'empate' ? 'var(--color-muted)' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'var(--color-success)' : 'var(--color-danger)'}}>
-                {gdtResultado.ganador_gdt === 'empate' ? 'GDT: Empate' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'GDT: Ganaste ✅' : 'GDT: Perdiste ❌'}
-              </strong>
-            )}
+            <strong style={{color: gdtResultado.ganador_gdt === 'empate' ? 'var(--color-muted)' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'var(--color-success)' : 'var(--color-danger)'}}>
+              {gdtResultado.ganador_gdt === 'empate' ? 'GDT: Empate' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'GDT: Ganaste ✅' : 'GDT: Perdiste ❌'}
+            </strong>
           </div>
         </div>
       )}
