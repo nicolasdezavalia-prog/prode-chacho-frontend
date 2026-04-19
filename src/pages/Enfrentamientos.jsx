@@ -316,17 +316,17 @@ function CruceCard({ cruce, fecha, esMio }) {
                         {d.eliminado_u1 ? ' ❌' : ''}
                       </td>
                       <td style={{...td, textAlign: 'center', fontWeight: 700, color: gana1 ? 'var(--color-success)' : 'inherit'}}>
-                        {d.pts_u1}
-                        {d.hayPuntaje_u1 && !d.jugo_u1 && !d.eliminado_u1 && (
-                          <span style={{fontSize: 9, color: 'var(--color-muted)', marginLeft: 3, fontWeight: 400}}>NJ</span>
-                        )}
+                        {!d.hayPuntaje_u1 ? <span style={{color: 'var(--color-muted)', fontWeight: 400}}>—</span>
+                          : d.hayPuntaje_u1 && !d.jugo_u1 && !d.eliminado_u1
+                            ? <span>{d.pts_u1} <span style={{fontSize: 9, color: 'var(--color-muted)', fontWeight: 400}}>NJ</span></span>
+                            : d.pts_u1}
                       </td>
                       <td style={{...td, textAlign: 'center', color: 'var(--color-muted)'}}>vs</td>
                       <td style={{...td, textAlign: 'center', fontWeight: 700, color: gana2 ? 'var(--color-success)' : 'inherit'}}>
-                        {d.pts_u2}
-                        {d.hayPuntaje_u2 && !d.jugo_u2 && !d.eliminado_u2 && (
-                          <span style={{fontSize: 9, color: 'var(--color-muted)', marginLeft: 3, fontWeight: 400}}>NJ</span>
-                        )}
+                        {!d.hayPuntaje_u2 ? <span style={{color: 'var(--color-muted)', fontWeight: 400}}>—</span>
+                          : d.hayPuntaje_u2 && !d.jugo_u2 && !d.eliminado_u2
+                            ? <span>{d.pts_u2} <span style={{fontSize: 9, color: 'var(--color-muted)', fontWeight: 400}}>NJ</span></span>
+                            : d.pts_u2}
                       </td>
                       <td style={{...td, textAlign: 'right', color: d.eliminado_u2 ? 'var(--color-danger)' : 'var(--color-muted)'}}>
                         {d.eliminado_u2 ? '❌ ' : ''}

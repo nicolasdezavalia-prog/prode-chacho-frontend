@@ -284,13 +284,17 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                       {miJug || '—'}{miEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({miEq})</span>}{miElim ? ' ❌' : ''}
                     </td>
                     <td style={{...td, textAlign:'center', fontWeight:700, color: miGana ? 'var(--color-success)' : 'inherit'}}>
-                      {miPts}
-                      {miHayPuntaje && !miJugo && !miElim && <span style={{fontSize:9, color:'var(--color-muted)', marginLeft:3, fontWeight:400}}>NJ</span>}
+                      {!miHayPuntaje ? <span style={{color:'var(--color-muted)', fontWeight:400}}>—</span>
+                        : miHayPuntaje && !miJugo && !miElim
+                          ? <span>{miPts} <span style={{fontSize:9, color:'var(--color-muted)', fontWeight:400}}>NJ</span></span>
+                          : miPts}
                     </td>
                     <td style={{...td, textAlign:'center', color:'var(--color-muted)'}}>vs</td>
                     <td style={{...td, textAlign:'center', fontWeight:700, color: rvGana ? 'var(--color-danger)' : 'inherit'}}>
-                      {rvPts}
-                      {rvHayPuntaje && !rvJugo && !rvElim && <span style={{fontSize:9, color:'var(--color-muted)', marginLeft:3, fontWeight:400}}>NJ</span>}
+                      {!rvHayPuntaje ? <span style={{color:'var(--color-muted)', fontWeight:400}}>—</span>
+                        : rvHayPuntaje && !rvJugo && !rvElim
+                          ? <span>{rvPts} <span style={{fontSize:9, color:'var(--color-muted)', fontWeight:400}}>NJ</span></span>
+                          : rvPts}
                     </td>
                     <td style={{...td, textAlign:'right', color: rvElim ? 'var(--color-danger)' : 'var(--color-muted)'}}>
                       {rvElim ? '❌ ' : ''}{rvJug || '—'}{rvEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({rvEq})</span>}
