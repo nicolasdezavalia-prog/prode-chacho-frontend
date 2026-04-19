@@ -368,11 +368,144 @@ function CruceCard({ cruce, fecha, esMio }) {
   )
 }
 
+// Badge de posición con colores
+function PosBadge({ pos }) {
+  const bgMap = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' }
+  const bg = bgMap[pos] || 'var(--color-surface2)'
+  const col = pos <= 3 ? '#000' : 'var(--color-muted)'
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 22, height: 22, borderRadius: '50%',
+      background: bg, color: col, fontSize: 11, fontWeight: 700, flexShrink: 0
+    }}>{pos}</span>
+  )
+}
+
+// Tabla de totales acumulados por bloque con ranking + H2H grid
+function TablaBloqueTotal({ bloque }) {
+  if (!bloque || bloque.jugadores.length === 0) return null
+  const { nombre, jugadores, matchups } = bloque
+
+  // mapa normalizado para H2H: key = "menorId-mayorId"
+  const matchupMap = {}
+  for (const m of matchups) {
+    matchupMap[`${m.u1_id}-${m.u2_id}`] = m
+  }
+
+  const getPts = (myId, opId) => {
+    const key = `${Math.min(myId, opId)}-${Math.max(myId, opId)}`
+    const m = matchupMap[key]
+    if (!m) return '—'
+    return myId < opId ? m.u1_pts : m.u2_pts
+  }
+
+  // Abreviar nombre para las columnas del grid
+  const abrev = (nombre) => {
+    const parts = nombre.trim().split(/\s+/)
+    return parts[0].length <= 8 ? parts[0] : parts[0].slice(0, 7) + '.'
+  }
+
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 'var(--radius)',
+      overflow: 'hidden',
+      marginTop: 20,
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'var(--color-primary)', color: '#fff',
+        padding: '8px 14px', fontWeight: 700, fontSize: 13,
+        textTransform: 'uppercase', letterSpacing: '0.5px',
+        display: 'flex', alignItems: 'center', gap: 8
+      }}>
+        📊 TOTAL {nombre}
+      </div>
+
+      <div style={{padding: '10px 14px'}}>
+        {/* Ranking */}
+        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 14}}>
+          <thead>
+            <tr style={{borderBottom: '2px solid var(--color-border)'}}>
+              <th style={{padding: '4px 6px', textAlign: 'center', width: 32, fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase'}}>#</th>
+              <th style={{padding: '4px 8px', textAlign: 'left', fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase'}}>Jugador</th>
+              <th style={{padding: '4px 8px', textAlign: 'center', fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase'}}>Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jugadores.map((j, idx) => (
+              <tr key={j.user_id} style={{borderBottom: '1px solid var(--color-border)'}}>
+                <td style={{padding: '5px 6px', textAlign: 'center'}}>
+                  <PosBadge pos={idx + 1} />
+                </td>
+                <td style={{padding: '5px 8px', fontWeight: 600}}>{j.nombre}</td>
+                <td style={{padding: '5px 8px', textAlign: 'center', fontWeight: 800, fontSize: 15,
+                  color: idx === 0 ? '#FFD700' : idx === 1 ? '#888' : idx === 2 ? '#CD7F32' : 'var(--color-text)'
+                }}>{j.total_pts}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* H2H Grid */}
+        {jugadores.length > 1 && (
+          <div>
+            <div style={{fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.5px'}}>
+              Head to Head
+            </div>
+            <div style={{overflowX: 'auto'}}>
+              <table style={{borderCollapse: 'collapse', fontSize: 11}}>
+                <thead>
+                  <tr>
+                    <th style={{padding: '3px 8px', textAlign: 'left', minWidth: 70, fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)'}}></th>
+                    {jugadores.map(j => (
+                      <th key={j.user_id} style={{
+                        padding: '3px 6px', textAlign: 'center', minWidth: 36,
+                        fontSize: 10, color: 'var(--color-muted)', fontWeight: 700,
+                        borderBottom: '1px solid var(--color-border)',
+                        whiteSpace: 'nowrap'
+                      }}>{abrev(j.nombre)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {jugadores.map((row, ri) => (
+                    <tr key={row.user_id} style={{borderBottom: '1px solid var(--color-border)'}}>
+                      <td style={{padding: '4px 8px', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap'}}>{row.nombre}</td>
+                      {jugadores.map((col, ci) => {
+                        const isSelf = row.user_id === col.user_id
+                        const pts = isSelf ? null : getPts(row.user_id, col.user_id)
+                        return (
+                          <td key={col.user_id} style={{
+                            padding: '4px 6px', textAlign: 'center',
+                            background: isSelf ? 'var(--color-surface2)' : ri % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)',
+                            fontWeight: isSelf ? 400 : 700,
+                            color: isSelf ? 'var(--color-muted)' : 'var(--color-text)',
+                          }}>
+                            {isSelf ? '·' : pts}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Enfrentamientos() {
   const { fechaId } = useParams()
   const { user } = useAuth()
   const [fecha, setFecha] = useState(null)
   const [cruces, setCruces] = useState([])
+  const [totales, setTotales] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -385,6 +518,10 @@ export default function Enfrentamientos() {
         ])
         setFecha(f)
         setCruces(cs)
+        // Cargar totales de bloque en paralelo (no bloquea la carga principal)
+        if (f.torneo_id) {
+          api.getTotalesBloque(f.torneo_id).then(setTotales).catch(() => {})
+        }
       } catch (e) {
         setError(e.message)
       } finally {
@@ -430,6 +567,20 @@ export default function Enfrentamientos() {
               />
             )
           })}
+        </div>
+      )}
+
+      {/* Tablas acumuladas por bloque */}
+      {totales && (totales.bloque_a?.jugadores?.length > 0 || totales.bloque_b?.jugadores?.length > 0) && (
+        <div style={{marginTop: 32}}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4
+          }}>
+            Acumulado del torneo
+          </div>
+          <TablaBloqueTotal bloque={totales.bloque_a} />
+          <TablaBloqueTotal bloque={totales.bloque_b} />
         </div>
       )}
     </div>

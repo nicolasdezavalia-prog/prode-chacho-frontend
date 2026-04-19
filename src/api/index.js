@@ -39,6 +39,7 @@ export const api = {
   saveCierre: (torneoId, data) => request('PUT', `/torneos/${torneoId}/tabla-mensual-cierre`, data),
   recalcularTabla: (torneoId) => request('POST', `/torneos/${torneoId}/recalcular-tabla`),
   getH2H: (torneoId, userId) => request('GET', `/torneos/${torneoId}/h2h/${userId}`),
+  getTotalesBloque: (torneoId) => request('GET', `/torneos/${torneoId}/totales-bloque`),
 
   // Usuarios
   getUsuarios: () => request('GET', '/usuarios'),
