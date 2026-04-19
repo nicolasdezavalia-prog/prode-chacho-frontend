@@ -368,134 +368,87 @@ function CruceCard({ cruce, fecha, esMio }) {
   )
 }
 
-// Badge de posición con colores
-function PosBadge({ pos }) {
-  const bgMap = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' }
-  const bg = bgMap[pos] || 'var(--color-surface2)'
-  const col = pos <= 3 ? '#000' : 'var(--color-muted)'
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 22, height: 22, borderRadius: '50%',
-      background: bg, color: col, fontSize: 11, fontWeight: 700, flexShrink: 0
-    }}>{pos}</span>
-  )
+// Color de posición: gradiente verde → amarillo → rojo según ranking
+function posColor(pos, total) {
+  const ratio = total <= 1 ? 0 : (pos - 1) / (total - 1)
+  if (ratio <= 0.5) {
+    const t = ratio * 2
+    const r = Math.round(t * 255)
+    const g = Math.round(176 + t * (255 - 176))
+    const b = Math.round(80 * (1 - t))
+    return `rgb(${r},${g},${b})`
+  } else {
+    const t = (ratio - 0.5) * 2
+    const r = 255
+    const g = Math.round(255 * (1 - t))
+    return `rgb(${r},${g},0)`
+  }
 }
 
-// Tabla de totales acumulados por bloque con ranking + H2H grid
-function TablaBloqueTotal({ bloque }) {
+// Tabla de totales acumulados por bloque
+function TablaBloqueTotal({ bloque, cruces, bloqueKey }) {
   if (!bloque || bloque.jugadores.length === 0) return null
-  const { nombre, jugadores, matchups } = bloque
+  const { nombre, jugadores } = bloque
+  const n = jugadores.length
 
-  // mapa normalizado para H2H: key = "menorId-mayorId"
-  const matchupMap = {}
-  for (const m of matchups) {
-    matchupMap[`${m.u1_id}-${m.u2_id}`] = m
-  }
+  // Cruces de esta fecha con puntaje de bloque
+  const filasCruces = (cruces || [])
+    .map(c => ({
+      u1: c.user1_nombre,
+      u2: c.user2_nombre,
+      p1: bloqueKey === 'a' ? c.pts_tabla_a_u1 : c.pts_tabla_b_u1,
+      p2: bloqueKey === 'a' ? c.pts_tabla_a_u2 : c.pts_tabla_b_u2,
+    }))
+    .filter(r => r.p1 != null)
 
-  const getPts = (myId, opId) => {
-    const key = `${Math.min(myId, opId)}-${Math.max(myId, opId)}`
-    const m = matchupMap[key]
-    if (!m) return '—'
-    return myId < opId ? m.u1_pts : m.u2_pts
-  }
-
-  // Abreviar nombre para las columnas del grid
-  const abrev = (nombre) => {
-    const parts = nombre.trim().split(/\s+/)
-    return parts[0].length <= 8 ? parts[0] : parts[0].slice(0, 7) + '.'
-  }
+  const bdr = '1px solid #d0d0d0'
 
   return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius)',
-      overflow: 'hidden',
-      marginTop: 20,
-    }}>
-      {/* Header */}
-      <div style={{
-        background: 'var(--color-primary)', color: '#fff',
-        padding: '8px 14px', fontWeight: 700, fontSize: 13,
-        textTransform: 'uppercase', letterSpacing: '0.5px',
-        display: 'flex', alignItems: 'center', gap: 8
-      }}>
-        📊 TOTAL {nombre}
+    <div style={{marginTop: 20}}>
+      {/* Título */}
+      <div style={{fontWeight: 800, fontSize: 13, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px'}}>
+        TOTAL {nombre}
       </div>
 
-      <div style={{padding: '10px 14px'}}>
-        {/* Ranking */}
-        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 14}}>
-          <thead>
-            <tr style={{borderBottom: '2px solid var(--color-border)'}}>
-              <th style={{padding: '4px 6px', textAlign: 'center', width: 32, fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase'}}>#</th>
-              <th style={{padding: '4px 8px', textAlign: 'left', fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase'}}>Jugador</th>
-              <th style={{padding: '4px 8px', textAlign: 'center', fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase'}}>Pts</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jugadores.map((j, idx) => (
-              <tr key={j.user_id} style={{borderBottom: '1px solid var(--color-border)'}}>
-                <td style={{padding: '5px 6px', textAlign: 'center'}}>
-                  <PosBadge pos={idx + 1} />
+      {/* Ranking */}
+      <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13, border: bdr}}>
+        <tbody>
+          {jugadores.map((j, idx) => {
+            const pos = idx + 1
+            const bg = posColor(pos, n)
+            // color de texto: claro si fondo oscuro (verde/rojo intenso), oscuro si amarillo
+            const textCol = (pos === 1 && n > 3) || pos === n ? '#fff' : '#000'
+            return (
+              <tr key={j.user_id} style={{borderBottom: bdr}}>
+                <td style={{padding: '5px 12px', fontWeight: 700, borderRight: bdr}}>{j.nombre}</td>
+                <td style={{padding: '5px 12px', textAlign: 'right', borderRight: bdr, fontWeight: 600}}>{j.total_pts}</td>
+                <td style={{
+                  padding: '5px 0', background: bg, textAlign: 'center',
+                  fontWeight: 800, width: 34, color: textCol, fontSize: 12
+                }}>
+                  {pos}
                 </td>
-                <td style={{padding: '5px 8px', fontWeight: 600}}>{j.nombre}</td>
-                <td style={{padding: '5px 8px', textAlign: 'center', fontWeight: 800, fontSize: 15,
-                  color: idx === 0 ? '#FFD700' : idx === 1 ? '#888' : idx === 2 ? '#CD7F32' : 'var(--color-text)'
-                }}>{j.total_pts}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      {/* Cruces de esta fecha */}
+      {filasCruces.length > 0 && (
+        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12, border: bdr, borderTop: '2px solid #999', marginTop: 1}}>
+          <tbody>
+            {filasCruces.map((r, i) => (
+              <tr key={i} style={{borderBottom: '1px solid #e8e8e8'}}>
+                <td style={{padding: '4px 10px', fontWeight: 600}}>{r.u1}</td>
+                <td style={{padding: '4px 8px', textAlign: 'right', fontWeight: 700}}>{r.p1}</td>
+                <td style={{padding: '4px 8px', textAlign: 'left', fontWeight: 700, color: 'var(--color-muted)'}}>{r.p2}</td>
+                <td style={{padding: '4px 10px', fontWeight: 600, textAlign: 'right'}}>{r.u2}</td>
               </tr>
             ))}
           </tbody>
         </table>
-
-        {/* H2H Grid */}
-        {jugadores.length > 1 && (
-          <div>
-            <div style={{fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.5px'}}>
-              Head to Head
-            </div>
-            <div style={{overflowX: 'auto'}}>
-              <table style={{borderCollapse: 'collapse', fontSize: 11}}>
-                <thead>
-                  <tr>
-                    <th style={{padding: '3px 8px', textAlign: 'left', minWidth: 70, fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)'}}></th>
-                    {jugadores.map(j => (
-                      <th key={j.user_id} style={{
-                        padding: '3px 6px', textAlign: 'center', minWidth: 36,
-                        fontSize: 10, color: 'var(--color-muted)', fontWeight: 700,
-                        borderBottom: '1px solid var(--color-border)',
-                        whiteSpace: 'nowrap'
-                      }}>{abrev(j.nombre)}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {jugadores.map((row, ri) => (
-                    <tr key={row.user_id} style={{borderBottom: '1px solid var(--color-border)'}}>
-                      <td style={{padding: '4px 8px', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap'}}>{row.nombre}</td>
-                      {jugadores.map((col, ci) => {
-                        const isSelf = row.user_id === col.user_id
-                        const pts = isSelf ? null : getPts(row.user_id, col.user_id)
-                        return (
-                          <td key={col.user_id} style={{
-                            padding: '4px 6px', textAlign: 'center',
-                            background: isSelf ? 'var(--color-surface2)' : ri % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)',
-                            fontWeight: isSelf ? 400 : 700,
-                            color: isSelf ? 'var(--color-muted)' : 'var(--color-text)',
-                          }}>
-                            {isSelf ? '·' : pts}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   )
 }
@@ -573,14 +526,8 @@ export default function Enfrentamientos() {
       {/* Tablas acumuladas por bloque */}
       {totales && (totales.bloque_a?.jugadores?.length > 0 || totales.bloque_b?.jugadores?.length > 0) && (
         <div style={{marginTop: 32}}>
-          <div style={{
-            fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
-            textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4
-          }}>
-            Acumulado del torneo
-          </div>
-          <TablaBloqueTotal bloque={totales.bloque_a} />
-          <TablaBloqueTotal bloque={totales.bloque_b} />
+          <TablaBloqueTotal bloque={totales.bloque_a} cruces={cruces} bloqueKey="a" />
+          <TablaBloqueTotal bloque={totales.bloque_b} cruces={cruces} bloqueKey="b" />
         </div>
       )}
     </div>
