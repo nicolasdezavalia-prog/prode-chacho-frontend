@@ -315,9 +315,19 @@ function CruceCard({ cruce, fecha, esMio }) {
                         {d.equipo_u1 && <span style={{color: 'var(--color-muted)', fontSize: 10}}> ({d.equipo_u1})</span>}
                         {d.eliminado_u1 ? ' ❌' : ''}
                       </td>
-                      <td style={{...td, textAlign: 'center', fontWeight: 700, color: gana1 ? 'var(--color-success)' : 'inherit'}}>{d.pts_u1}</td>
+                      <td style={{...td, textAlign: 'center', fontWeight: 700, color: gana1 ? 'var(--color-success)' : 'inherit'}}>
+                        {d.pts_u1}
+                        {d.hayPuntaje_u1 && !d.jugo_u1 && !d.eliminado_u1 && (
+                          <span style={{fontSize: 9, color: 'var(--color-muted)', marginLeft: 3, fontWeight: 400}}>NJ</span>
+                        )}
+                      </td>
                       <td style={{...td, textAlign: 'center', color: 'var(--color-muted)'}}>vs</td>
-                      <td style={{...td, textAlign: 'center', fontWeight: 700, color: gana2 ? 'var(--color-success)' : 'inherit'}}>{d.pts_u2}</td>
+                      <td style={{...td, textAlign: 'center', fontWeight: 700, color: gana2 ? 'var(--color-success)' : 'inherit'}}>
+                        {d.pts_u2}
+                        {d.hayPuntaje_u2 && !d.jugo_u2 && !d.eliminado_u2 && (
+                          <span style={{fontSize: 9, color: 'var(--color-muted)', marginLeft: 3, fontWeight: 400}}>NJ</span>
+                        )}
+                      </td>
                       <td style={{...td, textAlign: 'right', color: d.eliminado_u2 ? 'var(--color-danger)' : 'var(--color-muted)'}}>
                         {d.eliminado_u2 ? '❌ ' : ''}
                         {d.jugador_u2 || '—'}
@@ -337,18 +347,17 @@ function CruceCard({ cruce, fecha, esMio }) {
               borderTop: '1px solid var(--color-border)', fontSize: 12
             }}>
               <span>
-                <strong style={{color: cruce.ganador_gdt === 'user1' ? 'var(--color-success)' : 'var(--color-muted)'}}>{gdtResultado.duelos_u1}</strong>
+                <strong style={{color: gdtResultado.ganador_gdt === 'user1' ? 'var(--color-success)' : 'var(--color-muted)'}}>{gdtResultado.duelos_u1}</strong>
                 {' duelos '}<strong style={{color: 'var(--color-muted)'}}>–</strong>{' '}
-                <strong style={{color: cruce.ganador_gdt === 'user2' ? 'var(--color-success)' : 'var(--color-muted)'}}>{gdtResultado.duelos_u2}</strong>
+                <strong style={{color: gdtResultado.ganador_gdt === 'user2' ? 'var(--color-success)' : 'var(--color-muted)'}}>{gdtResultado.duelos_u2}</strong>
                 {' duelos'}
               </span>
               <strong style={{
-                color: cruce.ganador_gdt === 'empate' ? 'var(--color-muted)'
-                  : cruce.ganador_gdt === 'user1' ? 'var(--color-success)' : 'var(--color-success)'
+                color: gdtResultado.ganador_gdt === 'empate' ? 'var(--color-muted)' : 'var(--color-success)'
               }}>
-                {cruce.ganador_gdt === 'empate'
+                {gdtResultado.ganador_gdt === 'empate'
                   ? 'GDT: Empate 🤝'
-                  : cruce.ganador_gdt === 'user1'
+                  : gdtResultado.ganador_gdt === 'user1'
                     ? `GDT: ${cruce.user1_nombre} ✅`
                     : `GDT: ${cruce.user2_nombre} ✅`
                 }

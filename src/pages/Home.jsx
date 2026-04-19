@@ -266,10 +266,14 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                 const miEq   = yo ? d.equipo_u1  : d.equipo_u2
                 const rvJug  = yo ? d.jugador_u2 : d.jugador_u1
                 const rvEq   = yo ? d.equipo_u2  : d.equipo_u1
-                const miPts  = yo ? d.pts_u1 : d.pts_u2
-                const rvPts  = yo ? d.pts_u2 : d.pts_u1
-                const miElim = yo ? d.eliminado_u1 : d.eliminado_u2
-                const rvElim = yo ? d.eliminado_u2 : d.eliminado_u1
+                const miPts       = yo ? d.pts_u1 : d.pts_u2
+                const rvPts       = yo ? d.pts_u2 : d.pts_u1
+                const miElim      = yo ? d.eliminado_u1 : d.eliminado_u2
+                const rvElim      = yo ? d.eliminado_u2 : d.eliminado_u1
+                const miJugo      = yo ? d.jugo_u1 : d.jugo_u2
+                const rvJugo      = yo ? d.jugo_u2 : d.jugo_u1
+                const miHayPuntaje = yo ? d.hayPuntaje_u1 : d.hayPuntaje_u2
+                const rvHayPuntaje = yo ? d.hayPuntaje_u2 : d.hayPuntaje_u1
                 const miGana = (yo && d.ganador === 'a') || (!yo && d.ganador === 'b')
                 const rvGana = (yo && d.ganador === 'b') || (!yo && d.ganador === 'a')
                 const td = {padding: '5px 7px', fontSize: 12}
@@ -279,9 +283,15 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                     <td style={{...td, color: miElim ? 'var(--color-danger)' : 'inherit'}}>
                       {miJug || '—'}{miEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({miEq})</span>}{miElim ? ' ❌' : ''}
                     </td>
-                    <td style={{...td, textAlign:'center', fontWeight:700, color: miGana ? 'var(--color-success)' : 'inherit'}}>{miPts}</td>
+                    <td style={{...td, textAlign:'center', fontWeight:700, color: miGana ? 'var(--color-success)' : 'inherit'}}>
+                      {miPts}
+                      {miHayPuntaje && !miJugo && !miElim && <span style={{fontSize:9, color:'var(--color-muted)', marginLeft:3, fontWeight:400}}>NJ</span>}
+                    </td>
                     <td style={{...td, textAlign:'center', color:'var(--color-muted)'}}>vs</td>
-                    <td style={{...td, textAlign:'center', fontWeight:700, color: rvGana ? 'var(--color-danger)' : 'inherit'}}>{rvPts}</td>
+                    <td style={{...td, textAlign:'center', fontWeight:700, color: rvGana ? 'var(--color-danger)' : 'inherit'}}>
+                      {rvPts}
+                      {rvHayPuntaje && !rvJugo && !rvElim && <span style={{fontSize:9, color:'var(--color-muted)', marginLeft:3, fontWeight:400}}>NJ</span>}
+                    </td>
                     <td style={{...td, textAlign:'right', color: rvElim ? 'var(--color-danger)' : 'var(--color-muted)'}}>
                       {rvElim ? '❌ ' : ''}{rvJug || '—'}{rvEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({rvEq})</span>}
                     </td>
