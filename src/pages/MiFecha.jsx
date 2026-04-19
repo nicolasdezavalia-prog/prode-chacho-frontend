@@ -340,7 +340,12 @@ export default function MiFecha() {
         const pronos = await api.getPronosticos(fechaId)
         const pronoMap = {}
         for (const p of pronos) {
-          pronoMap[p.evento_id] = p
+          // Restaurar _levOverride desde DB si el usuario había seteado LEV manual antes
+          // Sin esto, al recargar y volver a guardar se pierde el override y se pisa con V/L/E calculado del score
+          pronoMap[p.evento_id] = {
+            ...p,
+            _levOverride: p.lev_manual ? p.lev_pronostico : null
+          }
         }
         setPronosticos(pronoMap)
       } catch (_) {}
