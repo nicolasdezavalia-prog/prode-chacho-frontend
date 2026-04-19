@@ -238,6 +238,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                     <tr style={{background: '#fafafa', borderBottom: '1px solid var(--color-border)'}}>
                       <th style={{padding:'5px 8px', textAlign:'left', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>#</th>
                       <th style={{padding:'5px 8px', textAlign:'left', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Partido</th>
+                      <th style={{padding:'5px 6px', textAlign:'center', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Pts</th>
                       <th style={{padding:'5px 8px', textAlign:'center', fontSize:10, color:'var(--color-primary)', fontWeight:700, textTransform:'uppercase'}}>{cruce.user1_nombre}</th>
                       <th style={{padding:'5px 8px', textAlign:'center', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>Res.</th>
                       <th style={{padding:'5px 8px', textAlign:'center', fontSize:10, color:'var(--color-primary)', fontWeight:700, textTransform:'uppercase'}}>{cruce.user2_nombre}</th>
@@ -250,6 +251,33 @@ function CruceCard({ cruce, fecha, esMio }) {
                       const tieneRes = ev.lev_real != null || ev.resultado_json != null
                       const acerto1 = tieneRes && ev.tipo === 'partido' ? p1?.lev_pronostico === ev.lev_real : false
                       const acerto2 = tieneRes && ev.tipo === 'partido' ? p2?.lev_pronostico === ev.lev_real : false
+
+                      // Mostrar LEV elegido si es manual o si difiere del score
+                      const levLabel = (p) => {
+                        if (!p || ev.tipo !== 'partido') return null
+                        const lev = p.lev_pronostico
+                        if (!lev) return null
+                        // Calcular LEV automático del score
+                        const gl = p.goles_local, gv = p.goles_visitante
+                        const levAuto = gl != null && gv != null
+                          ? (gl > gv ? 'L' : gl < gv ? 'V' : 'E')
+                          : null
+                        // Mostrar solo si es manual (override) o no coincide con el score
+                        if (p.lev_manual || lev !== levAuto) {
+                          const color = lev === 'L' ? 'var(--color-success)' : lev === 'V' ? 'var(--color-danger)' : 'var(--color-muted)'
+                          return <span style={{fontSize:9, fontWeight:700, color, marginLeft:3, border:`1px solid ${color}`, borderRadius:3, padding:'0 2px'}}>{lev}</span>
+                        }
+                        return null
+                      }
+
+                      // Columna de puntos del evento
+                      const ptsInfo = ev.tipo === 'partido' ? (
+                        <div style={{fontSize:9, color:'var(--color-muted)', lineHeight:1.3, whiteSpace:'nowrap'}}>
+                          {ev.condicion && <div style={{fontWeight:600, color:'var(--color-primary)', fontSize:9}}>{ev.condicion}</div>}
+                          <div>L:{ev.pts_local} E:{ev.pts_empate} V:{ev.pts_visitante} +{ev.pts_exacto}</div>
+                        </div>
+                      ) : null
+
                       return (
                         <tr key={ev.id} style={{borderBottom: '1px solid var(--color-border)'}}>
                           <td style={{padding:'5px 8px', color:'var(--color-muted)'}}>{ev.orden}</td>
@@ -259,10 +287,11 @@ function CruceCard({ cruce, fecha, esMio }) {
                               : <span style={{color:'var(--color-muted)', fontStyle:'italic'}}>{ev.pregunta_texto}</span>
                             }
                           </td>
+                          <td style={{padding:'5px 6px', textAlign:'center'}}>{ptsInfo}</td>
                           <td style={{padding:'5px 8px', textAlign:'center', fontWeight: acerto1 ? 700 : 400,
                             color: tieneRes ? (acerto1 ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
                           }}>
-                            {scorePron(p1)}
+                            {scorePron(p1)}{levLabel(p1)}
                             {tieneRes && <span style={{fontSize:10, marginLeft:3}}>{p1?.puntos_obtenidos != null ? `(${p1.puntos_obtenidos}pts)` : ''}</span>}
                           </td>
                           <td style={{padding:'5px 8px', textAlign:'center', fontWeight:600}}>
@@ -274,7 +303,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                           <td style={{padding:'5px 8px', textAlign:'center', fontWeight: acerto2 ? 700 : 400,
                             color: tieneRes ? (acerto2 ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
                           }}>
-                            {scorePron(p2)}
+                            {scorePron(p2)}{levLabel(p2)}
                             {tieneRes && <span style={{fontSize:10, marginLeft:3}}>{p2?.puntos_obtenidos != null ? `(${p2.puntos_obtenidos}pts)` : ''}</span>}
                           </td>
                         </tr>
