@@ -72,6 +72,8 @@ export const api = {
   getPronosticosAdmin: (fechaId) => request('GET', `/pronosticos/fecha/${fechaId}/todos`),
   // Admin: asignar puntaje manual a un pronóstico de pregunta abierta
   setPuntosManual: (pronoId, puntos) => request('PATCH', `/pronosticos/${pronoId}/puntos`, { puntos }),
+  // Admin: corregir lev_pronostico manualmente (cuando el override se perdió)
+  setLevManual: (pronoId, lev) => request('PATCH', `/pronosticos/${pronoId}/lev`, { lev }),
 
   // Cruces
   getCruces: (fechaId) => request('GET', `/cruces/fecha/${fechaId}`),

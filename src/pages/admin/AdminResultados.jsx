@@ -35,6 +35,10 @@ export default function AdminResultados() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [levSeccionAbierta, setLevSeccionAbierta] = useState(false)
+  const [pronosTodos, setPronosTodos] = useState([])       // todos los pronósticos para corrección LEV
+  const [levCargando, setLevCargando] = useState(false)
+  const [levSaving, setLevSaving] = useState({})           // pronoId → bool
   const cellRefs = useRef({})
 
   useEffect(() => {
@@ -172,6 +176,37 @@ export default function AdminResultados() {
       setError(err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleToggleLevSeccion = async () => {
+    if (!levSeccionAbierta && pronosTodos.length === 0) {
+      setLevCargando(true)
+      try {
+        const todos = await api.getPronosticosAdmin(fechaId)
+        setPronosTodos(todos.filter(p => p.tipo === 'partido'))
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLevCargando(false)
+      }
+    }
+    setLevSeccionAbierta(o => !o)
+  }
+
+  const handleSetLev = async (pronoId, lev) => {
+    setLevSaving(prev => ({ ...prev, [pronoId]: true }))
+    try {
+      const updated = await api.setLevManual(pronoId, lev)
+      setPronosTodos(prev => prev.map(p =>
+        p.id === pronoId ? { ...p, lev_pronostico: updated.lev_pronostico, puntos_obtenidos: updated.puntos_obtenidos } : p
+      ))
+      setSuccess(`LEV corregido → recalculado`)
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLevSaving(prev => ({ ...prev, [pronoId]: false }))
     }
   }
 
@@ -487,6 +522,78 @@ export default function AdminResultados() {
         <button className="btn btn-primary btn-lg" onClick={handleGuardar} disabled={saving}>
           {saving ? 'Calculando...' : '⚽ Guardar y recalcular puntos'}
         </button>
+      </div>
+
+      {/* Corrección manual de LEV */}
+      <div className="card" style={{marginTop: 20}}>
+        <div
+          className="card-header"
+          style={{cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}
+          onClick={handleToggleLevSeccion}
+        >
+          <span>🔧 Corrección de LEV (condición de partido)</span>
+          <span style={{fontSize: 12, color: 'var(--color-muted)'}}>{levSeccionAbierta ? '▲ cerrar' : '▼ abrir'}</span>
+        </div>
+        {levSeccionAbierta && (
+          <div style={{padding: '8px 0'}}>
+            <p style={{fontSize: 12, color: 'var(--color-muted)', padding: '0 14px 8px'}}>
+              Usá esto cuando un jugador eligió L/E/V manualmente pero se perdió al volver a guardar. El cambio recalcula los puntos automáticamente.
+            </p>
+            {levCargando ? (
+              <div style={{padding: 16, textAlign: 'center', color: 'var(--color-muted)', fontSize: 12}}>Cargando...</div>
+            ) : (
+              <table className="excel-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Partido</th>
+                    <th>Jugador</th>
+                    <th style={{textAlign:'center'}}>Score</th>
+                    <th style={{textAlign:'center'}}>LEV actual</th>
+                    <th style={{textAlign:'center'}}>Pts</th>
+                    <th style={{textAlign:'center'}}>Corregir</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pronosTodos.map(p => {
+                    const lev = p.lev_pronostico
+                    const score = p.goles_local != null ? `${p.goles_local}–${p.goles_visitante}` : '—'
+                    return (
+                      <tr key={p.id}>
+                        <td style={{color:'var(--color-muted)', fontSize:11}}>{p.orden}</td>
+                        <td style={{fontSize:12}}>{p.local} vs {p.visitante}</td>
+                        <td style={{fontWeight: 600}}>{p.usuario_nombre}</td>
+                        <td style={{textAlign:'center', fontSize:12}}>{score}</td>
+                        <td style={{textAlign:'center', fontWeight:700, color: levColor(lev)}}>
+                          {lev || '—'}
+                          {p.lev_manual ? <span style={{fontSize:9, color:'var(--color-muted)', marginLeft:3}}>M</span> : ''}
+                        </td>
+                        <td style={{textAlign:'center'}}>{p.puntos_obtenidos ?? 0}</td>
+                        <td style={{textAlign:'center'}}>
+                          <div style={{display:'flex', gap:4, justifyContent:'center'}}>
+                            {['L','E','V'].map(l => (
+                              <button
+                                key={l}
+                                disabled={levSaving[p.id]}
+                                onClick={() => handleSetLev(p.id, l)}
+                                style={{
+                                  width: 28, height: 26, border: 'none', borderRadius: 4,
+                                  cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                                  background: lev === l ? 'var(--color-primary)' : 'var(--color-surface2)',
+                                  color: lev === l ? '#fff' : 'var(--color-muted)',
+                                }}
+                              >{l}</button>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
