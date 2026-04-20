@@ -323,7 +323,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                             color: tieneRes ? (acerto1 ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
                           }}>
                             {scorePron(p1)}{levLabel(p1)}
-                            {tieneRes && <span style={{fontSize:10, marginLeft:3}}>{p1?.puntos_obtenidos != null ? `(${p1.puntos_obtenidos}pts)` : ''}</span>}
+                            {p1?.puntos_obtenidos != null && <span style={{fontSize:10, marginLeft:3}}>({p1.puntos_obtenidos}pts)</span>}
                           </td>
                           <td style={{padding:'5px 8px', textAlign:'center', fontWeight:600}}>
                             {ev.tipo === 'partido' && ev.resultado_local != null
@@ -335,7 +335,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                             color: tieneRes ? (acerto2 ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
                           }}>
                             {scorePron(p2)}{levLabel(p2)}
-                            {tieneRes && <span style={{fontSize:10, marginLeft:3}}>{p2?.puntos_obtenidos != null ? `(${p2.puntos_obtenidos}pts)` : ''}</span>}
+                            {p2?.puntos_obtenidos != null && <span style={{fontSize:10, marginLeft:3}}>({p2.puntos_obtenidos}pts)</span>}
                           </td>
                         </tr>
                       )
