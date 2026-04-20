@@ -271,12 +271,43 @@ function CruceCard({ cruce, fecha, esMio }) {
                       }
 
                       // Columna de puntos del evento
-                      const ptsInfo = ev.tipo === 'partido' ? (
-                        <div style={{fontSize:9, color:'var(--color-muted)', lineHeight:1.3, whiteSpace:'nowrap'}}>
-                          {ev.condicion && <div style={{fontWeight:600, color:'var(--color-primary)', fontSize:9}}>{ev.condicion}</div>}
-                          <div>L:{ev.pts_local} E:{ev.pts_empate} V:{ev.pts_visitante} +{ev.pts_exacto}</div>
-                        </div>
-                      ) : null
+                      let ptsInfo = null
+                      if (ev.tipo === 'partido') {
+                        ptsInfo = (
+                          <div style={{fontSize:9, color:'var(--color-muted)', lineHeight:1.3, whiteSpace:'nowrap'}}>
+                            {ev.condicion && <div style={{fontWeight:600, color:'var(--color-primary)', fontSize:9}}>{ev.condicion}</div>}
+                            <div>L:{ev.pts_local} E:{ev.pts_empate} V:{ev.pts_visitante} +{ev.pts_exacto}</div>
+                          </div>
+                        )
+                      } else if (ev.tipo === 'pregunta' && ev.config_json) {
+                        try {
+                          const cfg = JSON.parse(ev.config_json)
+                          const subtipo = cfg.subtipo
+                          if (subtipo === 'binaria') {
+                            // Mostrar pts de cada opción
+                            const lineas = (cfg.opciones || []).map(o =>
+                              `${o.label}: ${o.pts ?? 0}pts`
+                            )
+                            ptsInfo = (
+                              <div style={{fontSize:9, color:'var(--color-muted)', lineHeight:1.3, whiteSpace:'nowrap'}}>
+                                {lineas.map((l, i) => <div key={i}>{l}</div>)}
+                              </div>
+                            )
+                          } else if (subtipo === 'opcion_unica') {
+                            ptsInfo = (
+                              <div style={{fontSize:9, color:'var(--color-muted)', lineHeight:1.3, whiteSpace:'nowrap'}}>
+                                <div>Correcto: {cfg.pts ?? 0}pts</div>
+                              </div>
+                            )
+                          } else if (subtipo === 'multi_select') {
+                            ptsInfo = (
+                              <div style={{fontSize:9, color:'var(--color-muted)', lineHeight:1.3, whiteSpace:'nowrap'}}>
+                                <div>{cfg.pts ?? 0}pts c/u</div>
+                              </div>
+                            )
+                          }
+                        } catch (e) { /* config_json inválido, no mostrar nada */ }
+                      }
 
                       return (
                         <tr key={ev.id} style={{borderBottom: '1px solid var(--color-border)'}}>
