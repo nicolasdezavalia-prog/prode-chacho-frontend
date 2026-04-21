@@ -534,7 +534,7 @@ export default function Enfrentamientos() {
         setCruces(cs)
         // Cargar totales de bloque en paralelo (no bloquea la carga principal)
         if (f.torneo_id) {
-          api.getTotalesBloque(f.torneo_id).then(setTotales).catch(() => {})
+          api.getTotalesBloque(f.torneo_id, f.id).then(setTotales).catch(() => {})
         }
       } catch (e) {
         setError(e.message)
