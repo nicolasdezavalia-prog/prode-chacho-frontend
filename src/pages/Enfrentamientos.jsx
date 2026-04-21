@@ -366,6 +366,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                 {gdtResultado.duelos.map(d => {
                   const gana1 = d.ganador === 'a'
                   const gana2 = d.ganador === 'b'
+                  const pendiente = d.ganador === 'pendiente'
                   const td = { padding: '5px 7px', fontSize: 12 }
                   return (
                     <tr key={d.slot} style={{borderBottom: '1px solid var(--color-border)'}}>
@@ -394,7 +395,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                         {d.equipo_u2 && <span style={{color: 'var(--color-muted)', fontSize: 10}}> ({d.equipo_u2})</span>}
                       </td>
                       <td style={{...td, textAlign: 'center'}}>
-                        {d.ganador === 'empate' ? '🤝' : gana1 ? '🏆' : '🏆'}
+                        {pendiente ? '⏳' : d.ganador === 'empate' ? '🤝' : gana1 ? '🏆' : '🏆'}
                       </td>
                     </tr>
                   )
