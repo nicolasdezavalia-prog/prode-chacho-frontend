@@ -656,6 +656,11 @@ export default function MiFecha() {
                     const rivalEliminado = yoEsU1 ? d.eliminado_u2 : d.eliminado_u1
                     const miGanador    = (yoEsU1 && d.ganador === 'a') || (!yoEsU1 && d.ganador === 'b')
                     const rivalGanador = (yoEsU1 && d.ganador === 'b') || (!yoEsU1 && d.ganador === 'a')
+                    const pendiente    = d.ganador === 'pendiente'
+                    const miHayPts     = yoEsU1 ? d.hayPuntaje_u1 : d.hayPuntaje_u2
+                    const rivalHayPts  = yoEsU1 ? d.hayPuntaje_u2 : d.hayPuntaje_u1
+                    const miJugo       = yoEsU1 ? d.jugo_u1 : d.jugo_u2
+                    const rivalJugo    = yoEsU1 ? d.jugo_u2 : d.jugo_u1
                     return (
                       <tr key={d.slot} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={{ ...gdtTdStyle, color: 'var(--color-primary)', fontWeight: 600 }}>{d.slot}</td>
@@ -665,11 +670,19 @@ export default function MiFecha() {
                           {miEliminado && ' ❌'}
                         </td>
                         <td style={{ ...gdtTdStyle, textAlign: 'center', fontWeight: 600, color: miGanador ? 'var(--color-success)' : 'inherit' }}>
-                          {miPts}
+                          {!miHayPts
+                            ? <span style={{color:'var(--color-muted)', fontWeight:400}}>—</span>
+                            : miHayPts && !miJugo && !miEliminado
+                              ? <span>{miPts} <span style={{fontSize:9, color:'var(--color-muted)', fontWeight:400}}>NJ</span></span>
+                              : miPts}
                         </td>
                         <td style={{ ...gdtTdStyle, textAlign: 'center', color: 'var(--color-muted)' }}>vs</td>
                         <td style={{ ...gdtTdStyle, textAlign: 'center', fontWeight: 600, color: rivalGanador ? 'var(--color-danger)' : 'inherit' }}>
-                          {rivalPts}
+                          {!rivalHayPts
+                            ? <span style={{color:'var(--color-muted)', fontWeight:400}}>—</span>
+                            : rivalHayPts && !rivalJugo && !rivalEliminado
+                              ? <span>{rivalPts} <span style={{fontSize:9, color:'var(--color-muted)', fontWeight:400}}>NJ</span></span>
+                              : rivalPts}
                         </td>
                         <td style={{ ...gdtTdStyle, color: rivalEliminado ? 'var(--color-danger)' : 'var(--color-muted)' }}>
                           {rivalJug || '—'}
@@ -677,11 +690,13 @@ export default function MiFecha() {
                           {rivalEliminado && ' ❌'}
                         </td>
                         <td style={{ ...gdtTdStyle, textAlign: 'center' }}>
-                          {d.ganador === 'empate'
-                            ? <span style={{ color: 'var(--color-muted)' }}>🤝</span>
-                            : miGanador
-                              ? <span style={{ color: 'var(--color-success)' }}>✅</span>
-                              : <span style={{ color: 'var(--color-danger)' }}>❌</span>
+                          {pendiente
+                            ? '⏳'
+                            : d.ganador === 'empate'
+                              ? <span style={{ color: 'var(--color-muted)' }}>🤝</span>
+                              : miGanador
+                                ? <span style={{ color: 'var(--color-success)' }}>✅</span>
+                                : <span style={{ color: 'var(--color-danger)' }}>❌</span>
                           }
                         </td>
                       </tr>
