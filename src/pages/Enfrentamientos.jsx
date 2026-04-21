@@ -44,6 +44,7 @@ function CruceCard({ cruce, fecha, esMio }) {
     if (!puedeVerPronos) return
     if (bloqueAbierto === bloque) { setBloqueAbierto(null); return }
     setBloqueAbierto(bloque)
+    setGdtAbierto(false)   // cerrar GDT si estaba abierto
     if (!eventosData && !eventosCargando) {
       setEventosCargando(true)
       try {
@@ -69,7 +70,10 @@ function CruceCard({ cruce, fecha, esMio }) {
         if (gdt?.disponible) setGdtResultado(gdt)
       } catch (_) {}
     }
-    setGdtAbierto(o => !o)
+    setGdtAbierto(o => {
+      if (!o) setBloqueAbierto(null)  // cerrar bloque A/B si se abre GDT
+      return !o
+    })
   }
 
   const ganador1 = cruce.ganador_fecha === 'user1'
