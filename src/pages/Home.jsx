@@ -515,6 +515,31 @@ function FechaItem({ fecha, cruce, user }) {
   )
 }
 
+// ─── Sección colapsable de fechas finalizadas ────────────────────────────────
+function FechasFinalizadasSection({ fechas, misCruces, user }) {
+  const [abierto, setAbierto] = useState(false)
+  return (
+    <div className="card" style={{marginTop: 16}}>
+      <div
+        className="card-header"
+        style={{cursor: 'pointer', userSelect: 'none'}}
+        onClick={() => setAbierto(a => !a)}
+      >
+        <span>📁 Fechas finalizadas <span style={{color: 'var(--color-muted)', fontWeight: 400, fontSize: 13}}>({fechas.length})</span></span>
+        <span style={{color: 'var(--color-muted)', fontSize: 13}}>{abierto ? '▲' : '▼'}</span>
+      </div>
+      {abierto && (
+        <div>
+          {fechas.slice().reverse().map(fecha => {
+            const c = misCruces[fecha.id]
+            return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} />
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Home ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth()
@@ -591,6 +616,8 @@ export default function Home() {
   if (loading) return <div className="loading">Cargando...</div>
 
   const fechasVisibles = fechas.filter(f => f.estado !== 'borrador' || esAdmin)
+  const fechasEnCurso    = fechasVisibles.filter(f => f.estado !== 'finalizada')
+  const fechasFinalizadas = fechasVisibles.filter(f => f.estado === 'finalizada')
   const ultimaFecha    = [...fechasVisibles].reverse().find(f => f.estado === 'abierta' || f.estado === 'cerrada')
     || fechasVisibles[fechasVisibles.length - 1]
   const miPosicion     = tabla.findIndex(t => t.user_id === user.id) + 1
@@ -701,23 +728,32 @@ export default function Home() {
               )
             })()}
 
-            {/* Lista de fechas */}
+            {/* Lista de fechas en curso (borrador / abierta / cerrada) */}
             <div className="card">
               <div className="card-header">
                 Fechas del torneo
                 {esAdmin && <Link to="/admin/fecha/nueva" className="btn btn-secondary btn-sm">+ Nueva</Link>}
               </div>
-              {fechasVisibles.length === 0 ? (
-                <p className="text-muted" style={{textAlign: 'center', padding: '24px 0'}}>No hay fechas todavía</p>
+              {fechasEnCurso.length === 0 ? (
+                <p className="text-muted" style={{textAlign: 'center', padding: '24px 0'}}>No hay fechas en curso</p>
               ) : (
                 <div>
-                  {fechasVisibles.slice().reverse().map(fecha => {
+                  {fechasEnCurso.slice().reverse().map(fecha => {
                     const c = misCruces[fecha.id]
                     return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} />
                   })}
                 </div>
               )}
             </div>
+
+            {/* Fechas finalizadas (colapsable, cerrado por defecto) */}
+            {fechasFinalizadas.length > 0 && (
+              <FechasFinalizadasSection
+                fechas={fechasFinalizadas}
+                misCruces={misCruces}
+                user={user}
+              />
+            )}
           </div>
 
           {/* ── Sidebar ── */}
