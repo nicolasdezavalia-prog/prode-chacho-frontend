@@ -17,7 +17,14 @@ async function request(method, path, body) {
 
   const res = await fetch(`${BASE_URL}${path}`, options);
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error en la solicitud');
+  if (!res.ok) {
+    // Si el backend manda un detail (error interno con causa real), lo mostramos
+    // para poder diagnosticar sin depender de los logs del server.
+    const msg = data.detail
+      ? `${data.error || 'Error'}: ${data.detail}`
+      : (data.error || 'Error en la solicitud');
+    throw new Error(msg);
+  }
   return data;
 }
 
@@ -31,6 +38,7 @@ export const api = {
   getTorneos: () => request('GET', '/torneos'),
   getTorneo: (id) => request('GET', `/torneos/${id}`),
   createTorneo: (data) => request('POST', '/torneos', data),
+  updateTorneo: (id, data) => request('PATCH', `/torneos/${id}`, data),
   addJugadorTorneo: (torneoId, userId) => request('POST', `/torneos/${torneoId}/jugadores`, { user_id: userId }),
   removeJugadorTorneo: (torneoId, userId) => request('DELETE', `/torneos/${torneoId}/jugadores/${userId}`),
   getTablaGeneral: (torneoId) => request('GET', `/torneos/${torneoId}/tabla`),
