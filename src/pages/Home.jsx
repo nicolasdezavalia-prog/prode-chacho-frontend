@@ -356,7 +356,7 @@ function DeudaRow({ mov, onPaid }) {
           onClick={() => setConfirming(true)}
           style={{fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0}}
         >
-          ✓ Ya pagué
+          ✓ Marcar como pagado
         </button>
       ) : (
         <div style={{display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0}}>
@@ -387,15 +387,15 @@ function DeudaFechaCard({ fecha, items, onPaid }) {
   const total = items.reduce((s, m) => s + m.importe, 0)
   return (
     <div style={{
-      border: '1px solid #fcd34d',
+      border: '1px solid #fecaca',
       borderRadius: 'var(--radius)',
       overflow: 'hidden',
       marginBottom: 10,
     }}>
       {/* Header */}
       <div style={{
-        background: '#fef9ec',
-        borderBottom: '1px solid #fcd34d',
+        background: '#fef2f2',
+        borderBottom: '1px solid #fecaca',
         padding: '8px 14px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
@@ -405,7 +405,7 @@ function DeudaFechaCard({ fecha, items, onPaid }) {
             {MESES[(fecha.mes || 1) - 1]} {fecha.anio}
           </span>
         </div>
-        <span style={{fontWeight: 800, color: '#b45309', fontSize: 15}}>
+        <span style={{fontWeight: 800, color: '#dc2626', fontSize: 15}}>
           {formatARS(total)}
         </span>
       </div>
@@ -530,6 +530,67 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
       {abierto && !cruce && (
         <div style={{paddingBottom: 12, fontSize: 13, color: 'var(--color-muted)'}}>
           Sin cruce asignado
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Alerta de deudas pendientes (colapsable, estilo rojo) ───────────────────
+function DeudasAlert({ total, fechasConDeuda, economia, onPaid, esAdmin }) {
+  const [abierto, setAbierto] = useState(false)
+  return (
+    <div style={{
+      border: '1px solid #fecaca',
+      background: '#fef2f2',
+      borderRadius: 'var(--radius)',
+      padding: '12px 14px',
+      marginBottom: 16,
+    }}>
+      {/* Header tipo alerta */}
+      <div
+        onClick={() => setAbierto(a => !a)}
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          cursor: 'pointer', userSelect: 'none',
+          gap: 12,
+        }}
+      >
+        <div style={{fontWeight: 700, fontSize: 14, color: '#991b1b'}}>
+          ⚠️ Tenés deudas pendientes por{' '}
+          <span style={{color: '#dc2626', fontWeight: 800}}>{formatARS(total)}</span>
+        </div>
+        <div style={{display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0}}>
+          <span style={{
+            fontSize: 11, color: '#dc2626', fontWeight: 600,
+            textDecoration: 'underline', textUnderlineOffset: 2,
+          }}>
+            {abierto ? 'Ocultar detalle' : 'Ver detalle por fecha'}
+          </span>
+          <span style={{color: '#dc2626', fontSize: 12}}>{abierto ? '▲' : '▼'}</span>
+        </div>
+      </div>
+
+      {/* Detalle colapsable */}
+      {abierto && (
+        <div style={{marginTop: 12}}>
+          {fechasConDeuda.slice().reverse().map(f => (
+            <DeudaFechaCard
+              key={f.id}
+              fecha={f}
+              items={economia.porFecha[f.id].items}
+              onPaid={onPaid}
+            />
+          ))}
+          {esAdmin && (
+            <Link
+              to="/admin/deudores"
+              className="btn btn-secondary btn-sm"
+              style={{width: '100%', justifyContent: 'center', marginTop: 4}}
+            >
+              📊 Ver cuadro de deudores
+            </Link>
+          )}
         </div>
       )}
     </div>
@@ -663,40 +724,20 @@ export default function Home() {
           {/* ── Columna principal ── */}
           <div>
 
-            {/* Mis deudas — una tarjeta por fecha con deudas pendientes */}
+            {/* Alerta de deudas pendientes (colapsable) */}
             {economia?.totalPendiente > 0 && (() => {
               const fechasConDeuda = fechasVisibles.filter(f =>
                 economia.porFecha?.[f.id]?.items?.length > 0
               )
               if (fechasConDeuda.length === 0) return null
               return (
-                <div className="card" style={{marginBottom: 16, borderColor: '#fcd34d'}}>
-                  <div className="card-header" style={{borderBottom: '1px solid #fcd34d'}}>
-                    <span>💸 Mis deudas</span>
-                    <span style={{fontWeight: 800, color: '#b45309'}}>
-                      {formatARS(economia.totalPendiente)}
-                    </span>
-                  </div>
-                  <div style={{paddingTop: 8}}>
-                    {fechasConDeuda.slice().reverse().map(f => (
-                      <DeudaFechaCard
-                        key={f.id}
-                        fecha={f}
-                        items={economia.porFecha[f.id].items}
-                        onPaid={loadData}
-                      />
-                    ))}
-                  </div>
-                  {esAdmin && (
-                    <Link
-                      to="/admin/deudores"
-                      className="btn btn-secondary btn-sm"
-                      style={{width: '100%', justifyContent: 'center', marginTop: 4}}
-                    >
-                      📊 Ver cuadro de deudores
-                    </Link>
-                  )}
-                </div>
+                <DeudasAlert
+                  total={economia.totalPendiente}
+                  fechasConDeuda={fechasConDeuda}
+                  economia={economia}
+                  onPaid={loadData}
+                  esAdmin={esAdmin}
+                />
               )
             })()}
 
@@ -791,6 +832,33 @@ export default function Home() {
               <div className="card-header">Tabla {MESES[mesActual - 1]}</div>
               {mensualConDatos.length === 0 ? (
                 <p className="text-muted" style={{textAlign:'center', padding:'16px 0', fontSize:13}}>Sin fechas disputadas este mes</p>
+              ) : (
+                <table className="liga-table">
+                  <thead><tr><th>#</th><th style={{textAlign:'left'}}>Jugador</th><th>PJ</th><th>Pts</th></tr></thead>
+                  <tbody>
+                    {mensualConDatos
+                      .sort((a, b) => b.puntos - a.puntos || b.victorias - a.victorias)
+                      .map((row, i) => (
+                        <tr key={row.user_id} className={row.user_id === user.id ? 'highlight-top' : ''}>
+                          <td className="pos">{i + 1}</td>
+                          <td style={{fontWeight: row.user_id === user.id ? 700 : 400}}>{row.nombre.toUpperCase()}</td>
+                          <td>{row.pj}</td>
+                          <td className="pts">{row.puntos}</td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  )
+}
+assName="text-muted" style={{textAlign:'center', padding:'16px 0', fontSize:13}}>Sin fechas disputadas este mes</p>
               ) : (
                 <table className="liga-table">
                   <thead><tr><th>#</th><th style={{textAlign:'left'}}>Jugador</th><th>PJ</th><th>Pts</th></tr></thead>
