@@ -22,6 +22,44 @@ function fmtEnvio(ts) {
   return `${dd}/${mm} ${hh}:${min}`
 }
 
+// Badge de envío: verde si en término, rojo si fuera de término, neutro si no hay deadline
+function BadgeEnvio({ ts, deadline, align = 'left' }) {
+  if (!ts) return null
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return null
+
+  const dd  = String(d.getDate()).padStart(2, '0')
+  const mm  = String(d.getMonth() + 1).padStart(2, '0')
+  const hh  = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const hora = `${dd}/${mm} ${hh}:${min}`
+
+  if (!deadline) {
+    return (
+      <div style={{fontSize: 10, color: 'var(--color-muted)', marginTop: 3, textAlign: align}}>
+        env. {hora}
+      </div>
+    )
+  }
+
+  const enTermino = d <= new Date(deadline)
+  return (
+    <div style={{marginTop: 4, textAlign: align}}>
+      <span style={{
+        display: 'inline-block',
+        fontSize: 10, fontWeight: 700,
+        padding: '2px 6px', borderRadius: 99,
+        background: enTermino ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)',
+        color: enTermino ? 'var(--color-success)' : 'var(--color-danger)',
+        border: `1px solid ${enTermino ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.35)'}`,
+        whiteSpace: 'nowrap',
+      }}>
+        {enTermino ? `✓ En término · ${hora}` : `✗ Fuera de término · ${hora}`}
+      </span>
+    </div>
+  )
+}
+
 // Muestra el score de un pronóstico de partido
 function scorePron(p) {
   if (!p) return '—'
@@ -128,11 +166,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                 {cruce.pts_torneo_u1} pts torneo
               </div>
             )}
-            {fmtEnvio(cruce.envio_u1) && (
-              <div style={{fontSize: 10, color: 'var(--color-muted)', marginTop: 2}}>
-                env. {fmtEnvio(cruce.envio_u1)}
-              </div>
-            )}
+            <BadgeEnvio ts={cruce.envio_u1} deadline={fecha.deadline} align="left" />
           </div>
 
           {/* Centro */}
@@ -162,11 +196,7 @@ function CruceCard({ cruce, fecha, esMio }) {
                 {cruce.pts_torneo_u2} pts torneo
               </div>
             )}
-            {fmtEnvio(cruce.envio_u2) && (
-              <div style={{fontSize: 10, color: 'var(--color-muted)', marginTop: 2, textAlign: 'right'}}>
-                env. {fmtEnvio(cruce.envio_u2)}
-              </div>
-            )}
+            <BadgeEnvio ts={cruce.envio_u2} deadline={fecha.deadline} align="right" />
           </div>
         </div>
 
