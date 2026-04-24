@@ -605,7 +605,21 @@ export default function AdminFecha() {
                       )}
                     </td>
                     <td style={{padding: '7px 10px', textAlign: 'center'}}>
-                      {puedeMultar && (
+                      {j.ya_multado ? (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{fontSize: 11, color: 'var(--color-danger)', borderColor: 'var(--color-danger)'}}
+                          onClick={async () => {
+                            if (!confirm(`¿Eliminar la multa de ${j.nombre}?`)) return
+                            try {
+                              for (const id of j.multa_ids) await api.eliminarMovimiento(id)
+                              await Promise.all([loadCumplimiento(), loadCrucesYMovimientos()])
+                            } catch (err) { setError(err.message) }
+                          }}
+                        >
+                          🗑 Eliminar multa
+                        </button>
+                      ) : puedeMultar && (
                         <button
                           className="btn btn-danger btn-sm"
                           style={{fontSize: 11}}
