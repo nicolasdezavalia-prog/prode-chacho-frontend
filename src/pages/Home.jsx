@@ -347,7 +347,7 @@ function DeudaRow({ mov, onPaid }) {
           {mov.concepto}
         </div>
         <div style={{fontSize: 11, color: 'var(--color-muted)'}}>
-          → <strong>{aQuien}</strong> · <span style={{color: '#b45309', fontWeight: 700}}>{formatARS(mov.importe)}</span>
+          → <strong>{aQuien}</strong> · <span style={{color: '#dc2626', fontWeight: 700}}>{formatARS(mov.importe)}</span>
         </div>
       </div>
       {!confirming ? (
