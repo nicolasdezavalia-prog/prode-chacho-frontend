@@ -3,6 +3,18 @@ import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
 
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+
+function formatDeadline(deadline) {
+  if (!deadline) return null
+  const d = new Date(deadline)
+  if (isNaN(d.getTime())) return null
+  const dia = DIAS[d.getDay()]
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${dia} ${hh}:${mm}`
+}
+
 function calcularLEV(gl, gv) {
   if (gl === '' || gv === '' || gl === null || gv === null) return null
   const l = parseInt(gl), v = parseInt(gv)
@@ -757,21 +769,28 @@ export default function MiFecha() {
         <span className="text-muted" style={{fontSize: 12}}>
           {eventos.filter(tieneResultadoCargado).length} / {eventos.length} resultados cargados
         </span>
-        {fecha?.estado === 'abierta' && (
-          <span style={{fontSize: 12, color: 'var(--color-success)'}}>
-            🟢 Fecha abierta · podés editar tu pronóstico
-          </span>
-        )}
-        {fecha?.estado === 'cerrada' && (
-          <span style={{fontSize: 12, color: 'var(--color-warning)'}}>
-            🟡 Fecha cerrada · no se aceptan más pronósticos
-          </span>
-        )}
-        {fecha?.estado === 'finalizada' && (
-          <span style={{fontSize: 12, color: 'var(--color-muted)'}}>
-            ✅ Fecha finalizada
-          </span>
-        )}
+        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2}}>
+          {fecha?.estado === 'abierta' && (
+            <span style={{fontSize: 12, color: 'var(--color-success)'}}>
+              🟢 Fecha abierta · podés editar tu pronóstico
+            </span>
+          )}
+          {fecha?.estado === 'cerrada' && (
+            <span style={{fontSize: 12, color: 'var(--color-warning)'}}>
+              🟡 Fecha cerrada · no se aceptan más pronósticos
+            </span>
+          )}
+          {fecha?.estado === 'finalizada' && (
+            <span style={{fontSize: 12, color: 'var(--color-muted)'}}>
+              ✅ Fecha finalizada
+            </span>
+          )}
+          {fecha?.deadline && formatDeadline(fecha.deadline) && (
+            <span style={{fontSize: 11, color: 'var(--color-muted)'}}>
+              ⏰ Deadline: {formatDeadline(fecha.deadline)}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Bloque 1 */}

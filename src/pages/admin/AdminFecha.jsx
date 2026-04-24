@@ -52,7 +52,8 @@ export default function AdminFecha() {
     mes: new Date().getMonth() + 1,
     anio: new Date().getFullYear(),
     tipo: 'completa',
-    importe_apuesta: ''
+    importe_apuesta: '',
+    deadline: ''
   })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -107,7 +108,8 @@ export default function AdminFecha() {
         mes: f.mes,
         anio: f.anio,
         tipo: f.tipo || 'completa',
-        importe_apuesta: f.importe_apuesta ?? ''
+        importe_apuesta: f.importe_apuesta ?? '',
+        deadline: f.deadline ?? ''
       })
       loadJugadoresTorneo(f.torneo_id)
     } catch (err) {
@@ -126,6 +128,7 @@ export default function AdminFecha() {
         const created = await api.createFecha({
           ...form,
           importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
+          deadline: form.deadline === '' ? null : form.deadline,
         })
         setSuccess('Fecha creada correctamente')
         navigate(`/admin/fecha/${created.id}`)
@@ -136,6 +139,7 @@ export default function AdminFecha() {
           anio: form.anio,
           tipo: form.tipo,
           importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
+          deadline: form.deadline === '' ? null : form.deadline,
         })
         setSuccess('Fecha actualizada')
         loadFecha()
@@ -397,6 +401,19 @@ export default function AdminFecha() {
             />
             <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
               Si se carga un importe, los empates generan una deuda al pozo automáticamente.
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>⏰ Deadline de pronósticos</label>
+            <input
+              type="datetime-local"
+              value={form.deadline}
+              onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
+              style={{ maxWidth: 280 }}
+            />
+            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
+              Opcional. Fecha y hora límite para cargar pronósticos (solo informativo por ahora).
             </div>
           </div>
 
