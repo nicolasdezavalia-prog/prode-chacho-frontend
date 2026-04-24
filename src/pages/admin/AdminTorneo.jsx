@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -163,7 +164,28 @@ function TorneoRow({ torneo, usuarios, onUpdated }) {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <Link
+                to={`/admin/torneo/${torneo.id}/fechas`}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: 11 }}
+              >
+                📅 Fechas
+              </Link>
+              <Link
+                to={`/admin/torneo/${torneo.id}/resultados`}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: 11 }}
+              >
+                📋 Resultados
+              </Link>
+              <Link
+                to={`/admin/torneo/${torneo.id}/gdt`}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: 11 }}
+              >
+                ⚽ Gran DT
+              </Link>
               <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)} style={{ fontSize: 11 }}>
                 ✏️ Editar
               </button>

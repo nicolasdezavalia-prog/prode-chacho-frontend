@@ -508,13 +508,13 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
         </div>
         <div className="flex gap-8" style={{alignItems: 'center'}}>
           <span className={`badge ${ESTADO_LABEL[fecha.estado]?.cls}`}>{ESTADO_LABEL[fecha.estado]?.label}</span>
-          {fecha.estado !== 'borrador' && (
+          {fecha.estado === 'abierta' && (
             <Link to={`/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Ver</Link>
           )}
           {fecha.estado !== 'borrador' && (
             <Link to={`/fecha/${fecha.id}/enfrentamientos`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>⚔️</Link>
           )}
-          {esAdmin && (
+          {esAdmin && fecha.estado === 'abierta' && (
             <Link to={`/admin/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Admin</Link>
           )}
           <span style={{color: 'var(--color-muted)', fontSize: 12}}>{abierto ? '▲' : '▼'}</span>

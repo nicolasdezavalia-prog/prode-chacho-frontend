@@ -106,6 +106,9 @@ export default function Navbar() {
         {/* GDT — sección del usuario */}
         <NavLink to="/gdt/mi-equipo" label="Mi GDT" />
 
+        {/* ADMIN HUB */}
+        {isAdmin && <NavLink to="/admin" label="Admin" />}
+
         {/* ADMIN PRODE */}
         {isAdmin && (
           <DropdownMenu

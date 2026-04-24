@@ -525,9 +525,11 @@ export default function AdminFecha() {
                 </Link>
               </>
             )}
-            <Link to={`/fecha/${fechaId}?preview=true`} className="btn btn-secondary">
-              👁 Ver como jugador
-            </Link>
+            {fecha?.estado === 'abierta' && (
+              <Link to={`/fecha/${fechaId}?preview=true`} className="btn btn-secondary">
+                👁 Ver como jugador
+              </Link>
+            )}
           </div>
         </div>
       )}

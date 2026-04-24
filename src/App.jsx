@@ -21,6 +21,11 @@ import Enfrentamientos from './pages/Enfrentamientos.jsx'
 import AdminUsuarios from './pages/admin/AdminUsuarios.jsx'
 import AdminDeudores from './pages/admin/AdminDeudores.jsx'
 import AdminPermisos from './pages/admin/AdminPermisos.jsx'
+import AdminHub from './pages/admin/AdminHub.jsx'
+import AdminTorneoFechas from './pages/admin/AdminTorneoFechas.jsx'
+import AdminTorneoResultados from './pages/admin/AdminTorneoResultados.jsx'
+import AdminTorneoGDT from './pages/admin/AdminTorneoGDT.jsx'
+import AdminResultadosHub from './pages/admin/AdminResultadosHub.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import Navbar from './components/Navbar.jsx'
 
@@ -83,6 +88,11 @@ export default function App() {
             <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><AdminUsuarios /></PrivateRoute>} />
             <Route path="/admin/deudores" element={<PrivateRoute adminOnly><AdminDeudores /></PrivateRoute>} />
             <Route path="/admin/permisos" element={<PrivateRoute adminOnly><AdminPermisos /></PrivateRoute>} />
+            <Route path="/admin" element={<PrivateRoute adminOnly><AdminHub /></PrivateRoute>} />
+            <Route path="/admin/torneo/:torneoId/fechas" element={<PrivateRoute adminOnly><AdminTorneoFechas /></PrivateRoute>} />
+            <Route path="/admin/torneo/:torneoId/resultados" element={<PrivateRoute adminOnly><AdminTorneoResultados /></PrivateRoute>} />
+            <Route path="/admin/torneo/:torneoId/gdt" element={<PrivateRoute adminOnly><AdminTorneoGDT /></PrivateRoute>} />
+            <Route path="/admin/resultados" element={<PrivateRoute adminOnly><AdminResultadosHub /></PrivateRoute>} />
             <Route path="/fecha/:fechaId/enfrentamientos" element={<PrivateRoute><Enfrentamientos /></PrivateRoute>} />
             <Route path="/gdt/mi-equipo" element={<PrivateRoute><MiEquipoGDT /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" />} />
