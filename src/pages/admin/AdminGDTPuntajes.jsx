@@ -17,7 +17,7 @@ export default function AdminGDTPuntajes() {
   const [sort, setSort] = useState({ col: 'nombre', dir: 'asc' })
 
   // Filtros
-  const [filtros, setFiltros] = useState({ nombre: '', equipo: '', cargado: '', jugo: '' })
+  const [filtros, setFiltros] = useState({ nombre: '', equipo: '', posicion: '', cargado: '', jugo: '' })
 
   useEffect(() => { cargar() }, [fechaId])
 
@@ -59,8 +59,9 @@ export default function AdminGDTPuntajes() {
   const filas = useMemo(() => {
     let rows = jugadores.filter(j => {
       const ed = editados[j.jugador_id] || {}
-      if (filtros.nombre  && !j.nombre.toLowerCase().includes(filtros.nombre.toLowerCase())) return false
-      if (filtros.equipo  && j.equipo_real !== filtros.equipo) return false
+      if (filtros.nombre   && !j.nombre.toLowerCase().includes(filtros.nombre.toLowerCase())) return false
+      if (filtros.equipo   && j.equipo_real !== filtros.equipo) return false
+      if (filtros.posicion && j.posicion !== filtros.posicion) return false
       if (filtros.cargado === 'si'  && !j.cargado) return false
       if (filtros.cargado === 'no'  &&  j.cargado) return false
       if (filtros.jugo    === 'si'  && !ed.jugo)  return false
@@ -174,7 +175,7 @@ export default function AdminGDTPuntajes() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, fontSize: 13, color: 'var(--color-muted)' }}>
             <span>{totalCargados}/{jugadores.length} cargados · {filas.length} visibles · Tab/Enter/↑↓ para navegar</span>
             {hayFiltros && (
-              <button className="btn btn-secondary btn-sm" onClick={() => setFiltros({ nombre: '', equipo: '', cargado: '', jugo: '' })}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setFiltros({ nombre: '', equipo: '', posicion: '', cargado: '', jugo: '' })}>
                 ✕ Limpiar filtros
               </button>
             )}
@@ -200,7 +201,15 @@ export default function AdminGDTPuntajes() {
                     <input value={filtros.nombre} onChange={e => setFiltros(f => ({ ...f, nombre: e.target.value }))}
                       placeholder="Filtrar..." style={fi} />
                   </th>
-                  <th style={thF}></th>
+                  <th style={{ ...thF, textAlign: 'center' }}>
+                    <select value={filtros.posicion} onChange={e => setFiltros(f => ({ ...f, posicion: e.target.value }))} style={{ ...fi, width: 70 }}>
+                      <option value="">Todas</option>
+                      <option value="ARQ">ARQ</option>
+                      <option value="DEF">DEF</option>
+                      <option value="MED">MED</option>
+                      <option value="DEL">DEL</option>
+                    </select>
+                  </th>
                   <th style={thF}>
                     <select value={filtros.equipo} onChange={e => setFiltros(f => ({ ...f, equipo: e.target.value }))} style={fi}>
                       <option value="">Todos</option>
