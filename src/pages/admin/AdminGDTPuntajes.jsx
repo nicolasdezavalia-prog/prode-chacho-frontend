@@ -76,6 +76,10 @@ export default function AdminGDTPuntajes() {
       } else if (sort.col === 'jugo') {
         va = editados[a.jugador_id]?.jugo ? 1 : 0
         vb = editados[b.jugador_id]?.jugo ? 1 : 0
+      } else if (sort.col === 'posicion') {
+        const orden = { ARQ: 0, DEF: 1, MED: 2, DEL: 3 }
+        va = orden[a.posicion] ?? 99
+        vb = orden[b.posicion] ?? 99
       } else {
         va = a[sort.col === 'nombre' ? 'nombre' : 'equipo_real'] ?? ''
         vb = b[sort.col === 'nombre' ? 'nombre' : 'equipo_real'] ?? ''
@@ -183,6 +187,7 @@ export default function AdminGDTPuntajes() {
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <th style={{ ...thStyle, width: 36 }}>#</th>
                   <SortTh col="nombre"   label="Jugador" />
+                  <SortTh col="posicion" label="Pos." center />
                   <SortTh col="equipo"   label="Equipo" />
                   <SortTh col="puntaje"  label="Puntaje" center />
                   <SortTh col="jugo"     label="¿Jugó?" center />
@@ -195,6 +200,7 @@ export default function AdminGDTPuntajes() {
                     <input value={filtros.nombre} onChange={e => setFiltros(f => ({ ...f, nombre: e.target.value }))}
                       placeholder="Filtrar..." style={fi} />
                   </th>
+                  <th style={thF}></th>
                   <th style={thF}>
                     <select value={filtros.equipo} onChange={e => setFiltros(f => ({ ...f, equipo: e.target.value }))} style={fi}>
                       <option value="">Todos</option>
@@ -226,6 +232,9 @@ export default function AdminGDTPuntajes() {
                     <tr key={j.jugador_id} style={{ borderBottom: '1px solid var(--color-border)', background: cargado ? 'rgba(34,197,94,0.04)' : 'transparent' }}>
                       <td style={{ ...tdStyle, color: 'var(--color-muted)', width: 36 }}>{idx + 1}</td>
                       <td style={tdStyle}>{j.nombre}</td>
+                      <td style={{ ...tdStyle, textAlign: 'center', width: 60 }}>
+                        <span style={posicionBadge(j.posicion)}>{j.posicion || '—'}</span>
+                      </td>
                       <td style={{ ...tdStyle, color: 'var(--color-muted)' }}>{j.equipo_real}</td>
                       <td style={{ ...tdStyle, textAlign: 'center', width: 100 }}>
                         <input
@@ -251,7 +260,7 @@ export default function AdminGDTPuntajes() {
                   )
                 })}
                 {filas.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--color-muted)' }}>
+                  <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--color-muted)' }}>
                     Sin resultados con los filtros actuales.
                   </td></tr>
                 )}
@@ -275,3 +284,14 @@ const thF     = { padding: '4px 6px' }
 const tdStyle = { padding: '6px 12px' }
 const inputStyle = { background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '5px 8px', fontSize: 13 }
 const fi      = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 3, color: 'var(--color-text)', padding: '3px 6px', fontSize: 11, width: '100%' }
+
+const POS_COLORS = {
+  ARQ: { bg: 'rgba(234,179,8,0.15)',  color: '#ca8a04' },
+  DEF: { bg: 'rgba(59,130,246,0.15)', color: '#2563eb' },
+  MED: { bg: 'rgba(34,197,94,0.15)',  color: '#16a34a' },
+  DEL: { bg: 'rgba(239,68,68,0.15)',  color: '#dc2626' },
+}
+function posicionBadge(pos) {
+  const c = POS_COLORS[pos] || { bg: 'var(--color-surface2)', color: 'var(--color-muted)' }
+  return { display: 'inline-block', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', background: c.bg, color: c.color }
+}
