@@ -143,6 +143,11 @@ export default function Navbar() {
             👥
           </Link>
         )}
+        {isSuperAdmin && (
+          <Link to="/admin/permisos" className="btn btn-secondary btn-sm" title="Gestión de permisos">
+            🔑
+          </Link>
+        )}
         <button className="btn btn-secondary btn-sm" onClick={handleLogout}>Salir</button>
       </div>
     </nav>

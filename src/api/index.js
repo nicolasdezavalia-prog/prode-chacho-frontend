@@ -153,4 +153,9 @@ export const api = {
   crearMultaDeadline: (data) => request('POST', '/movimientos/multa-deadline', data),
   togglePagadoMovimiento: (id) => request('PATCH', `/movimientos/${id}/pagar`),
   eliminarMovimiento: (id) => request('DELETE', `/movimientos/${id}`),
+
+  // Permisos (solo superadmin)
+  getPermisosCatalogo: () => request('GET', '/permisos/catalogo'),
+  getUsuariosPermisos: () => request('GET', '/permisos/usuarios'),
+  updatePermisosUsuario: (userId, permisos) => request('PUT', `/permisos/usuarios/${userId}`, { permisos }),
 };

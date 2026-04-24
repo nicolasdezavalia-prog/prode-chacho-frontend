@@ -20,6 +20,7 @@ import MiEquipoGDT from './pages/MiEquipoGDT.jsx'
 import Enfrentamientos from './pages/Enfrentamientos.jsx'
 import AdminUsuarios from './pages/admin/AdminUsuarios.jsx'
 import AdminDeudores from './pages/admin/AdminDeudores.jsx'
+import AdminPermisos from './pages/admin/AdminPermisos.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import Navbar from './components/Navbar.jsx'
 
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="/admin/gdt/ventana" element={<PrivateRoute adminOnly><AdminGDTVentana /></PrivateRoute>} />
             <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><AdminUsuarios /></PrivateRoute>} />
             <Route path="/admin/deudores" element={<PrivateRoute adminOnly><AdminDeudores /></PrivateRoute>} />
+            <Route path="/admin/permisos" element={<PrivateRoute adminOnly><AdminPermisos /></PrivateRoute>} />
             <Route path="/fecha/:fechaId/enfrentamientos" element={<PrivateRoute><Enfrentamientos /></PrivateRoute>} />
             <Route path="/gdt/mi-equipo" element={<PrivateRoute><MiEquipoGDT /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" />} />
