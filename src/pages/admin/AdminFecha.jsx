@@ -249,6 +249,7 @@ export default function AdminFecha() {
     try {
       await api.eliminarMovimiento(id)
       await loadCrucesYMovimientos()
+      if (fecha?.deadline) await loadCumplimiento()
     } catch (err) { setError(err.message) }
   }
 
@@ -695,8 +696,8 @@ export default function AdminFecha() {
             </button>
           </form>
 
-          {/* Lista de movimientos manuales de esta fecha */}
-          {movFecha.filter(m => m.tipo === 'manual').length > 0 && (
+          {/* Lista de movimientos manuales y multas de deadline */}
+          {movFecha.filter(m => m.tipo === 'manual' || m.tipo === 'multa_deadline').length > 0 && (
             <div>
               <div style={{fontSize: 12, fontWeight: 600, color: 'var(--color-muted)', marginBottom: 6, textTransform: 'uppercase'}}>
                 Apuestas cargadas
@@ -710,10 +711,17 @@ export default function AdminFecha() {
                   </tr>
                 </thead>
                 <tbody>
-                  {movFecha.filter(m => m.tipo === 'manual').map(m => (
+                  {movFecha.filter(m => m.tipo === 'manual' || m.tipo === 'multa_deadline').map(m => (
                     <tr key={m.id} style={{borderBottom: '1px solid var(--color-border)', background: m.pagado ? '#f0fdf4' : 'inherit'}}>
                       <td style={{padding: '5px 8px', fontWeight: 600}}>{m.user_nombre}</td>
-                      <td style={{padding: '5px 8px', color: 'var(--color-muted)'}}>{m.concepto}</td>
+                      <td style={{padding: '5px 8px', color: 'var(--color-muted)'}}>
+                        {m.concepto}
+                        {m.tipo === 'multa_deadline' && (
+                          <span style={{marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(220,38,38,0.1)', color: 'var(--color-danger)', padding: '1px 5px', borderRadius: 4}}>
+                            MULTA
+                          </span>
+                        )}
+                      </td>
                       <td style={{padding: '5px 8px', textAlign: 'center', fontWeight: 700, color: m.pagado ? 'var(--color-success)' : '#b45309'}}>
                         {formatARS(m.importe)}
                       </td>
@@ -741,7 +749,7 @@ export default function AdminFecha() {
             </div>
           )}
 
-          {movFecha.filter(m => m.tipo === 'manual').length === 0 && (
+          {movFecha.filter(m => m.tipo === 'manual' || m.tipo === 'multa_deadline').length === 0 && (
             <p style={{fontSize: 12, color: 'var(--color-muted)', margin: 0}}>
               Sin apuestas adicionales cargadas para esta fecha.
             </p>
