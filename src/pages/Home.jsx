@@ -17,9 +17,9 @@ function formatARS(importe) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(importe)
 }
 
-// â”€â”€â”€ Componente reutilizable de detalle de cruce â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Componente reutilizable de detalle de cruce ─────────────────────────────
 function CruceDetalle({ cruce, fecha, gdtResultado }) {
-  // Un Ãºnico state para apertura de secciones â€” abrir una cierra las otras.
+  // Un único state para apertura de secciones — abrir una cierra las otras.
   const [seccionAbierta, setSeccionAbierta] = useState(null) // 'A' | 'B' | 'GDT' | null
   const [eventosData, setEventosData] = useState(null)
   const [eventosCargando, setEventosCargando] = useState(false)
@@ -52,8 +52,8 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
   const resultadoLabel = () => {
     if (!cruce.ganador_fecha) return null
     if (empate) return { texto: 'EMPATE', color: 'var(--color-muted)' }
-    if (gane)   return { texto: 'GANANDO âœ…', color: 'var(--color-success)' }
-    return { texto: 'PERDIENDO âŒ', color: 'var(--color-danger)' }
+    if (gane)   return { texto: 'GANANDO ✅', color: 'var(--color-success)' }
+    return { texto: 'PERDIENDO ❌', color: 'var(--color-danger)' }
   }
   const res = resultadoLabel()
 
@@ -77,7 +77,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
             fontSize: 32, fontWeight: 800, lineHeight: 1,
             color: gane ? 'var(--color-success)' : perdi ? 'var(--color-danger)' : 'var(--color-text)'
           }}>
-            {cruce.yo_puntos_internos ?? 'â€”'}
+            {cruce.yo_puntos_internos ?? '—'}
           </div>
         </div>
         {/* Centro */}
@@ -96,7 +96,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
             fontSize: 32, fontWeight: 800, lineHeight: 1,
             color: perdi ? 'var(--color-success)' : gane ? 'var(--color-danger)' : 'var(--color-text)'
           }}>
-            {cruce.rival_puntos_internos ?? 'â€”'}
+            {cruce.rival_puntos_internos ?? '—'}
           </div>
         </div>
       </div>
@@ -104,8 +104,8 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
       {/* Chips de bloques */}
       <div style={{display: 'flex', gap: 6, fontSize: 12}}>
         {[
-          { key: 'A', emoji: 'ðŸŸ©', nombre: fecha.bloque1_nombre, yoPts: cruce.yo_pts_tabla_a, rivalPts: cruce.rival_pts_tabla_a, ganador: cruce.ganador_tabla_a, yoGana: cruce.yo_ganador_tabla_a },
-          { key: 'B', emoji: 'ðŸŸ¦', nombre: fecha.bloque2_nombre, yoPts: cruce.yo_pts_tabla_b, rivalPts: cruce.rival_pts_tabla_b, ganador: cruce.ganador_tabla_b, yoGana: cruce.yo_ganador_tabla_b },
+          { key: 'A', emoji: '🟩', nombre: fecha.bloque1_nombre, yoPts: cruce.yo_pts_tabla_a, rivalPts: cruce.rival_pts_tabla_a, ganador: cruce.ganador_tabla_a, yoGana: cruce.yo_ganador_tabla_a },
+          { key: 'B', emoji: '🟦', nombre: fecha.bloque2_nombre, yoPts: cruce.yo_pts_tabla_b, rivalPts: cruce.rival_pts_tabla_b, ganador: cruce.ganador_tabla_b, yoGana: cruce.yo_ganador_tabla_b },
         ].map(b => (
           <div key={b.key} style={{
             flex: 1, padding: '5px 8px', background: 'var(--color-surface)',
@@ -117,9 +117,9 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
           >
             <span style={{color: 'var(--color-muted)'}}>{b.emoji} {b.nombre}</span>
             <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4}}>
-              {b.yoPts} â€“ {b.rivalPts}
-              {' '}{b.ganador === 'empate' ? 'ðŸ¤' : b.yoGana ? 'âœ…' : 'âŒ'}
-              <span style={{fontSize: 10, color: 'var(--color-muted)'}}>{seccionAbierta === b.key ? 'â–²' : 'â–¼'}</span>
+              {b.yoPts} – {b.rivalPts}
+              {' '}{b.ganador === 'empate' ? '🤝' : b.yoGana ? '✅' : '❌'}
+              <span style={{fontSize: 10, color: 'var(--color-muted)'}}>{seccionAbierta === b.key ? '▲' : '▼'}</span>
             </span>
           </div>
         ))}
@@ -132,13 +132,13 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
         }}
           onClick={() => gdtResultado && toggleSeccion('GDT')}
         >
-          <span style={{color: 'var(--color-muted)'}}>ðŸŸª GDT</span>
+          <span style={{color: 'var(--color-muted)'}}>🟪 GDT</span>
           <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4}}>
             {cruce.yo_gdt_duelos != null
-              ? <>{cruce.yo_gdt_duelos} â€“ {cruce.rival_gdt_duelos} {cruce.ganador_gdt === 'empate' ? 'ðŸ¤' : cruce.yo_ganador_gdt ? 'âœ…' : 'âŒ'}</>
+              ? <>{cruce.yo_gdt_duelos} – {cruce.rival_gdt_duelos} {cruce.ganador_gdt === 'empate' ? '🤝' : cruce.yo_ganador_gdt ? '✅' : '❌'}</>
               : <span style={{color: 'var(--color-muted)', fontSize: 11}}>Pend.</span>
             }
-            {gdtResultado && <span style={{fontSize: 10, color: 'var(--color-muted)', marginLeft: 2}}>{seccionAbierta === 'GDT' ? 'â–²' : 'â–¼'}</span>}
+            {gdtResultado && <span style={{fontSize: 10, color: 'var(--color-muted)', marginLeft: 2}}>{seccionAbierta === 'GDT' ? '▲' : '▼'}</span>}
           </span>
         </div>
       </div>
@@ -155,9 +155,9 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
             const th = {padding:'5px 8px', fontSize:10, fontWeight:600, textTransform:'uppercase'}
             const td = {padding:'5px 8px'}
             const showPron = (p, ev) => {
-              if (!p) return 'â€”'
-              if (ev.tipo === 'partido') return p.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : 'â€”'
-              return p.opcion_elegida || 'â€”'
+              if (!p) return '—'
+              if (ev.tipo === 'partido') return p.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : '—'
+              return p.opcion_elegida || '—'
             }
             return (
               <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
@@ -193,7 +193,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                         <td style={td}>
                           {ev.tipo === 'partido'
                             ? <>{ev.local} <span style={{color:'var(--color-muted)'}}>vs</span> {ev.visitante}</>
-                            : <span style={{color:'var(--color-muted)'}}>â“ {ev.pregunta_texto}</span>
+                            : <span style={{color:'var(--color-muted)'}}>❓ {ev.pregunta_texto}</span>
                           }
                         </td>
                         {puedeVerRival ? (
@@ -208,7 +208,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                             </td>
                             <td style={{...td, textAlign:'center', fontWeight:600}}>
                               {ev.tipo === 'partido' && ev.resultado_local != null
-                                ? `${ev.resultado_local}-${ev.resultado_visitante}` : 'â€”'}
+                                ? `${ev.resultado_local}-${ev.resultado_visitante}` : '—'}
                             </td>
                             <td style={{...td, textAlign:'center', fontWeight: acertoRival ? 700 : 400,
                               color: tieneRes ? (acertoRival ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-muted)'
@@ -226,12 +226,12 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                             </td>
                             <td style={{...td, textAlign:'center', fontWeight:600}}>
                               {ev.tipo === 'partido' && ev.resultado_local != null
-                                ? `${ev.resultado_local}-${ev.resultado_visitante}` : 'â€”'}
+                                ? `${ev.resultado_local}-${ev.resultado_visitante}` : '—'}
                             </td>
                             <td style={{...td, textAlign:'center', fontWeight:700,
                               color: (p?.puntos_obtenidos || 0) > 0 ? 'var(--color-success)' : 'var(--color-muted)'
                             }}>
-                              {tieneRes ? (p?.puntos_obtenidos ?? 0) : 'â€”'}
+                              {tieneRes ? (p?.puntos_obtenidos ?? 0) : '—'}
                             </td>
                           </>
                         )}
@@ -251,7 +251,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
           <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
             <thead>
               <tr style={{background: '#fafafa', borderBottom: '1px solid var(--color-border)'}}>
-                {['Slot','Tu jugador','Pts','â€”','Pts','Rival',''].map((h, i) => (
+                {['Slot','Tu jugador','Pts','—','Pts','Rival',''].map((h, i) => (
                   <th key={i} style={{
                     padding: '5px 7px', fontSize: 10, fontWeight: 600,
                     color: 'var(--color-muted)', textTransform: 'uppercase',
@@ -282,34 +282,34 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
                   <tr key={d.slot} style={{borderBottom: '1px solid var(--color-border)'}}>
                     <td style={{...td, color: 'var(--color-primary)', fontWeight: 700}}>{d.slot}</td>
                     <td style={{...td, color: miElim ? 'var(--color-danger)' : 'inherit'}}>
-                      {miJug || 'â€”'}{miEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({miEq})</span>}{miElim ? ' âŒ' : ''}
+                      {miJug || '—'}{miEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({miEq})</span>}{miElim ? ' ❌' : ''}
                     </td>
                     <td style={{...td, textAlign:'center', fontWeight:700, color: miGana ? 'var(--color-success)' : 'inherit'}}>
-                      {!miHayPuntaje ? <span style={{color:'var(--color-muted)', fontWeight:400}}>â€”</span>
+                      {!miHayPuntaje ? <span style={{color:'var(--color-muted)', fontWeight:400}}>—</span>
                         : miHayPuntaje && !miJugo && !miElim
                           ? <span>{miPts} <span style={{fontSize:9, color:'var(--color-muted)', fontWeight:400}}>NJ</span></span>
                           : miPts}
                     </td>
                     <td style={{...td, textAlign:'center', color:'var(--color-muted)'}}>vs</td>
                     <td style={{...td, textAlign:'center', fontWeight:700, color: rvGana ? 'var(--color-danger)' : 'inherit'}}>
-                      {!rvHayPuntaje ? <span style={{color:'var(--color-muted)', fontWeight:400}}>â€”</span>
+                      {!rvHayPuntaje ? <span style={{color:'var(--color-muted)', fontWeight:400}}>—</span>
                         : rvHayPuntaje && !rvJugo && !rvElim
                           ? <span>{rvPts} <span style={{fontSize:9, color:'var(--color-muted)', fontWeight:400}}>NJ</span></span>
                           : rvPts}
                     </td>
                     <td style={{...td, textAlign:'right', color: rvElim ? 'var(--color-danger)' : 'var(--color-muted)'}}>
-                      {rvElim ? 'âŒ ' : ''}{rvJug || 'â€”'}{rvEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({rvEq})</span>}
+                      {rvElim ? '❌ ' : ''}{rvJug || '—'}{rvEq && <span style={{color:'var(--color-muted)',fontSize:10}}> ({rvEq})</span>}
                     </td>
-                    <td style={{...td, textAlign:'center'}}>{d.ganador === 'empate' ? 'ðŸ¤' : miGana ? 'âœ…' : 'âŒ'}</td>
+                    <td style={{...td, textAlign:'center'}}>{d.ganador === 'empate' ? '🤝' : miGana ? '✅' : '❌'}</td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
           <div style={{display:'flex', justifyContent:'space-between', padding:'7px 10px', background:'#fafafa', borderTop:'1px solid var(--color-border)', fontSize:12}}>
-            <span>Duelos: <strong style={{color:'var(--color-primary)'}}>{cruce.yo_es_user1 ? gdtResultado.duelos_u1 : gdtResultado.duelos_u2}</strong> â€“ <strong style={{color:'var(--color-muted)'}}>{cruce.yo_es_user1 ? gdtResultado.duelos_u2 : gdtResultado.duelos_u1}</strong></span>
+            <span>Duelos: <strong style={{color:'var(--color-primary)'}}>{cruce.yo_es_user1 ? gdtResultado.duelos_u1 : gdtResultado.duelos_u2}</strong> – <strong style={{color:'var(--color-muted)'}}>{cruce.yo_es_user1 ? gdtResultado.duelos_u2 : gdtResultado.duelos_u1}</strong></span>
             <strong style={{color: gdtResultado.ganador_gdt === 'empate' ? 'var(--color-muted)' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'var(--color-success)' : 'var(--color-danger)'}}>
-              {gdtResultado.ganador_gdt === 'empate' ? 'GDT: Empate' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'GDT: Ganaste âœ…' : 'GDT: Perdiste âŒ'}
+              {gdtResultado.ganador_gdt === 'empate' ? 'GDT: Empate' : ((cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user1') || (!cruce.yo_es_user1 && gdtResultado.ganador_gdt === 'user2')) ? 'GDT: Ganaste ✅' : 'GDT: Perdiste ❌'}
             </strong>
           </div>
         </div>
@@ -318,7 +318,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
   )
 }
 
-// â”€â”€â”€ Fila de deuda individual con confirmar pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Fila de deuda individual con confirmar pago ─────────────────────────────
 function DeudaRow({ mov, onPaid }) {
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -347,7 +347,7 @@ function DeudaRow({ mov, onPaid }) {
           {mov.concepto}
         </div>
         <div style={{fontSize: 11, color: 'var(--color-muted)'}}>
-          â†’ <strong>{aQuien}</strong> Â· <span style={{color: '#dc2626', fontWeight: 700}}>{formatARS(mov.importe)}</span>
+          → <strong>{aQuien}</strong> · <span style={{color: '#dc2626', fontWeight: 700}}>{formatARS(mov.importe)}</span>
         </div>
       </div>
       {!confirming ? (
@@ -356,18 +356,18 @@ function DeudaRow({ mov, onPaid }) {
           onClick={() => setConfirming(true)}
           style={{fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0}}
         >
-          âœ“ Marcar como pagado
+          ✓ Marcar como pagado
         </button>
       ) : (
         <div style={{display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0}}>
-          <span style={{fontSize: 10, color: 'var(--color-muted)'}}>Â¿Seguro?</span>
+          <span style={{fontSize: 10, color: 'var(--color-muted)'}}>¿Seguro?</span>
           <button
             className="btn btn-success btn-sm"
             onClick={handlePagar}
             disabled={saving}
             style={{fontSize: 11}}
           >
-            {saving ? '...' : 'SÃ­'}
+            {saving ? '...' : 'Sí'}
           </button>
           <button
             className="btn btn-secondary btn-sm"
@@ -382,7 +382,7 @@ function DeudaRow({ mov, onPaid }) {
   )
 }
 
-// â”€â”€â”€ Tarjeta de deudas por fecha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Tarjeta de deudas por fecha ─────────────────────────────────────────────
 function DeudaFechaCard({ fecha, items, onPaid }) {
   const total = items.reduce((s, m) => s + m.importe, 0)
   return (
@@ -400,7 +400,7 @@ function DeudaFechaCard({ fecha, items, onPaid }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <div>
-          <span style={{fontWeight: 700, fontSize: 14}}>ðŸ’¸ {fecha.nombre}</span>
+          <span style={{fontWeight: 700, fontSize: 14}}>💸 {fecha.nombre}</span>
           <span style={{fontSize: 12, color: 'var(--color-muted)', marginLeft: 8}}>
             {MESES[(fecha.mes || 1) - 1]} {fecha.anio}
           </span>
@@ -417,7 +417,7 @@ function DeudaFechaCard({ fecha, items, onPaid }) {
   )
 }
 
-// â”€â”€â”€ Item colapsable de fecha en la lista â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Item colapsable de fecha en la lista ────────────────────────────────────
 function FechaItem({ fecha, cruce, user, destacado = false }) {
   const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [abierto, setAbierto] = useState(fecha.estado === 'abierta' || fecha.estado === 'cerrada')
@@ -472,7 +472,7 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
         }}
       >
         <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
-          {/* Indicador resultado si estÃ¡ colapsado */}
+          {/* Indicador resultado si está colapsado */}
           {cruce?.ganador_fecha && !abierto && (
             <span style={{
               fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
@@ -486,19 +486,19 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
             <div style={{fontWeight: 600, fontSize: 14}}>{fecha.nombre}</div>
             <div style={{fontSize: 11, color: 'var(--color-muted)'}}>
               {MESES[(fecha.mes || 1) - 1]} {fecha.anio}
-              {' Â· '}{fecha.bloque1_nombre} Â· {fecha.bloque2_nombre}
+              {' · '}{fecha.bloque1_nombre} · {fecha.bloque2_nombre}
               {fecha.importe_apuesta > 0 && (
                 <span style={{marginLeft: 6, color: 'var(--color-warning)', fontWeight: 600}}>
-                  ðŸ’° {formatARS(fecha.importe_apuesta)}
+                  💰 {formatARS(fecha.importe_apuesta)}
                 </span>
               )}
-              {/* Resumen rival cuando estÃ¡ colapsado */}
+              {/* Resumen rival cuando está colapsado */}
               {cruce && !abierto && (
                 <span style={{marginLeft: 8}}>
-                  Â· vs <strong>{cruce.rival_nombre}</strong>
+                  · vs <strong>{cruce.rival_nombre}</strong>
                   {cruce.yo_puntos_internos != null && (
                     <span style={{marginLeft: 4, color: gane ? 'var(--color-success)' : perdi ? 'var(--color-danger)' : 'var(--color-text)', fontWeight: 600}}>
-                      {cruce.yo_puntos_internos}â€“{cruce.rival_puntos_internos}
+                      {cruce.yo_puntos_internos}–{cruce.rival_puntos_internos}
                     </span>
                   )}
                 </span>
@@ -512,12 +512,12 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
             <Link to={`/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Ver</Link>
           )}
           {fecha.estado !== 'borrador' && (
-            <Link to={`/fecha/${fecha.id}/enfrentamientos`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>âš”ï¸</Link>
+            <Link to={`/fecha/${fecha.id}/enfrentamientos`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>⚔️</Link>
           )}
           {esAdmin && (
             <Link to={`/admin/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Admin</Link>
           )}
-          <span style={{color: 'var(--color-muted)', fontSize: 12}}>{abierto ? 'â–²' : 'â–¼'}</span>
+          <span style={{color: 'var(--color-muted)', fontSize: 12}}>{abierto ? '▲' : '▼'}</span>
         </div>
       </div>
 
@@ -536,7 +536,7 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
   )
 }
 
-// â”€â”€â”€ Alerta de deudas pendientes (colapsable, estilo rojo) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Alerta de deudas pendientes (colapsable, estilo rojo) ───────────────────
 function DeudasAlert({ total, fechasConDeuda, economia, onPaid, esAdmin }) {
   const [abierto, setAbierto] = useState(false)
   return (
@@ -557,7 +557,7 @@ function DeudasAlert({ total, fechasConDeuda, economia, onPaid, esAdmin }) {
         }}
       >
         <div style={{fontWeight: 700, fontSize: 14, color: '#991b1b'}}>
-          âš ï¸ TenÃ©s deudas pendientes por{' '}
+          ⚠️ Tenés deudas pendientes por{' '}
           <span style={{color: '#dc2626', fontWeight: 800}}>{formatARS(total)}</span>
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0}}>
@@ -567,7 +567,7 @@ function DeudasAlert({ total, fechasConDeuda, economia, onPaid, esAdmin }) {
           }}>
             {abierto ? 'Ocultar detalle' : 'Ver detalle por fecha'}
           </span>
-          <span style={{color: '#dc2626', fontSize: 12}}>{abierto ? 'â–²' : 'â–¼'}</span>
+          <span style={{color: '#dc2626', fontSize: 12}}>{abierto ? '▲' : '▼'}</span>
         </div>
       </div>
 
@@ -588,7 +588,7 @@ function DeudasAlert({ total, fechasConDeuda, economia, onPaid, esAdmin }) {
               className="btn btn-secondary btn-sm"
               style={{width: '100%', justifyContent: 'center', marginTop: 4}}
             >
-              ðŸ“Š Ver cuadro de deudores
+              📊 Ver cuadro de deudores
             </Link>
           )}
         </div>
@@ -597,7 +597,7 @@ function DeudasAlert({ total, fechasConDeuda, economia, onPaid, esAdmin }) {
   )
 }
 
-// â”€â”€â”€ SecciÃ³n colapsable de fechas finalizadas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Sección colapsable de fechas finalizadas ────────────────────────────────
 function FechasFinalizadasSection({ fechas, misCruces, user }) {
   const [abierto, setAbierto] = useState(false)
   return (
@@ -607,8 +607,8 @@ function FechasFinalizadasSection({ fechas, misCruces, user }) {
         style={{cursor: 'pointer', userSelect: 'none'}}
         onClick={() => setAbierto(a => !a)}
       >
-        <span>ðŸ“ Fechas finalizadas <span style={{color: 'var(--color-muted)', fontWeight: 400, fontSize: 13}}>({fechas.length})</span></span>
-        <span style={{color: 'var(--color-muted)', fontSize: 13}}>{abierto ? 'â–²' : 'â–¼'}</span>
+        <span>📁 Fechas finalizadas <span style={{color: 'var(--color-muted)', fontWeight: 400, fontSize: 13}}>({fechas.length})</span></span>
+        <span style={{color: 'var(--color-muted)', fontSize: 13}}>{abierto ? '▲' : '▼'}</span>
       </div>
       {abierto && (
         <div>
@@ -622,7 +622,7 @@ function FechasFinalizadasSection({ fechas, misCruces, user }) {
   )
 }
 
-// â”€â”€â”€ Home â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Home ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -673,7 +673,7 @@ export default function Home() {
         setEconomia(eco)
       } catch (_) {}
 
-      // Ya no precargamos cruce + GDT de la "Ãºltima" fecha: cada FechaItem
+      // Ya no precargamos cruce + GDT de la "última" fecha: cada FechaItem
       // de la lista maneja su propio cruce (misCruces) y carga su GDT al abrirse.
     } catch (err) {
       setError(err.message)
@@ -697,10 +697,10 @@ export default function Home() {
     <div>
       <div className="flex-between mb-16">
         <div>
-          <div className="page-title">Bienvenido, {user.nombre} ðŸ‘‹</div>
+          <div className="page-title">Bienvenido, {user.nombre} 👋</div>
           {torneoActivo && (
             <p className="text-muted" style={{fontSize: 13}}>
-              {torneoActivo.nombre} Â· {torneoActivo.semestre}
+              {torneoActivo.nombre} · {torneoActivo.semestre}
             </p>
           )}
         </div>
@@ -721,7 +721,7 @@ export default function Home() {
       ) : (
         <div style={{display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start'}}>
 
-          {/* â”€â”€ Columna principal â”€â”€ */}
+          {/* ── Columna principal ── */}
           <div>
 
             {/* Alerta de deudas pendientes (colapsable) */}
@@ -777,19 +777,19 @@ export default function Home() {
             )}
           </div>
 
-          {/* â”€â”€ Sidebar â”€â”€ */}
+          {/* ── Sidebar ── */}
           <div>
             {miEntrada && (
               <div className="card" style={{marginBottom: 16}}>
-                <div className="card-header">Tu posiciÃ³n</div>
+                <div className="card-header">Tu posición</div>
                 <div style={{display: 'flex', alignItems: 'center', gap: 16}}>
                   <div style={{fontSize: 48, fontWeight: 800, color: 'var(--color-primary)'}}>#{miPosicion}</div>
                   <div>
                     <div style={{fontWeight: 600}}>{user.nombre}</div>
-                    <div style={{fontSize: 13, color: 'var(--color-muted)'}}>{miEntrada.puntos} pts Â· {miEntrada.pj} PJ</div>
+                    <div style={{fontSize: 13, color: 'var(--color-muted)'}}>{miEntrada.puntos} pts · {miEntrada.pj} PJ</div>
                     <div style={{fontSize: 12, color: 'var(--color-muted)'}}>
                       {miEntrada.victorias}V {miEntrada.empates}E {miEntrada.derrotas}D
-                      {miEntrada.bonus > 0 && ` Â· Bonus: ${miEntrada.bonus}`}
+                      {miEntrada.bonus > 0 && ` · Bonus: ${miEntrada.bonus}`}
                     </div>
                   </div>
                 </div>
@@ -823,7 +823,7 @@ export default function Home() {
             {esAdmin && (
               <div className="card" style={{marginBottom: 16}}>
                 <Link to="/admin/deudores" className="btn btn-secondary btn-sm" style={{width: '100%', justifyContent: 'center'}}>
-                  ðŸ“Š Cuadro de deudores
+                  📊 Cuadro de deudores
                 </Link>
               </div>
             )}
