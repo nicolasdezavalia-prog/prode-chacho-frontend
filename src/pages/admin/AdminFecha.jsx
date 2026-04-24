@@ -68,6 +68,12 @@ export default function AdminFecha() {
     }
   }, [fechaId])
 
+  useEffect(() => {
+    if (!isNew && fecha?.deadline) {
+      loadCumplimiento()
+    }
+  }, [fecha?.deadline, fechaId])
+
   const loadCrucesYMovimientos = async () => {
     try {
       const [cs, movs] = await Promise.all([
@@ -77,6 +83,15 @@ export default function AdminFecha() {
       setCruces(cs)
       setMovFecha(movs.movimientos || [])
     } catch (_) {}
+  }
+
+  const loadCumplimiento = async () => {
+    try {
+      const data = await api.getDeadlineCumplimiento(fechaId)
+      setCumplimiento(data)
+    } catch (_) {
+      setCumplimiento(null)
+    }
   }
 
   const loadJugadoresTorneo = async (torneoId) => {
@@ -187,6 +202,9 @@ export default function AdminFecha() {
   const [jugadoresTorneo, setJugadoresTorneo] = useState([])
   const [apuestaForm, setApuestaForm] = useState({ paga_user_id: '', acreedor_user_id: '', importe: '', concepto: 'Deuda adicional' })
   const [savingApuesta, setSavingApuesta] = useState(false)
+  const [cumplimiento, setCumplimiento] = useState(null)
+  const [multaImportes, setMultaImportes] = useState({}) // { user_id: importe_str }
+  const [savingMulta, setSavingMulta] = useState({})
   const handleRecalcular = async () => {
     if (!fecha || fecha.estado === 'borrador') return
     setRecalculando(true)
@@ -232,6 +250,27 @@ export default function AdminFecha() {
       await api.eliminarMovimiento(id)
       await loadCrucesYMovimientos()
     } catch (err) { setError(err.message) }
+  }
+
+  const handleCargarMulta = async (userId) => {
+    const importe = parseInt(multaImportes[userId])
+    if (!importe || importe <= 0) return
+    setSavingMulta(s => ({ ...s, [userId]: true }))
+    try {
+      await api.crearMultaDeadline({
+        torneo_id: fecha.torneo_id,
+        fecha_id: parseInt(fechaId),
+        user_id: userId,
+        importe,
+      })
+      setMultaImportes(m => ({ ...m, [userId]: '' }))
+      await Promise.all([loadCumplimiento(), loadCrucesYMovimientos()])
+      setSuccess('Multa cargada')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingMulta(s => ({ ...s, [userId]: false }))
+    }
   }
 
   if (loading) return <div className="loading">Cargando...</div>
@@ -488,6 +527,102 @@ export default function AdminFecha() {
             <Link to={`/fecha/${fechaId}?preview=true`} className="btn btn-secondary">
               👁 Ver como jugador
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Cumplimiento de deadline — solo si la fecha tiene deadline */}
+      {!isNew && fecha?.deadline && cumplimiento && (
+        <div className="card" style={{marginTop: 16}}>
+          <div className="card-header">
+            ⏰ Cumplimiento de deadline
+            <span style={{marginLeft: 10, fontSize: 12, fontWeight: 400, color: 'var(--color-muted)'}}>
+              {new Date(fecha.deadline).toLocaleString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{marginLeft: 12, fontSize: 11}}
+              onClick={loadCumplimiento}
+            >
+              🔄
+            </button>
+          </div>
+
+          <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13}}>
+            <thead>
+              <tr style={{background: 'var(--color-surface2)', borderBottom: '1px solid var(--color-border)'}}>
+                {['Jugador', 'Pronós.', 'Último envío', 'Estado', 'Multa (ARS)', ''].map((h, i) => (
+                  <th key={i} style={{
+                    padding: '6px 10px', fontWeight: 600, fontSize: 11,
+                    textAlign: i >= 4 ? 'center' : 'left',
+                    color: 'var(--color-muted)', textTransform: 'uppercase'
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cumplimiento.jugadores.map(j => {
+                const estadoConfig = {
+                  ok:              { label: '✅ OK',              color: 'var(--color-success)' },
+                  incompleto:      { label: '⚠️ Incompleto',     color: '#b45309' },
+                  fuera_de_termino:{ label: '🚨 Fuera de término', color: 'var(--color-danger)' },
+                }[j.estado]
+
+                const puedeMultar = (j.estado === 'incompleto' || j.estado === 'fuera_de_termino') && !j.ya_multado
+                const importeStr = multaImportes[j.user_id] || ''
+
+                return (
+                  <tr key={j.user_id} style={{borderBottom: '1px solid var(--color-border)'}}>
+                    <td style={{padding: '7px 10px', fontWeight: 600}}>{j.nombre}</td>
+                    <td style={{padding: '7px 10px', color: 'var(--color-muted)'}}>
+                      {j.total_pronos} / {j.total_eventos}
+                    </td>
+                    <td style={{padding: '7px 10px', fontSize: 12, color: 'var(--color-muted)'}}>
+                      {j.ultimo_at
+                        ? new Date(j.ultimo_at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                        : '—'}
+                    </td>
+                    <td style={{padding: '7px 10px', fontWeight: 600, color: estadoConfig.color}}>
+                      {estadoConfig.label}
+                    </td>
+                    <td style={{padding: '7px 10px'}}>
+                      {j.ya_multado ? (
+                        <span style={{fontSize: 12, color: 'var(--color-danger)', fontWeight: 600}}>
+                          {formatARS(j.importe_multa)} multa cargada
+                        </span>
+                      ) : puedeMultar ? (
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Importe"
+                          value={importeStr}
+                          onChange={e => setMultaImportes(m => ({ ...m, [j.user_id]: e.target.value }))}
+                          style={{width: 100, padding: '3px 6px', fontSize: 12}}
+                        />
+                      ) : (
+                        <span style={{fontSize: 11, color: 'var(--color-muted)'}}>—</span>
+                      )}
+                    </td>
+                    <td style={{padding: '7px 10px', textAlign: 'center'}}>
+                      {puedeMultar && (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{fontSize: 11}}
+                          disabled={!importeStr || savingMulta[j.user_id]}
+                          onClick={() => handleCargarMulta(j.user_id)}
+                        >
+                          {savingMulta[j.user_id] ? '...' : 'Multar'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          <div style={{fontSize: 11, color: 'var(--color-muted)', marginTop: 10}}>
+            La multa va al pozo. El admin puede perdonar simplemente no cargándola. Las multas ya cargadas se pueden eliminar desde la sección de deudas.
           </div>
         </div>
       )}

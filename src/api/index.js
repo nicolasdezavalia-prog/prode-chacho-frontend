@@ -62,6 +62,7 @@ export const api = {
   updateFecha: (id, data) => request('PATCH', `/fechas/${id}`, data),
   deleteFecha: (id) => request('DELETE', `/fechas/${id}`),
   recalcularFecha: (id) => request('POST', `/fechas/${id}/recalcular`),
+  getDeadlineCumplimiento: (fechaId) => request('GET', `/fechas/${fechaId}/deadline-cumplimiento`),
 
   // Eventos
   getEventos: (fechaId) => request('GET', `/eventos/fecha/${fechaId}`),
@@ -149,6 +150,7 @@ export const api = {
   getPozoMensual: (torneoId, mes, anio) => request('GET', `/movimientos/pozo-mensual?torneo_id=${torneoId}&mes=${mes}&anio=${anio}`),
   getDeudores: (torneoId) => request('GET', `/movimientos/deudores${torneoId ? `?torneo_id=${torneoId}` : ''}`),
   crearMovimientoManual: (data) => request('POST', '/movimientos/manual', data),
+  crearMultaDeadline: (data) => request('POST', '/movimientos/multa-deadline', data),
   togglePagadoMovimiento: (id) => request('PATCH', `/movimientos/${id}/pagar`),
   eliminarMovimiento: (id) => request('DELETE', `/movimientos/${id}`),
 };
