@@ -512,7 +512,7 @@ function FechaItem({ fecha, cruce, user, destacado = false }) {
             <Link to={`/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Ver</Link>
           )}
           {fecha.estado !== 'borrador' && (
-            <Link to={`/fecha/${fecha.id}/enfrentamientos`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>⚔️</Link>
+            <Link to={`/fecha/${fecha.id}/enfrentamientos`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>⚔️ Ver cruces</Link>
           )}
           {esAdmin && fecha.estado === 'abierta' && (
             <Link to={`/admin/fecha/${fecha.id}`} className="btn btn-secondary btn-sm" onClick={e => e.stopPropagation()}>Admin</Link>

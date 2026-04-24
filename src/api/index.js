@@ -149,12 +149,16 @@ export const api = {
   getMovimientosFecha: (fechaId) => request('GET', `/movimientos/fecha/${fechaId}`),
   getPozoMensual: (torneoId, mes, anio) => request('GET', `/movimientos/pozo-mensual?torneo_id=${torneoId}&mes=${mes}&anio=${anio}`),
   getDeudores: (torneoId) => request('GET', `/movimientos/deudores${torneoId ? `?torneo_id=${torneoId}` : ''}`),
-  crearMovimientoManual: (data) => request('POST', '/movimientos/manual', data),
   crearMultaDeadline: (data) => request('POST', '/movimientos/multa-deadline', data),
   togglePagadoMovimiento: (id) => request('PATCH', `/movimientos/${id}/pagar`),
   eliminarMovimiento: (id) => request('DELETE', `/movimientos/${id}`),
 
+  // Comidas mensuales
+  getComida: (torneoId, mes, anio) => request('GET', `/comidas?torneo_id=${torneoId}&mes=${mes}&anio=${anio}`),
+  saveComida: (data) => request('PUT', '/comidas', data),
+
   // Permisos (solo superadmin)
+  getMisPermisos: () => request('GET', '/permisos/me'),
   getPermisosCatalogo: () => request('GET', '/permisos/catalogo'),
   getUsuariosPermisos: () => request('GET', '/permisos/usuarios'),
   updatePermisosUsuario: (userId, permisos) => request('PUT', `/permisos/usuarios/${userId}`, { permisos }),

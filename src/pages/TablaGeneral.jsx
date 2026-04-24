@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
+import ComidaMensualCard from '../components/ComidaMensualCard.jsx'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -65,6 +66,8 @@ export default function TablaGeneral() {
 
   // Pozo económico mensual
   const [pozo, setPozo] = useState(null)
+  // Permisos del usuario actual (cargados al entrar a la pestaña mensual)
+  const [misPermisos, setMisPermisos] = useState([])
 
   useEffect(() => {
     loadData()
@@ -119,6 +122,11 @@ export default function TablaGeneral() {
   }
 
   const loadMensual = async () => {
+    // Cargar permisos del usuario (idempotente, no falla si ya están)
+    api.getMisPermisos()
+      .then(data => setMisPermisos(data.permisos || []))
+      .catch(() => {}) // silencioso: si falla, queda array vacío
+
     try {
       const [tm, c] = await Promise.all([
         api.getTablaMensual(torneoId, mesSeleccionado, anioSeleccionado),
@@ -478,6 +486,8 @@ export default function TablaGeneral() {
               )
             }
 
+            const puedeEditarComida = esSuperAdmin || misPermisos.includes('editar_tabla_mensual')
+
             return (
               <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                 {/* Card: Pozo recaudado */}
@@ -618,6 +628,16 @@ export default function TablaGeneral() {
 
                   {renderCierreActions()}
                 </div>
+
+                {/* Card: Comida mensual */}
+                <ComidaMensualCard
+                  torneoId={parseInt(torneoId)}
+                  mes={mesSeleccionado}
+                  anio={anioSeleccionado}
+                  jugadores={jugadores}
+                  puedeEditar={puedeEditarComida}
+                  organizadorSugerido={organizadorEfectivo}
+                />
               </div>
             )
           })()}
