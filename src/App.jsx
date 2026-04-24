@@ -15,6 +15,7 @@ import AdminGDTPendientes from './pages/admin/AdminGDTPendientes.jsx'
 import AdminGDTJugadores from './pages/admin/AdminGDTJugadores.jsx'
 import AdminGDTVentana from './pages/admin/AdminGDTVentana.jsx'
 import AdminFechaResumida from './pages/admin/AdminFechaResumida.jsx'
+import AdminTorneo from './pages/admin/AdminTorneo.jsx'
 import MiEquipoGDT from './pages/MiEquipoGDT.jsx'
 import Enfrentamientos from './pages/Enfrentamientos.jsx'
 import AdminUsuarios from './pages/admin/AdminUsuarios.jsx'
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
+            <Route path="/admin/torneo" element={<PrivateRoute adminOnly><AdminTorneo /></PrivateRoute>} />
             <Route path="/admin/fecha/nueva" element={<PrivateRoute adminOnly><AdminFecha /></PrivateRoute>} />
             <Route path="/admin/fecha/:fechaId" element={<PrivateRoute adminOnly><AdminFecha /></PrivateRoute>} />
             <Route path="/admin/fecha/:fechaId/eventos" element={<PrivateRoute adminOnly><AdminEventos /></PrivateRoute>} />

@@ -28,7 +28,7 @@ function DropdownMenu({ label, items }) {
           border: 'none',
           cursor: 'pointer',
           fontSize: 13,
-          color: isActive ? 'var(--color-text)' : 'var(--color-muted)',
+          color: isActive ? '#ffffff' : '#a1a1aa',
           fontWeight: isActive ? 600 : 400,
           display: 'flex',
           alignItems: 'center',
@@ -36,8 +36,8 @@ function DropdownMenu({ label, items }) {
           padding: '4px 0',
           transition: 'color 0.15s',
         }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
-        onMouseLeave={e => e.currentTarget.style.color = isActive ? 'var(--color-text)' : 'var(--color-muted)'}
+        onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+        onMouseLeave={e => e.currentTarget.style.color = isActive ? '#ffffff' : '#a1a1aa'}
       >
         {label}
         <span style={{ fontSize: 9, opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
@@ -103,23 +103,16 @@ export default function Navbar() {
         {/* INICIO */}
         <NavLink to="/" label="Inicio" exact />
 
-        {/* FECHA — acceso a las fechas del usuario */}
-        <DropdownMenu
-          label="Fecha"
-          items={[
-            { to: '/',           label: 'Mis fechas',     icon: '📅' },
-          ]}
-        />
-
         {/* GDT — sección del usuario */}
         <NavLink to="/gdt/mi-equipo" label="Mi GDT" />
 
-        {/* ADMIN FECHA */}
+        {/* ADMIN PRODE */}
         {isAdmin && (
           <DropdownMenu
-            label="Admin Fecha"
+            label="Admin Prode"
             items={[
-              { to: '/admin/fecha/nueva', label: '+ Nueva Fecha', icon: '➕' },
+              { to: '/admin/torneo',     label: 'Admin Torneo', icon: '🏆' },
+              { to: '/admin/fecha/nueva', label: 'Nueva Fecha', icon: '➕' },
             ]}
           />
         )}
@@ -164,14 +157,14 @@ function NavLink({ to, label, exact }) {
     <Link
       to={to}
       style={{
-        color: active ? 'var(--color-text)' : 'var(--color-muted)',
+        color: active ? '#ffffff' : '#a1a1aa',
         fontWeight: active ? 600 : 400,
         textDecoration: 'none',
         fontSize: 13,
         transition: 'color 0.15s',
       }}
-      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
-      onMouseLeave={e => e.currentTarget.style.color = active ? 'var(--color-text)' : 'var(--color-muted)'}
+      onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+      onMouseLeave={e => e.currentTarget.style.color = active ? '#ffffff' : '#a1a1aa'}
     >
       {label}
     </Link>

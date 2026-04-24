@@ -51,8 +51,6 @@ export default function AdminFecha() {
     numero: '',
     mes: new Date().getMonth() + 1,
     anio: new Date().getFullYear(),
-    bloque1_nombre: 'Liga Argentina',
-    bloque2_nombre: 'Bloque 2',
     tipo: 'completa',
     importe_apuesta: ''
   })
@@ -108,8 +106,6 @@ export default function AdminFecha() {
         numero: f.numero,
         mes: f.mes,
         anio: f.anio,
-        bloque1_nombre: f.bloque1_nombre,
-        bloque2_nombre: f.bloque2_nombre,
         tipo: f.tipo || 'completa',
         importe_apuesta: f.importe_apuesta ?? ''
       })
@@ -136,8 +132,6 @@ export default function AdminFecha() {
       } else {
         await api.updateFecha(fechaId, {
           nombre: form.nombre,
-          bloque1_nombre: form.bloque1_nombre,
-          bloque2_nombre: form.bloque2_nombre,
           mes: form.mes,
           anio: form.anio,
           tipo: form.tipo,
@@ -406,24 +400,28 @@ export default function AdminFecha() {
             </div>
           </div>
 
-          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12}}>
-            <div className="form-group">
-              <label>Nombre Bloque 1 (eventos 1-15)</label>
-              <input
-                value={form.bloque1_nombre}
-                onChange={e => setForm(f => ({ ...f, bloque1_nombre: e.target.value }))}
-                placeholder="Liga Argentina"
-              />
-            </div>
-            <div className="form-group">
-              <label>Nombre Bloque 2 (eventos 16-30)</label>
-              <input
-                value={form.bloque2_nombre}
-                onChange={e => setForm(f => ({ ...f, bloque2_nombre: e.target.value }))}
-                placeholder="Bloque 2"
-              />
-            </div>
-          </div>
+          {/* Bloques: info de solo lectura, se configura en Admin Torneo */}
+          {form.torneo_id && (() => {
+            const t = torneos.find(x => x.id === form.torneo_id || x.id === parseInt(form.torneo_id))
+            if (!t) return null
+            return (
+              <div style={{
+                background: 'var(--color-surface2)', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 12, fontSize: 12
+              }}>
+                <span style={{ color: 'var(--color-muted)', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Bloques del torneo
+                </span>
+                <div style={{ marginTop: 6, display: 'flex', gap: 24 }}>
+                  <span>🅰 <strong>{t.bloque1_nombre || 'Bloque 1'}</strong> (eventos 1–15)</span>
+                  <span>🅱 <strong>{t.bloque2_nombre || 'Bloque 2'}</strong> (eventos 16–30)</span>
+                </div>
+                <div style={{ marginTop: 4, color: 'var(--color-muted)', fontSize: 11 }}>
+                  Para cambiar los nombres, ir a <strong>Admin Torneo</strong>.
+                </div>
+              </div>
+            )
+          })()}
 
           <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Guardando...' : isNew ? 'Crear fecha' : 'Actualizar'}

@@ -19,17 +19,18 @@ function formatARS(importe) {
 
 // ─── Componente reutilizable de detalle de cruce ─────────────────────────────
 function CruceDetalle({ cruce, fecha, gdtResultado }) {
-  const [gdtAbierto, setGdtAbierto] = useState(false)
-  const [bloqueAbierto, setBloqueAbierto] = useState(null) // 'A' | 'B' | null
+  // Un único state para apertura de secciones — abrir una cierra las otras.
+  const [seccionAbierta, setSeccionAbierta] = useState(null) // 'A' | 'B' | 'GDT' | null
   const [eventosData, setEventosData] = useState(null)
   const [eventosCargando, setEventosCargando] = useState(false)
 
   const puedeVerRival = fecha.estado === 'cerrada' || fecha.estado === 'finalizada'
 
-  const toggleBloque = async (bloque) => {
-    if (bloqueAbierto === bloque) { setBloqueAbierto(null); return }
-    setBloqueAbierto(bloque)
-    if (!eventosData && !eventosCargando) {
+  const toggleSeccion = async (sec) => {
+    if (seccionAbierta === sec) { setSeccionAbierta(null); return }
+    setSeccionAbierta(sec)
+    // Lazy-load de eventos la primera vez que se abre A o B
+    if ((sec === 'A' || sec === 'B') && !eventosData && !eventosCargando) {
       setEventosCargando(true)
       try {
         const loads = [api.getEventos(fecha.id), api.getPronosticos(fecha.id)]
@@ -108,28 +109,28 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
         ].map(b => (
           <div key={b.key} style={{
             flex: 1, padding: '5px 8px', background: 'var(--color-surface)',
-            borderRadius: 6, border: `1px solid ${bloqueAbierto === b.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
+            borderRadius: 6, border: `1px solid ${seccionAbierta === b.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             cursor: 'pointer'
           }}
-            onClick={() => toggleBloque(b.key)}
+            onClick={() => toggleSeccion(b.key)}
           >
             <span style={{color: 'var(--color-muted)'}}>{b.emoji} {b.nombre}</span>
             <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4}}>
               {b.yoPts} – {b.rivalPts}
               {' '}{b.ganador === 'empate' ? '🤝' : b.yoGana ? '✅' : '❌'}
-              <span style={{fontSize: 10, color: 'var(--color-muted)'}}>{bloqueAbierto === b.key ? '▲' : '▼'}</span>
+              <span style={{fontSize: 10, color: 'var(--color-muted)'}}>{seccionAbierta === b.key ? '▲' : '▼'}</span>
             </span>
           </div>
         ))}
         {/* GDT */}
         <div style={{
           flex: 1, padding: '5px 8px', background: 'var(--color-surface)',
-          borderRadius: 6, border: `1px solid ${gdtAbierto ? 'var(--color-primary)' : 'var(--color-border)'}`,
+          borderRadius: 6, border: `1px solid ${seccionAbierta === 'GDT' ? 'var(--color-primary)' : 'var(--color-border)'}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           cursor: gdtResultado ? 'pointer' : 'default'
         }}
-          onClick={() => gdtResultado && setGdtAbierto(!gdtAbierto)}
+          onClick={() => gdtResultado && toggleSeccion('GDT')}
         >
           <span style={{color: 'var(--color-muted)'}}>🟪 GDT</span>
           <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4}}>
@@ -137,19 +138,19 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
               ? <>{cruce.yo_gdt_duelos} – {cruce.rival_gdt_duelos} {cruce.ganador_gdt === 'empate' ? '🤝' : cruce.yo_ganador_gdt ? '✅' : '❌'}</>
               : <span style={{color: 'var(--color-muted)', fontSize: 11}}>Pend.</span>
             }
-            {gdtResultado && <span style={{fontSize: 10, color: 'var(--color-muted)', marginLeft: 2}}>{gdtAbierto ? '▲' : '▼'}</span>}
+            {gdtResultado && <span style={{fontSize: 10, color: 'var(--color-muted)', marginLeft: 2}}>{seccionAbierta === 'GDT' ? '▲' : '▼'}</span>}
           </span>
         </div>
       </div>
 
       {/* Detalle Bloque A o B */}
-      {bloqueAbierto && (
+      {(seccionAbierta === 'A' || seccionAbierta === 'B') && (
         <div style={{marginTop: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden'}}>
           {eventosCargando ? (
             <div style={{padding: '12px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 12}}>Cargando...</div>
           ) : eventosData ? (() => {
-            const inicio = bloqueAbierto === 'A' ? 1 : 16
-            const fin    = bloqueAbierto === 'A' ? 15 : 30
+            const inicio = seccionAbierta === 'A' ? 1 : 16
+            const fin    = seccionAbierta === 'A' ? 15 : 30
             const evs    = eventosData.evs.filter(e => e.orden >= inicio && e.orden <= fin)
             const th = {padding:'5px 8px', fontSize:10, fontWeight:600, textTransform:'uppercase'}
             const td = {padding:'5px 8px'}
@@ -245,7 +246,7 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
       )}
 
       {/* GDT detalle colapsable */}
-      {gdtResultado && gdtAbierto && (
+      {gdtResultado && seccionAbierta === 'GDT' && (
         <div style={{marginTop: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden'}}>
           <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
             <thead>
@@ -417,23 +418,34 @@ function DeudaFechaCard({ fecha, items, onPaid }) {
 }
 
 // ─── Item colapsable de fecha en la lista ────────────────────────────────────
-function FechaItem({ fecha, cruce, user }) {
+function FechaItem({ fecha, cruce, user, destacado = false }) {
   const esAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [abierto, setAbierto] = useState(fecha.estado === 'abierta' || fecha.estado === 'cerrada')
   const [gdtResultado, setGdtResultado] = useState(null)
   const [gdtCargado, setGdtCargado] = useState(false)
 
-  // Carga el GDT la primera vez que se expande
-  const handleToggle = async () => {
+  // Helper: carga el GDT de este cruce una sola vez.
+  const cargarGdt = async () => {
+    if (gdtCargado || !cruce?.id) return
+    setGdtCargado(true)
+    try {
+      const gdt = await api.gdtGetResultado(cruce.id)
+      if (gdt?.disponible) setGdtResultado(gdt)
+    } catch (_) {}
+  }
+
+  // Si el item arranca expandido (abierta/cerrada), cargar GDT al mount.
+  // Sin este efecto, el GDT solo se cargaba en handleToggle y el chip quedaba
+  // no-clickeable dentro de la lista (bug reportado).
+  useEffect(() => {
+    if (abierto) cargarGdt()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleToggle = () => {
     const nuevo = !abierto
     setAbierto(nuevo)
-    if (nuevo && cruce?.id && !gdtCargado) {
-      setGdtCargado(true)
-      try {
-        const gdt = await api.gdtGetResultado(cruce.id)
-        if (gdt?.disponible) setGdtResultado(gdt)
-      } catch (_) {}
-    }
+    if (nuevo) cargarGdt()
   }
 
   const gane  = cruce?.yo_ganador_fecha === true
@@ -441,7 +453,16 @@ function FechaItem({ fecha, cruce, user }) {
   const empate = cruce?.ganador_fecha === 'empate'
 
   return (
-    <div style={{borderBottom: '1px solid var(--color-border)'}}>
+    <div style={destacado
+      ? {
+          border: '2px solid var(--color-primary)',
+          borderRadius: 'var(--radius)',
+          background: 'var(--color-surface)',
+          padding: '4px 14px',
+          marginBottom: 10,
+        }
+      : { borderBottom: '1px solid var(--color-border)' }
+    }>
       {/* Cabecera clickeable */}
       <div
         onClick={handleToggle}
@@ -549,9 +570,7 @@ export default function Home() {
   const [fechas, setFechas] = useState([])
   const [tabla, setTabla] = useState([])
   const [tablaMensual, setTablaMensual] = useState([])
-  const [cruce, setCruce] = useState(null)
   const [misCruces, setMisCruces] = useState({})
-  const [gdtResultado, setGdtResultado] = useState(null)
   const [economia, setEconomia] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -593,19 +612,8 @@ export default function Home() {
         setEconomia(eco)
       } catch (_) {}
 
-      const fechaActiva = [...fs].reverse().find(f => f.estado === 'abierta' || f.estado === 'cerrada')
-      if (fechaActiva) {
-        try {
-          const c = await api.getMiCruce(fechaActiva.id)
-          setCruce(c)
-          if (c?.id) {
-            try {
-              const gdt = await api.gdtGetResultado(c.id)
-              if (gdt?.disponible) setGdtResultado(gdt)
-            } catch (_) {}
-          }
-        } catch (_) {}
-      }
+      // Ya no precargamos cruce + GDT de la "última" fecha: cada FechaItem
+      // de la lista maneja su propio cruce (misCruces) y carga su GDT al abrirse.
     } catch (err) {
       setError(err.message)
     } finally {
@@ -618,8 +626,8 @@ export default function Home() {
   const fechasVisibles = fechas.filter(f => f.estado !== 'borrador' || esAdmin)
   const fechasEnCurso    = fechasVisibles.filter(f => f.estado !== 'finalizada')
   const fechasFinalizadas = fechasVisibles.filter(f => f.estado === 'finalizada')
-  const ultimaFecha    = [...fechasVisibles].reverse().find(f => f.estado === 'abierta' || f.estado === 'cerrada')
-    || fechasVisibles[fechasVisibles.length - 1]
+  // La fecha abierta (si existe) se destaca visualmente dentro de la lista.
+  const fechaAbiertaId = fechasEnCurso.find(f => f.estado === 'abierta')?.id || null
   const miPosicion     = tabla.findIndex(t => t.user_id === user.id) + 1
   const miEntrada      = tabla.find(t => t.user_id === user.id)
   const mensualConDatos = tablaMensual.filter(r => r.pj > 0)
@@ -654,42 +662,6 @@ export default function Home() {
 
           {/* ── Columna principal ── */}
           <div>
-
-            {/* Card fecha actual */}
-            {ultimaFecha && (ultimaFecha.estado === 'abierta' || ultimaFecha.estado === 'cerrada') && (
-              <div className="card" style={{marginBottom: 16, borderColor: 'var(--color-primary)'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14}}>
-                  <div>
-                    <div style={{fontSize: 11, color: 'var(--color-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.5px'}}>Fecha actual</div>
-                    <div style={{fontSize: 18, fontWeight: 700}}>{ultimaFecha.nombre}</div>
-                    <div style={{fontSize: 12, color: 'var(--color-muted)'}}>
-                      {MESES[(ultimaFecha.mes || 1) - 1]} {ultimaFecha.anio}
-                      {' · '}{ultimaFecha.bloque1_nombre} · {ultimaFecha.bloque2_nombre}
-                      {ultimaFecha.importe_apuesta > 0 && (
-                        <span style={{marginLeft: 6, color: 'var(--color-warning)', fontWeight: 600}}>
-                          💰 {formatARS(ultimaFecha.importe_apuesta)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <span className={`badge ${ESTADO_LABEL[ultimaFecha.estado].cls}`}>{ESTADO_LABEL[ultimaFecha.estado].label}</span>
-                </div>
-
-                {cruce
-                  ? <div style={{marginBottom: 14}}><CruceDetalle cruce={cruce} fecha={ultimaFecha} gdtResultado={gdtResultado} /></div>
-                  : <div style={{background:'var(--color-surface2)', borderRadius:'var(--radius)', padding:'12px 14px', marginBottom:14, fontSize:13, color:'var(--color-muted)', textAlign:'center'}}>Sin cruce asignado para esta fecha</div>
-                }
-
-                <div style={{display: 'flex', gap: 8}}>
-                  <Link to={`/fecha/${ultimaFecha.id}/enfrentamientos`} className="btn btn-secondary" style={{flexShrink: 0}}>
-                    ⚔️ Enfrentamientos
-                  </Link>
-                  <Link to={`/fecha/${ultimaFecha.id}`} className="btn btn-primary btn-lg" style={{flex: 1, justifyContent:'center'}}>
-                    Ver mi fecha →
-                  </Link>
-                </div>
-              </div>
-            )}
 
             {/* Mis deudas — una tarjeta por fecha con deudas pendientes */}
             {economia?.totalPendiente > 0 && (() => {
@@ -731,7 +703,7 @@ export default function Home() {
             {/* Lista de fechas en curso (borrador / abierta / cerrada) */}
             <div className="card">
               <div className="card-header">
-                Fechas del torneo
+                Fechas en curso
                 {esAdmin && <Link to="/admin/fecha/nueva" className="btn btn-secondary btn-sm">+ Nueva</Link>}
               </div>
               {fechasEnCurso.length === 0 ? (
@@ -740,7 +712,15 @@ export default function Home() {
                 <div>
                   {fechasEnCurso.slice().reverse().map(fecha => {
                     const c = misCruces[fecha.id]
-                    return <FechaItem key={fecha.id} fecha={fecha} cruce={c} user={user} />
+                    return (
+                      <FechaItem
+                        key={fecha.id}
+                        fecha={fecha}
+                        cruce={c}
+                        user={user}
+                        destacado={fecha.id === fechaAbiertaId}
+                      />
+                    )
                   })}
                 </div>
               )}
