@@ -442,6 +442,42 @@ export default function TablaGeneral() {
             const esSuperAdmin = user?.role === 'superadmin'
             const labelPos = ['🥇', '🥈', '🥉', '4°']
 
+            const renderCierreActions = () => {
+              if (!esSuperAdmin) return null
+              return (
+                <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
+                  {!cierreEditando ? (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: 12 }}
+                      onClick={() => abrirEditCierre(ganadoresEfectivos, organizadorEfectivo)}
+                    >
+                      ✏️ Editar
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        style={{ fontSize: 12 }}
+                        onClick={guardarCierre}
+                        disabled={cierreSaving}
+                      >
+                        {cierreSaving ? 'Guardando...' : '💾 Guardar'}
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 12 }}
+                        onClick={() => setCierreEditando(false)}
+                        disabled={cierreSaving}
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            }
+
             return (
               <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                 {/* Card: Pozo recaudado */}
@@ -525,6 +561,8 @@ export default function TablaGeneral() {
                       ))}
                     </div>
                   )}
+
+                  {renderCierreActions()}
                 </div>
 
                 {/* Card: Organizador */}
@@ -578,39 +616,7 @@ export default function TablaGeneral() {
                     </div>
                   )}
 
-                  {/* Botones de acción */}
-                  {esSuperAdmin && (
-                    <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
-                      {!cierreEditando ? (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: 12 }}
-                          onClick={() => abrirEditCierre(ganadoresEfectivos, organizadorEfectivo)}
-                        >
-                          ✏️ Editar
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            style={{ fontSize: 12 }}
-                            onClick={guardarCierre}
-                            disabled={cierreSaving}
-                          >
-                            {cierreSaving ? 'Guardando...' : '💾 Guardar'}
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ fontSize: 12 }}
-                            onClick={() => setCierreEditando(false)}
-                            disabled={cierreSaving}
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  {renderCierreActions()}
                 </div>
               </div>
             )
