@@ -85,7 +85,7 @@ function DropdownMenu({ label, items }) {
 }
 
 export default function Navbar() {
-  const { user, logout, permisos } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -107,7 +107,7 @@ export default function Navbar() {
         <NavLink to="/gdt/mi-equipo" label="Mi GDT" />
 
         {/* COMIDAS */}
-        <NavLink to={permisos.includes('gestionar_comidas') ? '/admin/comidas' : '/comidas'} label="Comidas" />
+        <NavLink to="/comidas" label="Comidas" />
 
         {/* ADMIN HUB */}
         {isAdmin && <NavLink to="/admin" label="Admin" />}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
 import ComidaMensualCard from '../components/ComidaMensualCard.jsx'
@@ -10,7 +10,8 @@ const MESES = [
 ]
 
 export default function Comidas() {
-  const { user } = useAuth()
+  const { user, permisos } = useAuth()
+  const navigate = useNavigate()
 
   const [torneos,      setTorneos]      = useState([])
   const [torneoActivo, setTorneoActivo] = useState(null)
@@ -53,7 +54,17 @@ export default function Comidas() {
 
       {/* ——— Header ——— */}
       <div style={{ marginBottom: 24 }}>
-        <div className="page-title" style={{ marginBottom: 6 }}>🍕 Comidas</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div className="page-title">🍕 Comidas</div>
+          {permisos.includes('gestionar_comidas') && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => navigate('/admin/comidas')}
+            >
+              ⚙ Gestionar comidas
+            </button>
+          )}
+        </div>
 
         {torneoActivo && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
