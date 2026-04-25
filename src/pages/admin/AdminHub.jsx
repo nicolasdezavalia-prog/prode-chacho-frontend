@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../App.jsx'
 
-const cards = [
+const ALL_CARDS = [
   {
     icon: '🏆',
     title: 'Torneos',
     description: 'Gestionar torneos y, dentro de cada torneo, sus fechas, resultados y Gran DT.',
     to: '/admin/torneo',
     enabled: true,
+    superadminOnly: false,
   },
   {
     icon: '📋',
@@ -14,13 +16,15 @@ const cards = [
     description: 'Cargar resultados de bloques y puntajes GDT de fechas en disputa.',
     to: '/admin/resultados',
     enabled: true,
+    superadminOnly: false,
   },
   {
-    icon: '🔑',
-    title: 'Permisos',
-    description: 'Administrar roles y permisos de los jugadores.',
-    to: '/admin/permisos',
+    icon: '🍕',
+    title: 'Comidas',
+    description: 'Gestionar configuración de comidas y votaciones por torneo.',
+    to: '/admin/comidas',
     enabled: true,
+    superadminOnly: false,
   },
   {
     icon: '💰',
@@ -28,18 +32,22 @@ const cards = [
     description: 'Ver deudas, pagos y estado del pozo.',
     to: '/admin/deudores',
     enabled: true,
+    superadminOnly: false,
   },
   {
-    icon: '🍕',
-    title: 'Comidas',
-    description: 'Gestión de pedidos y comidas grupales. (Próximamente)',
-    to: null,
-    enabled: false,
+    icon: '🔑',
+    title: 'Permisos',
+    description: 'Administrar roles y permisos de los jugadores.',
+    to: '/admin/permisos',
+    enabled: true,
+    superadminOnly: true,
   },
 ]
 
 export default function AdminHub() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const cards = ALL_CARDS.filter(c => !c.superadminOnly || user?.role === 'superadmin')
 
   return (
     <div style={{ maxWidth: 720, margin: '48px auto', padding: '0 16px' }}>

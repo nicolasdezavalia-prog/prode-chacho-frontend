@@ -186,6 +186,13 @@ function TorneoRow({ torneo, usuarios, onUpdated }) {
               >
                 ⚽ Gran DT
               </Link>
+              <Link
+                to={`/admin/torneo/${torneo.id}/comida-config`}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: 11 }}
+              >
+                🍽️ Comidas
+              </Link>
               <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)} style={{ fontSize: 11 }}>
                 ✏️ Editar
               </button>
@@ -385,26 +392,21 @@ export default function AdminTorneo() {
               <th style={thStyle}>Bloque B</th>
               <th style={thStyle}>Estado</th>
               <th style={thStyle}>Acciones</th>
-            </tr>
+              </tr>
           </thead>
           <tbody>
-            {torneos.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--color-muted)', fontSize: 13 }}>
-                  No hay torneos creados todavía
-                </td>
-              </tr>
-            )}
             {torneos.map(t => (
               <TorneoRow key={t.id} torneo={t} usuarios={usuarios} onUpdated={load} />
             ))}
+            {torneos.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 13 }}>
+                  No hay torneos creados aún.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-      </div>
-
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--color-muted)' }}>
-        Los nombres de Bloque A y B aplican a todas las fechas de ese torneo.
-        Cerrar un torneo no elimina datos, solo lo marca como inactivo.
       </div>
     </div>
   )

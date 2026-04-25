@@ -85,7 +85,7 @@ function DropdownMenu({ label, items }) {
 }
 
 export default function Navbar() {
-  const { user, logout } = useAuth()
+  const { user, logout, permisos } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -106,33 +106,11 @@ export default function Navbar() {
         {/* GDT — sección del usuario */}
         <NavLink to="/gdt/mi-equipo" label="Mi GDT" />
 
+        {/* COMIDAS */}
+        <NavLink to={permisos.includes('gestionar_comidas') ? '/admin/comidas' : '/comidas'} label="Comidas" />
+
         {/* ADMIN HUB */}
         {isAdmin && <NavLink to="/admin" label="Admin" />}
-
-        {/* ADMIN PRODE */}
-        {isAdmin && (
-          <DropdownMenu
-            label="Admin Prode"
-            items={[
-              { to: '/admin/torneo',     label: 'Admin Torneo', icon: '🏆' },
-              { to: '/admin/fecha/nueva', label: 'Nueva Fecha', icon: '➕' },
-            ]}
-          />
-        )}
-
-        {/* ADMIN GDT */}
-        {isAdmin && (
-          <DropdownMenu
-            label="Admin GDT"
-            items={[
-              { to: '/admin/gdt/equipos',    label: 'Equipos',    icon: '🏆' },
-              { to: '/admin/gdt/jugadores',  label: 'Jugadores',  icon: '⚽' },
-              { to: '/admin/gdt/pendientes', label: 'Pendientes', icon: '⏳' },
-              { to: '/admin/gdt/ventana',    label: 'Ventana',    icon: '🔄' },
-              { to: '/admin/gdt/catalogo',   label: 'Catálogo',   icon: '⚙️' },
-            ]}
-          />
-        )}
       </div>
 
       {/* Usuario */}
@@ -169,6 +147,7 @@ function NavLink({ to, label, exact }) {
         fontWeight: active ? 600 : 400,
         textDecoration: 'none',
         fontSize: 13,
+        padding: '4px 0',
         transition: 'color 0.15s',
       }}
       onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}

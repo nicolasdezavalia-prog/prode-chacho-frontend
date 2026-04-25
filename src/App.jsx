@@ -26,8 +26,15 @@ import AdminTorneoFechas from './pages/admin/AdminTorneoFechas.jsx'
 import AdminTorneoResultados from './pages/admin/AdminTorneoResultados.jsx'
 import AdminTorneoGDT from './pages/admin/AdminTorneoGDT.jsx'
 import AdminResultadosHub from './pages/admin/AdminResultadosHub.jsx'
+import AdminComidaConfig from './pages/admin/AdminComidaConfig.jsx'
+import AdminComidasHub from './pages/admin/AdminComidasHub.jsx'
+import AdminComidaVotacion from './pages/admin/AdminComidaVotacion.jsx'
+import AdminComidasHistorico from './pages/admin/AdminComidasHistorico.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
+import Comidas from './pages/Comidas.jsx'
+import ComidaDetalle from './pages/ComidaDetalle.jsx'
 import Navbar from './components/Navbar.jsx'
+import { api } from './api/index.js'
 
 // Context de autenticación
 export const AuthContext = createContext(null)
@@ -43,11 +50,21 @@ function PrivateRoute({ children, adminOnly = false }) {
   return children
 }
 
+function PermisoRoute({ children, permiso }) {
+  const { user, permisos, permisosLoaded } = useAuth()
+  if (!user) return <Navigate to="/login" />
+  if (!permisosLoaded) return null
+  if (!permisos.includes(permiso)) return <Navigate to="/" />
+  return children
+}
+
 export default function App() {
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('user')
     return stored ? JSON.parse(stored) : null
   })
+  const [permisos, setPermisos] = useState([])
+  const [permisosLoaded, setPermisosLoaded] = useState(false)
 
   const login = (userData, token) => {
     localStorage.setItem('token', token)
@@ -61,8 +78,19 @@ export default function App() {
     setUser(null)
   }
 
+  useEffect(() => {
+    if (user) {
+      api.getMisPermisos()
+        .then(data => { setPermisos(data.permisos || []); setPermisosLoaded(true) })
+        .catch(() => { setPermisos([]); setPermisosLoaded(true) })
+    } else {
+      setPermisos([])
+      setPermisosLoaded(false)
+    }
+  }, [user])
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, permisos, permisosLoaded }}>
       <BrowserRouter>
         {user && <Navbar />}
         <div className="main-content">
@@ -72,6 +100,8 @@ export default function App() {
             <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
+            <Route path="/comidas" element={<PrivateRoute><Comidas /></PrivateRoute>} />
+            <Route path="/comidas/:comidaId" element={<PrivateRoute><ComidaDetalle /></PrivateRoute>} />
             <Route path="/admin/torneo" element={<PrivateRoute adminOnly><AdminTorneo /></PrivateRoute>} />
             <Route path="/admin/fecha/nueva" element={<PrivateRoute adminOnly><AdminFecha /></PrivateRoute>} />
             <Route path="/admin/fecha/:fechaId" element={<PrivateRoute adminOnly><AdminFecha /></PrivateRoute>} />
@@ -92,6 +122,10 @@ export default function App() {
             <Route path="/admin/torneo/:torneoId/fechas" element={<PrivateRoute adminOnly><AdminTorneoFechas /></PrivateRoute>} />
             <Route path="/admin/torneo/:torneoId/resultados" element={<PrivateRoute adminOnly><AdminTorneoResultados /></PrivateRoute>} />
             <Route path="/admin/torneo/:torneoId/gdt" element={<PrivateRoute adminOnly><AdminTorneoGDT /></PrivateRoute>} />
+            <Route path="/admin/torneo/:torneoId/comida-config" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidaConfig /></PermisoRoute>} />
+            <Route path="/admin/comidas" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidasHub /></PermisoRoute>} />
+            <Route path="/admin/torneo/:torneoId/votacion" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidaVotacion /></PermisoRoute>} />
+            <Route path="/admin/torneo/:torneoId/comidas-historico" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidasHistorico /></PermisoRoute>} />
             <Route path="/admin/resultados" element={<PrivateRoute adminOnly><AdminResultadosHub /></PrivateRoute>} />
             <Route path="/fecha/:fechaId/enfrentamientos" element={<PrivateRoute><Enfrentamientos /></PrivateRoute>} />
             <Route path="/gdt/mi-equipo" element={<PrivateRoute><MiEquipoGDT /></PrivateRoute>} />

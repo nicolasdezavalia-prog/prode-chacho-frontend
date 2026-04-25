@@ -156,6 +156,26 @@ export const api = {
   // Comidas mensuales
   getComida: (torneoId, mes, anio) => request('GET', `/comidas?torneo_id=${torneoId}&mes=${mes}&anio=${anio}`),
   saveComida: (data) => request('PUT', '/comidas', data),
+  getParticipantes: (comidaId) => request('GET', `/comidas/${comidaId}/participantes`),
+  saveParticipantes: (comidaId, data) => request('PUT', `/comidas/${comidaId}/participantes`, data),
+
+  getFotos: (comidaId) => request('GET', `/comidas/${comidaId}/fotos`),
+
+  // Comidas — votos por usuario
+  getMisVotos: (comidaId) => request('GET', `/comidas/${comidaId}/votos/me`),
+  saveMisVotos: (comidaId, votos) => request('PUT', `/comidas/${comidaId}/votos`, { votos }),
+
+  // Comidas — estado de votación (admin)
+  getVotacionStatus: (comidaId) => request('GET', `/comidas/${comidaId}/votacion-status`),
+  getComidasHistorico: (torneoId) => request('GET', `/comidas/torneo/${torneoId}/historico`),
+  getComidaLista: (torneoId) => request('GET', `/comidas/torneo/${torneoId}/lista`),
+  getComidaById: (comidaId) => request('GET', `/comidas/${comidaId}`),
+  cerrarVotacion: (comidaId) => request('PUT', `/comidas/${comidaId}/votacion-cerrar`),
+
+  // Comidas — configuración de votación por torneo
+  getComidaVotacionConfig: (torneoId) => request('GET', `/comidas/config/${torneoId}`),
+  saveComidaVotacionConfig: (torneoId, items) => request('PUT', `/comidas/config/${torneoId}`, { items }),
+  addFoto: (comidaId, url) => request('POST', `/comidas/${comidaId}/fotos`, { url }),
 
   // Permisos (solo superadmin)
   getMisPermisos: () => request('GET', '/permisos/me'),
