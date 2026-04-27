@@ -131,6 +131,8 @@ export const api = {
   gdtGetVentanaActiva: () => request('GET', '/gdt/ventana/activa'),
   gdtGetDisponibles: () => request('GET', '/gdt/ventana/disponibles'),
   gdtHacerCambio: (slot, jugador_nuevo_id) => request('POST', '/gdt/ventana/cambio', { slot, jugador_nuevo_id }),
+  gdtHacerCambioNuevo: (slot, nuevo_jugador) => request('POST', '/gdt/ventana/cambio', { slot, nuevo_jugador }),
+  gdtCrearEquipoCatalogoUsuario: (nombre) => request('POST', '/gdt/catalogo/usuario', { nombre }),
 
   // GDT — Ventana de cambios (admin)
   gdtGetVentanas: (ligaId) => request('GET', `/gdt/admin/ventanas${ligaId ? `?liga_id=${ligaId}` : ''}`),

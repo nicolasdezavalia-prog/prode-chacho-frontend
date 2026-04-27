@@ -273,6 +273,8 @@ export default function MiEquipoGDT() {
   const [slotEditando, setSlotEditando] = useState(null)
   const [busquedaDisp, setBusquedaDisp] = useState('')
   const [haciendoCambio, setHaciendoCambio] = useState(false)
+  const [creandoJugador, setCreandoJugador] = useState(false)  // form crear jugador visible
+  const [formNuevo, setFormNuevo] = useState({ nombre: '', equipoRaw: '', equipoCatalogoId: null, posicion: '' })
 
   useEffect(() => { cargar() }, [])
 
@@ -380,6 +382,40 @@ export default function MiEquipoGDT() {
         setExito(`✅ Cambio realizado. Te quedan ${res.cambios_restantes} cambio(s).`)
       }
       setSlotEditando(null); setBusquedaDisp('')
+      await cargar()
+    } catch (e) { setError(e.message) }
+    finally { setHaciendoCambio(false) }
+  }
+
+  async function hacerCambioConNuevoJugador(slot) {
+    const { nombre, equipoRaw, equipoCatalogoId, posicion } = formNuevo
+    if (!nombre.trim()) { setError('El nombre del jugador es obligatorio'); return }
+    if (!equipoRaw.trim()) { setError('El equipo es obligatorio'); return }
+    if (!posicion) { setError('La posición es obligatoria'); return }
+    setHaciendoCambio(true); setError(null)
+    try {
+      // Crear equipo si no existe en catálogo
+      let catId = equipoCatalogoId
+      if (!catId && equipoRaw.trim()) {
+        const ec = await api.gdtCrearEquipoCatalogoUsuario(equipoRaw.trim())
+        catId = ec.id
+      }
+      const res = await api.gdtHacerCambioNuevo(slot, {
+        nombre: nombre.trim(),
+        equipo_real: equipoRaw.trim(),
+        equipo_catalogo_id: catId || null,
+        posicion,
+      })
+      if (res.jugador_pendiente) {
+        setExito(`⏳ Jugador creado. Queda pendiente de aprobación del admin. Tu equipo no participará en GDT hasta que sea aprobado.`)
+      } else if (res.jugador_eliminado) {
+        setExito(res.mensaje)
+      } else {
+        setExito(`✅ Cambio realizado. Te quedan ${res.cambios_restantes} cambio(s).`)
+      }
+      setSlotEditando(null); setBusquedaDisp('')
+      setCreandoJugador(false)
+      setFormNuevo({ nombre: '', equipoRaw: '', equipoCatalogoId: null, posicion: '' })
       await cargar()
     } catch (e) { setError(e.message) }
     finally { setHaciendoCambio(false) }
@@ -498,9 +534,78 @@ export default function MiEquipoGDT() {
                                   ))
                                 }
                                 {disponibles.filter(d => !busquedaDisp || d.nombre.toLowerCase().includes(busquedaDisp.toLowerCase()) || (d.equipo_real || '').toLowerCase().includes(busquedaDisp.toLowerCase())).length === 0 && (
-                                  <p style={{ padding: 10, color: 'var(--color-muted)', fontSize: 13, textAlign: 'center' }}>
-                                    No hay jugadores libres con ese nombre.
-                                  </p>
+                                  <div>
+                                    <p style={{ padding: '8px 10px', color: 'var(--color-muted)', fontSize: 13, textAlign: 'center', margin: 0 }}>
+                                      No hay jugadores libres con ese nombre.
+                                    </p>
+                                    {busquedaDisp.trim().length >= 3 && !creandoJugador && (
+                                      <div
+                                        onClick={() => { setCreandoJugador(true); setFormNuevo({ nombre: busquedaDisp.trim(), equipoRaw: '', equipoCatalogoId: null, posicion: '' }) }}
+                                        style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 13, borderTop: '1px solid var(--color-border)', color: 'var(--color-primary)', fontWeight: 600 }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface2)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                      >
+                                        ➕ Crear jugador: &ldquo;{busquedaDisp.trim()}&rdquo;
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {creandoJugador && slotEditando === slot && (
+                                  <div style={{ padding: '12px 10px', borderTop: '1px solid var(--color-border)', background: 'rgba(59,130,246,0.04)' }}>
+                                    <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 8 }}>Nuevo jugador — quedará pendiente de aprobación del admin</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      <input
+                                        type="text"
+                                        placeholder="Nombre del jugador"
+                                        value={formNuevo.nombre}
+                                        onChange={e => setFormNuevo(f => ({ ...f, nombre: e.target.value }))}
+                                        style={{ ...inputStyleV, width: '100%' }}
+                                      />
+                                      <div style={{ position: 'relative' }}>
+                                        <input
+                                          list="catalogo-nuevo-jug"
+                                          type="text"
+                                          placeholder="Equipo real..."
+                                          value={formNuevo.equipoRaw}
+                                          onChange={e => {
+                                            const v = e.target.value
+                                            const found = catalogo.find(c => c.nombre.toLowerCase() === v.toLowerCase())
+                                            setFormNuevo(f => ({ ...f, equipoRaw: v, equipoCatalogoId: found?.id || null }))
+                                          }}
+                                          style={{ ...inputStyleV, width: '100%' }}
+                                        />
+                                        <datalist id="catalogo-nuevo-jug">
+                                          {catalogo.map(c => <option key={c.id} value={c.nombre} />)}
+                                        </datalist>
+                                      </div>
+                                      <select
+                                        value={formNuevo.posicion}
+                                        onChange={e => setFormNuevo(f => ({ ...f, posicion: e.target.value }))}
+                                        style={{ ...inputStyleV, width: '100%' }}
+                                      >
+                                        <option value="">Posición...</option>
+                                        <option value="ARQ">ARQ</option>
+                                        <option value="DEF">DEF</option>
+                                        <option value="MED">MED</option>
+                                        <option value="DEL">DEL</option>
+                                      </select>
+                                      <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                          className="btn btn-primary btn-sm"
+                                          onClick={() => hacerCambioConNuevoJugador(slot)}
+                                          disabled={haciendoCambio}
+                                        >
+                                          {haciendoCambio ? 'Guardando...' : '✅ Confirmar'}
+                                        </button>
+                                        <button
+                                          className="btn btn-secondary btn-sm"
+                                          onClick={() => { setCreandoJugador(false); setFormNuevo({ nombre: '', equipoRaw: '', equipoCatalogoId: null, posicion: '' }) }}
+                                        >
+                                          Cancelar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             </td>
