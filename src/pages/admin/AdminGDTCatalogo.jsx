@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 /**
@@ -9,6 +10,8 @@ import { api } from '../../api/index.js'
  * 2. Duplicados: el sistema detecta jugadores con nombres similares en el mismo equipo.
  */
 export default function AdminGDTCatalogo() {
+  const [searchParams] = useSearchParams()
+  const ligaId = searchParams.get('liga_id') || undefined
   const [catalogo, setCatalogo] = useState([])
   const [duplicados, setDuplicados] = useState([])
   const [nuevoNombre, setNuevoNombre] = useState('')
@@ -24,18 +27,18 @@ export default function AdminGDTCatalogo() {
   useEffect(() => {
     cargarCatalogo()
     cargarDuplicados()
-  }, [])
+  }, [ligaId])
 
   async function cargarCatalogo() {
     setLoading(true)
-    try { setCatalogo(await api.gdtGetCatalogo()) }
+    try { setCatalogo(await api.gdtGetCatalogo(ligaId)) }
     catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
 
   async function cargarDuplicados() {
     setLoadingDups(true)
-    try { setDuplicados(await api.gdtGetDuplicados()) }
+    try { setDuplicados(await api.gdtGetDuplicados(ligaId)) }
     catch (e) { /* silencioso */ }
     finally { setLoadingDups(false) }
   }

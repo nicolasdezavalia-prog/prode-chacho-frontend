@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 const SLOTS = ['ARQ', 'DEF1', 'DEF2', 'DEF3', 'DEF4', 'MED1', 'MED2', 'MED3', 'MED4', 'DEL1', 'DEL2']
@@ -16,6 +17,8 @@ function EstadoBadge({ estado }) {
 }
 
 export default function AdminEquiposGDT() {
+  const [searchParams] = useSearchParams()
+  const ligaId = searchParams.get('liga_id') || undefined
   const [data, setData]           = useState(null)
   const [todosJugadores, setTodosJugadores] = useState([])
   const [loading, setLoading]     = useState(true)
@@ -24,14 +27,14 @@ export default function AdminEquiposGDT() {
   const [motivoInput, setMotivoInput]       = useState('')
   const [accionando, setAccionando]         = useState(false)
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargar() }, [ligaId])
 
   async function cargar() {
     setLoading(true); setError(null)
     try {
       const [equiposData, jugadores] = await Promise.all([
-        api.gdtGetEquipos(),
-        api.gdtGetTodosJugadores(),
+        api.gdtGetEquipos(ligaId),
+        api.gdtGetTodosJugadores(ligaId),
       ])
       setData(equiposData)
       setTodosJugadores(jugadores)

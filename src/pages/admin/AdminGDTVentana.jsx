@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 export default function AdminGDTVentana() {
+  const [searchParams] = useSearchParams()
+  const ligaId = searchParams.get('liga_id') || undefined
   const [ventanas, setVentanas]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
@@ -10,11 +13,11 @@ export default function AdminGDTVentana() {
   const [formNueva, setFormNueva]   = useState({ nombre: '', cambios: 2 })
   const [abriendo, setAbriendo]     = useState(false)
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargar() }, [ligaId])
 
   async function cargar() {
     setLoading(true); setError(null)
-    try { setVentanas(await api.gdtGetVentanas()) }
+    try { setVentanas(await api.gdtGetVentanas(ligaId)) }
     catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }

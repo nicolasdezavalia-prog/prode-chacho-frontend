@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 const POSICION_LABELS = { ARQ: 'Arquero', DEF: 'Defensor', MED: 'Mediocampista', DEL: 'Delantero' }
 
 export default function AdminGDTPendientes() {
+  const [searchParams] = useSearchParams()
+  const ligaId = searchParams.get('liga_id') || undefined
   const [pendientes, setPendientes] = useState([])
   const [catalogo, setCatalogo] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,14 +22,14 @@ export default function AdminGDTPendientes() {
   const [busquedaUnificar, setBusquedaUnificar] = useState('')
   const [candidatosUnificar, setCandidatosUnificar] = useState([])
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargar() }, [ligaId])
 
   async function cargar() {
     setLoading(true); setError(null)
     try {
       const [pendRes, catRes] = await Promise.all([
-        api.gdtGetPendientes(),
-        api.gdtGetCatalogo(),
+        api.gdtGetPendientes(ligaId),
+        api.gdtGetCatalogo(ligaId),
       ])
       setPendientes(pendRes.pendientes || [])
       setCatalogo(catRes || [])

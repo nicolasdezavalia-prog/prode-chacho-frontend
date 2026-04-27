@@ -53,15 +53,18 @@ export default function AdminFecha() {
     anio: new Date().getFullYear(),
     tipo: 'completa',
     importe_apuesta: '',
-    deadline: ''
+    deadline: '',
+    gdt_liga_id: ''
   })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [gdtLigas, setGdtLigas] = useState([])
 
   useEffect(() => {
     loadTorneos()
+    loadGdtLigas()
     if (!isNew) {
       loadFecha()
       loadCrucesYMovimientos()
@@ -102,6 +105,13 @@ export default function AdminFecha() {
     } catch (_) {}
   }
 
+  const loadGdtLigas = async () => {
+    try {
+      const ligas = await api.gdtGetLigas()
+      setGdtLigas(ligas)
+    } catch (_) {}
+  }
+
   const loadTorneos = async () => {
     try {
       const ts = await api.getTorneos()
@@ -124,7 +134,8 @@ export default function AdminFecha() {
         anio: f.anio,
         tipo: f.tipo || 'completa',
         importe_apuesta: f.importe_apuesta ?? '',
-        deadline: f.deadline ?? ''
+        deadline: f.deadline ?? '',
+        gdt_liga_id: f.gdt_liga_id ?? ''
       })
       loadJugadoresTorneo(f.torneo_id)
     } catch (err) {
@@ -144,6 +155,7 @@ export default function AdminFecha() {
           ...form,
           importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
           deadline: form.deadline === '' ? null : form.deadline,
+          gdt_liga_id: form.gdt_liga_id === '' ? null : parseInt(form.gdt_liga_id),
         })
         setSuccess('Fecha creada correctamente')
         navigate(`/admin/fecha/${created.id}`)
@@ -155,6 +167,7 @@ export default function AdminFecha() {
           tipo: form.tipo,
           importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
           deadline: form.deadline === '' ? null : form.deadline,
+          gdt_liga_id: form.gdt_liga_id === '' ? null : parseInt(form.gdt_liga_id),
         })
         setSuccess('Fecha actualizada')
         loadFecha()
@@ -454,6 +467,25 @@ export default function AdminFecha() {
             />
             <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
               Opcional. Fecha y hora límite para cargar pronósticos (solo informativo por ahora).
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>🏆 GDT Liga</label>
+            <select
+              value={form.gdt_liga_id}
+              onChange={e => setForm(f => ({ ...f, gdt_liga_id: e.target.value }))}
+              style={{ maxWidth: 280 }}
+            >
+              <option value="">Default (GDT Argentina)</option>
+              {gdtLigas.map(l => (
+                <option key={l.id} value={l.id}>
+                  {l.nombre}{l.es_default ? ' ★' : ''}
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
+              Liga GDT que aplica a esta fecha. Si no se elige, usa la liga default.
             </div>
           </div>
 

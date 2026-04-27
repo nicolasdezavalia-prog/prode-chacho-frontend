@@ -94,8 +94,11 @@ export const api = {
   getCrucesResumido: (fechaId) => request('GET', `/cruces/fecha/${fechaId}/resumido`),
   guardarResumido: (fechaId, resultados) => request('POST', `/cruces/fecha/${fechaId}/resumido`, { resultados }),
 
+  // GDT — Ligas / Competencias
+  gdtGetLigas: () => request('GET', '/gdt/ligas'),
+
   // GDT — Catálogo de equipos (admin)
-  gdtGetCatalogo: () => request('GET', '/gdt/catalogo'),
+  gdtGetCatalogo: (ligaId) => request('GET', `/gdt/catalogo${ligaId ? `?liga_id=${ligaId}` : ''}`),
   gdtAddCatalogo: (nombre, pais) => request('POST', '/gdt/catalogo', { nombre, pais }),
   gdtDeleteCatalogo: (id) => request('DELETE', `/gdt/catalogo/${id}`),
 
@@ -103,11 +106,11 @@ export const api = {
   gdtBuscarJugador: (nombre, equipoId) =>
     request('GET', `/gdt/jugadores/buscar?nombre=${encodeURIComponent(nombre)}${equipoId ? `&equipo_id=${equipoId}` : ''}`),
   gdtGetEstadoJugadores: () => request('GET', '/gdt/jugadores/estado'),
-  gdtGetTodosJugadores: () => request('GET', '/gdt/jugadores/todos'),             // admin
+  gdtGetTodosJugadores: (ligaId) => request('GET', `/gdt/jugadores/todos${ligaId ? `?liga_id=${ligaId}` : ''}`), // admin
   gdtEditarJugador: (id, data) => request('PATCH', `/gdt/jugadores/${id}`, data), // admin
   gdtEliminarJugador: (id) => request('DELETE', `/gdt/jugadores/${id}`),          // admin
   gdtBulkPais: (pais) => request('POST', '/gdt/jugadores/bulk-pais', { pais }),   // admin
-  gdtGetDuplicados: () => request('GET', '/gdt/jugadores/duplicados'),            // admin
+  gdtGetDuplicados: (ligaId) => request('GET', `/gdt/jugadores/duplicados${ligaId ? `?liga_id=${ligaId}` : ''}`), // admin
   gdtMergeJugadores: (keepId, mergeId) => request('POST', '/gdt/jugadores/merge', { keep_id: keepId, merge_id: mergeId }), // admin
 
   // GDT — Equipo del usuario
@@ -115,7 +118,7 @@ export const api = {
   gdtGuardarEquipo: (jugadores) => request('POST', '/gdt/equipo', { jugadores }),
 
   // GDT — Admin acciones sobre equipos
-  gdtGetEquipos: () => request('GET', '/gdt/equipos'),
+  gdtGetEquipos: (ligaId) => request('GET', `/gdt/equipos${ligaId ? `?liga_id=${ligaId}` : ''}`),
   gdtEditarSlot: (userId, slot, data) => request('PATCH', `/gdt/admin/equipo/${userId}/slot`, { slot, ...data }),
   gdtValidarEquipo: (userId) => request('POST', `/gdt/admin/equipo/${userId}/validar`),
   gdtInvalidarEquipo: (userId, motivo) => request('POST', `/gdt/admin/equipo/${userId}/invalidar`, { motivo }),
@@ -130,7 +133,7 @@ export const api = {
   gdtHacerCambio: (slot, jugador_nuevo_id) => request('POST', '/gdt/ventana/cambio', { slot, jugador_nuevo_id }),
 
   // GDT — Ventana de cambios (admin)
-  gdtGetVentanas: () => request('GET', '/gdt/admin/ventanas'),
+  gdtGetVentanas: (ligaId) => request('GET', `/gdt/admin/ventanas${ligaId ? `?liga_id=${ligaId}` : ''}`),
   gdtAbrirVentana: (nombre, cambios_por_usuario) => request('POST', '/gdt/admin/ventanas', { nombre, cambios_por_usuario }),
   gdtCerrarVentana: (id) => request('POST', `/gdt/admin/ventanas/${id}/cerrar`),
   gdtGetDetalleVentana: (id) => request('GET', `/gdt/admin/ventanas/${id}/detalle`),
@@ -139,7 +142,7 @@ export const api = {
   gdtGetResultado: (cruceId) => request('GET', `/gdt/resultado/${cruceId}`),
 
   // GDT — Revisión de pendientes (admin)
-  gdtGetPendientes: () => request('GET', '/gdt/pendientes'),
+  gdtGetPendientes: (ligaId) => request('GET', `/gdt/pendientes${ligaId ? `?liga_id=${ligaId}` : ''}`),
   gdtAprobarPendiente: (id, data) => request('POST', `/gdt/pendientes/${id}/aprobar`, data || {}),
   gdtRechazarPendiente: (id) => request('POST', `/gdt/pendientes/${id}/rechazar`),
   gdtUnificarPendiente: (id, keepId) => request('POST', `/gdt/pendientes/${id}/unificar`, { keep_id: keepId }),

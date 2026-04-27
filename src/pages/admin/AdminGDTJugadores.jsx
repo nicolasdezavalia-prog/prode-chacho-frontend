@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 const POSICIONES = ['ARQ', 'DEF', 'MED', 'DEL']
@@ -35,6 +36,8 @@ function ColHeader({ label, col, sort, onSort }) {
 }
 
 export default function AdminGDTJugadores() {
+  const [searchParams] = useSearchParams()
+  const ligaId = searchParams.get('liga_id') || undefined
   const [jugadores, setJugadores] = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
@@ -57,11 +60,11 @@ export default function AdminGDTJugadores() {
   const [mergeBusqueda, setMergeBusqueda]   = useState('')
   const [mergeCandidatos, setMergeCandidatos] = useState([])
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargar() }, [ligaId])
 
   async function cargar() {
     setLoading(true); setError(null)
-    try { setJugadores(await api.gdtGetTodosJugadores()) }
+    try { setJugadores(await api.gdtGetTodosJugadores(ligaId)) }
     catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }

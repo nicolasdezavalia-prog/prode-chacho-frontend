@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { api } from '../../api/index.js'
 
-const cards = [
+const CARDS = [
   {
     icon: '🏆',
     title: 'Equipos',
@@ -44,10 +44,24 @@ export default function AdminTorneoGDT() {
   const { torneoId } = useParams()
   const navigate = useNavigate()
   const [torneo, setTorneo] = useState(null)
+  const [gdtLigas, setGdtLigas] = useState([])
+  const [gdtLigaId, setGdtLigaId] = useState('')
 
   useEffect(() => {
     api.getTorneo(torneoId).then(setTorneo).catch(() => {})
+    api.gdtGetLigas().then(data => {
+      const ligas = data.ligas || []
+      setGdtLigas(ligas)
+      // Pre-seleccionar la liga default (o la primera activa)
+      const def = ligas.find(l => l.es_default) || ligas[0]
+      if (def) setGdtLigaId(String(def.id))
+    }).catch(() => {})
   }, [torneoId])
+
+  function navegarCon(to) {
+    const qs = gdtLigaId ? `?liga_id=${gdtLigaId}` : ''
+    navigate(to + qs)
+  }
 
   return (
     <div>
@@ -69,15 +83,36 @@ export default function AdminTorneoGDT() {
         </button>
       </div>
 
+      {/* Selector de liga */}
+      {gdtLigas.length > 1 && (
+        <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ fontSize: 13, color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
+            GDT Liga:
+          </label>
+          <select
+            value={gdtLigaId}
+            onChange={e => setGdtLigaId(e.target.value)}
+            className="input"
+            style={{ width: 'auto', minWidth: 200 }}
+          >
+            {gdtLigas.map(l => (
+              <option key={l.id} value={l.id}>
+                {l.es_default ? `★ ${l.nombre}` : l.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
         gap: 16,
       }}>
-        {cards.map((card) => (
+        {CARDS.map((card) => (
           <button
             key={card.title}
-            onClick={() => card.enabled && navigate(card.to)}
+            onClick={() => card.enabled && navegarCon(card.to)}
             disabled={!card.enabled}
             style={{
               background: 'var(--color-surface)',
