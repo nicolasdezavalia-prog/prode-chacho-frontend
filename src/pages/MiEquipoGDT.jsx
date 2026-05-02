@@ -942,17 +942,3 @@ export default function MiEquipoGDT() {
     </div>
   )
 }
-)}
-
-      {/* Sin equipo */}
-      {!tieneEquipo && !modoEdicion && (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-muted)' }}>
-          <p>Todavía no cargaste tu equipo Gran DT.</p>
-          <button className="btn btn-primary" onClick={() => setModoEdicion(true)}>
-            Armar mi equipo
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
