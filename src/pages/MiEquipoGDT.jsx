@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/index.js'
 
 const SLOTS = ['ARQ', 'DEF1', 'DEF2', 'DEF3', 'DEF4', 'MED1', 'MED2', 'MED3', 'MED4', 'DEL1', 'DEL2']
@@ -18,6 +19,28 @@ const SLOT_GROUPS = [
   { label: 'Mediocampistas',   slots: ['MED1', 'MED2', 'MED3', 'MED4'] },
   { label: 'Delanteros',       slots: ['DEL1', 'DEL2'] },
 ]
+
+const FORMATO_BADGE = {
+  F5:   { bg: 'rgba(139,92,246,0.15)', color: '#7c3aed' },
+  F7:   { bg: 'rgba(59,130,246,0.15)', color: '#2563eb' },
+  F9:   { bg: 'rgba(34,197,94,0.15)',  color: '#16a34a' },
+  F11:  { bg: 'rgba(234,179,8,0.15)',  color: '#ca8a04' },
+  otro: { bg: 'var(--color-surface2)', color: 'var(--color-muted)' },
+}
+
+// Construye los grupos de slots a partir de la respuesta de /api/gdt/liga/slots
+const POSICION_GROUP_LABEL = { ARQ: 'Arquero', DEF: 'Defensores', MED: 'Mediocampistas', DEL: 'Delanteros' }
+const POSICION_ORDER = ['ARQ', 'DEF', 'MED', 'DEL']
+function buildSlotGroups(slots) {
+  const map = {}
+  for (const { slot, posicion } of slots) {
+    if (!map[posicion]) map[posicion] = []
+    map[posicion].push(slot)
+  }
+  return POSICION_ORDER
+    .filter(p => map[p])
+    .map(p => ({ label: POSICION_GROUP_LABEL[p], slots: map[p] }))
+}
 
 function estadoBadge(estado) {
   if (estado === 'eliminado') return <span style={{ color: 'var(--color-danger)', fontWeight: 600, fontSize: 12 }}>❌ Eliminado</span>
@@ -66,12 +89,13 @@ function BannerEstado({ puedeParticipar, motivos, estadoEquipo, observaciones })
 
 // ─── Componente de entrada de un slot ────────────────────────────────────────
 
-function SlotInput({ slot, catalogoEquipos, value, onChange }) {
+function SlotInput({ slot, posicionDefault, catalogoEquipos, value, onChange }) {
   const [busqueda, setBusqueda] = useState(value?.nombre || '')
   const [sugerencias, setSugerencias] = useState(null)
   const [buscando, setBuscando] = useState(false)
   const timerRef = useRef(null)
-  const posicion = SLOT_POSICION[slot]
+  // posicion viene del padre (slotsConfig.slotPosicion[slot]) — dinámico por liga
+  const posicion = posicionDefault ?? null
   const confirmado = value?.jugador_id != null
 
   async function buscar(nombre) {
@@ -249,6 +273,10 @@ function SlotInput({ slot, catalogoEquipos, value, onChange }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function MiEquipoGDT() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  // liga_id desde URL: ?liga_id=X → carga equipo de esa liga; sin param → liga default
+  const ligaIdUrl = searchParams.get('liga_id') ? Number(searchParams.get('liga_id')) : null
+
   const [equipoDB, setEquipoDB] = useState([])
   const [estadoEquipo, setEstadoEquipo] = useState(null)
   const [puedeParticipar, setPuedeParticipar] = useState(false)
@@ -259,7 +287,13 @@ export default function MiEquipoGDT() {
   const [observaciones, setObservaciones] = useState([])
   const [form, setForm] = useState({})
   const [catalogo, setCatalogo] = useState([])
+  // Slots dinámicos: cargados desde /api/gdt/liga/slots, fallback a constantes F11
+  const [slotsConfig, setSlotsConfig] = useState({ slotNames: SLOTS, groups: SLOT_GROUPS, total: 11, liga_id: null, slotPosicion: SLOT_POSICION })
   const [estadoGlobal, setEstadoGlobal] = useState({ eliminados: [], mi_equipo_invalidados: [] })
+  // Ligas activas — para el selector prominente
+  const [ligas, setLigas] = useState([])
+  const [ligaId, setLigaId] = useState(ligaIdUrl)                       // null = esperar default
+  const [ligaResolved, setLigaResolved] = useState(ligaIdUrl !== null)  // true = listo para cargar
   const [modoEdicion, setModoEdicion] = useState(false)
   const [loading, setLoading] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -276,13 +310,51 @@ export default function MiEquipoGDT() {
   const [creandoJugador, setCreandoJugador] = useState(false)  // form crear jugador visible
   const [formNuevo, setFormNuevo] = useState({ nombre: '', equipoRaw: '', equipoCatalogoId: null, posicion: '' })
 
-  useEffect(() => { cargar() }, [])
+  // Efecto 1: cargar ligas activas y pre-seleccionar default si no hay URL param
+  useEffect(() => {
+    api.gdtGetLigas().then(ls => {
+      const lista = Array.isArray(ls) ? ls : []
+      setLigas(lista)
+      if (ligaIdUrl === null) {
+        const def = lista.find(l => l.es_default) || lista[0]
+        if (def) setLigaId(def.id)
+        setLigaResolved(true) // desbloquea cargar() incluso si lista vacía → backend usa default
+      }
+    }).catch(() => {
+      if (ligaIdUrl === null) setLigaResolved(true) // fallback: cargar con null → backend usa default
+    })
+  }, [])
+
+  // Efecto 2: cargar equipo cuando liga está resuelta o cambia
+  useEffect(() => {
+    if (!ligaResolved) return
+    cargar()
+  }, [ligaId, ligaResolved])
+
+  // Cargar configuración de slots de la liga (independiente del equipo del usuario)
+  useEffect(() => {
+    if (!ligaResolved) return
+    api.gdtGetLigaSlots(ligaId)
+      .then(data => {
+        if (data?.slots?.length > 0) {
+          setSlotsConfig({
+            slotNames: data.slots.map(s => s.slot),
+            groups: buildSlotGroups(data.slots),
+            total: data.total,
+            liga_id: data.liga_id ?? null,
+            // mapa slot→posicion derivado de la API — reemplaza SLOT_POSICION hardcodeado
+            slotPosicion: Object.fromEntries(data.slots.map(s => [s.slot, s.posicion])),
+          })
+        }
+      })
+      .catch(() => {}) // fallback: mantiene constantes F11 (incluye slotPosicion: SLOT_POSICION)
+  }, [ligaId, ligaResolved])
 
   async function cargar() {
     setLoading(true); setError(null)
     try {
       const [equipoRes, estadoRes, catalogoRes, ventanaRes] = await Promise.all([
-        api.gdtGetMiEquipo(),
+        api.gdtGetMiEquipo(ligaId),
         api.gdtGetEstadoJugadores(),
         api.gdtGetCatalogo(),
         api.gdtGetVentanaActiva(),
@@ -307,24 +379,29 @@ export default function MiEquipoGDT() {
         } catch (_) {}
       }
 
-      // Inicializar form con datos actuales
+      // Inicializar form con datos actuales.
+      // Iteramos la unión de SLOTS (fallback F11) + slots reales del equipo del servidor,
+      // para cubrir tanto equipos F11 como cualquier formato de liga sin depender de timing de slotsConfig.
       const f = {}
-      for (const slot of SLOTS) {
+      const slotsParaInit = new Set([...SLOTS, ...(equipoRes.equipo || []).map(e => e.slot)])
+      for (const slot of slotsParaInit) {
         const j = (equipoRes.equipo || []).find(e => e.slot === slot)
+        // posicion: viene del DB, luego del mapa actual de slotsConfig, luego null
+        const posicionFallback = slotsConfig.slotPosicion[slot] ?? null
         f[slot] = j
           ? {
               equipo_raw: j.equipo_raw || j.equipo_real || '',
               equipo_catalogo_id: null,
               nombre: j.nombre,
               jugador_id: j.jugador_id,
-              posicion: j.posicion || SLOT_POSICION[slot],
+              posicion: j.posicion || posicionFallback,
             }
-          : { equipo_raw: '', equipo_catalogo_id: null, nombre: '', jugador_id: null, posicion: SLOT_POSICION[slot] }
+          : { equipo_raw: '', equipo_catalogo_id: null, nombre: '', jugador_id: null, posicion: posicionFallback }
       }
       setForm(f)
 
-      // Solo auto-entrar en modo edición si no tiene equipo Y hay ventana abierta
-      if ((!equipoRes.equipo || equipoRes.equipo.length === 0) && ventanaRes.ventana) setModoEdicion(true)
+      // Auto-entrar en modo edición si no tiene equipo (no requiere ventana: es armado inicial)
+      if (!equipoRes.equipo || equipoRes.equipo.length === 0) setModoEdicion(true)
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -334,30 +411,38 @@ export default function MiEquipoGDT() {
     setExito(null)
   }
 
+  function handleLigaChange(newId) {
+    setSearchParams(prev => { prev.set('liga_id', String(newId)); return prev })
+    setLigaId(newId)
+  }
+
   async function handleGuardar() {
     // Validar que todos los slots tengan nombre y equipo
-    const incompletos = SLOTS.filter(s => !form[s]?.nombre?.trim())
+    // Usa slotsConfig.slotNames (dinámico por liga) en lugar de SLOTS (F11 fijo)
+    const total = slotsConfig.slotNames.length
+    const incompletos = slotsConfig.slotNames.filter(s => !form[s]?.nombre?.trim())
     if (incompletos.length > 0) {
-      setError(`Faltan jugadores en: ${incompletos.join(', ')}`)
+      const completos = total - incompletos.length
+      setError(`Equipo incompleto (${completos}/${total}). Faltan jugadores en: ${incompletos.join(', ')}`)
       return
     }
-    const sinEquipo = SLOTS.filter(s => !form[s]?.equipo_raw?.trim())
+    const sinEquipo = slotsConfig.slotNames.filter(s => !form[s]?.equipo_raw?.trim())
     if (sinEquipo.length > 0) {
-      setError(`Falta escribir el equipo en: ${sinEquipo.join(', ')}`)
+      setError(`Falta el equipo real en ${sinEquipo.length} slot${sinEquipo.length > 1 ? 's' : ''}: ${sinEquipo.join(', ')}`)
       return
     }
 
     setGuardando(true); setError(null); setExito(null)
     try {
-      const jugadores = SLOTS.map(slot => ({
+      const jugadores = slotsConfig.slotNames.map(slot => ({
         slot,
         nombre: form[slot].nombre.trim(),
         equipo_raw: form[slot].equipo_raw?.trim() || '',
         equipo_catalogo_id: form[slot].equipo_catalogo_id || null,
-        posicion: form[slot].posicion || SLOT_POSICION[slot],
+        posicion: form[slot].posicion || slotsConfig.slotPosicion[slot] || null,
       }))
 
-      const res = await api.gdtGuardarEquipo(jugadores)
+      const res = await api.gdtGuardarEquipo(jugadores, slotsConfig.liga_id)
 
       if (res.puede_participar) {
         setExito('✅ Equipo guardado. Tu equipo participa en GDT.')
@@ -423,7 +508,15 @@ export default function MiEquipoGDT() {
 
   if (loading) return <div className="main-content"><p style={{ color: 'var(--color-muted)' }}>Cargando...</p></div>
 
-  const tieneEquipo = equipoDB.length === 11
+  const tieneEquipo = equipoDB.length === slotsConfig.total
+
+  // Slots con jugadores eliminados (para UX de corrección)
+  const slotsEliminados = new Set(
+    equipoDB
+      .filter(e => e.estado_jugador === 'eliminado' || estadoGlobal.eliminados?.includes(e.jugador_id))
+      .map(e => e.slot)
+  )
+  const requiereCorreccion = estadoEquipo === 'requiere_correccion' || slotsEliminados.size > 0
 
   return (
     <div className="main-content">
@@ -433,6 +526,51 @@ export default function MiEquipoGDT() {
           <button className="btn btn-secondary" onClick={() => setModoEdicion(true)}>Editar equipo</button>
         )}
       </div>
+
+      {/* Selector de liga GDT — pills prominentes, visible si hay más de una liga activa */}
+      {ligas.length > 1 && (
+        <div style={{
+          display: 'flex', gap: 8, marginBottom: 20,
+          background: 'var(--color-surface2)',
+          padding: '10px 14px',
+          borderRadius: 'var(--radius)',
+          border: '1px solid var(--color-border)',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}>
+          <span style={{
+            fontSize: 11, color: 'var(--color-muted)', fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4,
+          }}>
+            Liga
+          </span>
+          {ligas.map(l => {
+            const isSelected = ligaId === l.id
+            const c = FORMATO_BADGE[l.formato] || FORMATO_BADGE.otro
+            return (
+              <button
+                key={l.id}
+                onClick={() => handleLigaChange(l.id)}
+                style={{
+                  padding: '7px 18px',
+                  borderRadius: 99,
+                  border: `2px solid ${isSelected ? c.color : 'transparent'}`,
+                  background: isSelected ? c.bg : 'transparent',
+                  color: isSelected ? c.color : 'var(--color-muted)',
+                  fontWeight: isSelected ? 700 : 500,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                {l.nombre}{l.es_default ? ' ★' : ''}
+                {l.formato && (
+                  <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.8 }}>({l.formato})</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Banner de estado — usa directamente los campos del endpoint, sin deducción */}
       {!modoEdicion && (
@@ -480,17 +618,24 @@ export default function MiEquipoGDT() {
                   </tr>
                 </thead>
                 <tbody>
-                  {SLOTS.map(slot => {
+                  {slotsConfig.slotNames.map(slot => {
                     const j = equipoDB.find(e => e.slot === slot)
                     const enEdicion = slotEditando === slot
                     const fueYaSoltado = ventanaInfo.soltados_ids?.includes(j?.jugador_id)
+                    const esEliminadoSlot = slotsEliminados.has(slot)
                     return (
                       <>
-                        <tr key={slot} style={{ borderBottom: enEdicion ? 'none' : '1px solid var(--color-border)' }}>
-                          <td style={{ ...tdStyle, color: 'var(--color-primary)', fontWeight: 600 }}>{slot}</td>
+                        <tr key={slot} style={{
+                          borderBottom: enEdicion ? 'none' : '1px solid var(--color-border)',
+                          background: esEliminadoSlot ? 'rgba(239,68,68,0.07)' : 'transparent',
+                        }}>
+                          <td style={{ ...tdStyle, color: esEliminadoSlot ? 'var(--color-danger)' : 'var(--color-primary)', fontWeight: 600 }}>{slot}</td>
                           <td style={tdStyle}>
                             {j?.nombre || <span style={{ color: 'var(--color-muted)' }}>—</span>}
                             {fueYaSoltado && <span style={{ color: 'var(--color-warning)', fontSize: 11, marginLeft: 6 }}>ya soltado</span>}
+                            {esEliminadoSlot && (
+                              <span style={{ color: 'var(--color-danger)', fontSize: 11, marginLeft: 6, fontWeight: 600 }}>⚠ ELIMINADO — reemplazá este slot</span>
+                            )}
                           </td>
                           <td style={{ ...tdStyle, color: 'var(--color-muted)', fontSize: 12 }}>{j?.equipo_real || '—'}</td>
                           <td style={{ ...tdStyle, textAlign: 'right' }}>
@@ -621,15 +766,24 @@ export default function MiEquipoGDT() {
         </div>
       )}
 
-      {/* Banner eliminados */}
-      {estadoGlobal.mi_equipo_invalidados?.length > 0 && (
-        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 14 }}>
-          <strong style={{ color: 'var(--color-danger)', fontSize: 13 }}>⚠️ Jugadores eliminados en tu equipo</strong>
-          <ul style={{ marginTop: 6, paddingLeft: 18, color: 'var(--color-muted)', fontSize: 13 }}>
-            {estadoGlobal.mi_equipo_invalidados.map(j => (
-              <li key={j.slot}><strong>{j.slot}</strong>: {j.nombre} — cuenta como 0 pts / no jugó</li>
-            ))}
-          </ul>
+      {/* Banner corrección requerida */}
+      {requiereCorreccion && (
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '2px solid var(--color-danger)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 16 }}>
+          <strong style={{ color: 'var(--color-danger)', fontSize: 14, display: 'block', marginBottom: 6 }}>
+            ⚠️ Tenés jugadores eliminados. Debés reemplazarlos.
+          </strong>
+          {estadoGlobal.mi_equipo_invalidados?.length > 0 && (
+            <ul style={{ margin: '6px 0 8px', paddingLeft: 18, color: 'var(--color-danger)', fontSize: 13 }}>
+              {estadoGlobal.mi_equipo_invalidados.map(j => (
+                <li key={j.slot}><strong>{j.slot}</strong>: {j.nombre} — cuenta como 0 pts</li>
+              ))}
+            </ul>
+          )}
+          <p style={{ color: 'var(--color-muted)', fontSize: 12, margin: 0 }}>
+            {ventanaInfo?.ventana
+              ? 'Hay una ventana abierta — usá el panel de cambios arriba para reemplazar los slots marcados.'
+              : 'Podrás reemplazarlos cuando se abra la próxima ventana de cambios. Mientras tanto, esos slots suman 0 puntos.'}
+          </p>
         </div>
       )}
 
@@ -647,7 +801,7 @@ export default function MiEquipoGDT() {
       {/* Vista equipo guardado */}
       {tieneEquipo && !modoEdicion && (
         <div>
-          {SLOT_GROUPS.map(group => (
+          {slotsConfig.groups.map(group => (
             <div key={group.label} style={{ marginBottom: 20 }}>
               <h3 style={{ color: 'var(--color-muted)', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{group.label}</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -666,16 +820,23 @@ export default function MiEquipoGDT() {
                     const obs = observaciones.find(o => o.slot === slot)
                     const esPendiente = j?.estado_jugador === 'pendiente'
                     const esRechazado = j?.estado_jugador === 'rechazado'
+                    const esEliminado = slotsEliminados.has(slot)
                     return (
                       <tr key={slot} style={{
                         borderBottom: '1px solid var(--color-border)',
-                        background: esRechazado ? 'rgba(239,68,68,0.05)'
+                        background: esEliminado ? 'rgba(239,68,68,0.1)'
+                                  : esRechazado ? 'rgba(239,68,68,0.05)'
                                   : esPendiente ? 'rgba(167,139,250,0.06)'
                                   : obs ? 'rgba(245,158,11,0.05)' : 'transparent'
                       }}>
-                        <td style={{ ...tdStyle, color: 'var(--color-primary)', fontWeight: 600 }}>{slot}</td>
+                        <td style={{ ...tdStyle, color: esEliminado ? 'var(--color-danger)' : 'var(--color-primary)', fontWeight: 600 }}>{slot}</td>
                         <td style={{ ...tdStyle, color: esPendiente || esRechazado ? 'var(--color-muted)' : 'var(--color-text)' }}>
                           {j?.nombre || '—'}
+                          {esEliminado && (
+                            <span style={{ display: 'block', color: 'var(--color-danger)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>
+                              Jugador eliminado — no suma puntos
+                            </span>
+                          )}
                         </td>
                         <td style={{ ...tdStyle, color: 'var(--color-muted)' }}>{j?.equipo_real || j?.equipo_raw || '—'}</td>
                         <td style={{ ...tdStyle, fontSize: 12, color: obs ? 'var(--color-warning)' : 'var(--color-muted)' }}>
@@ -705,7 +866,7 @@ export default function MiEquipoGDT() {
               💡 El catálogo tiene {catalogo.length} equipo{catalogo.length > 1 ? 's' : ''} cargado{catalogo.length > 1 ? 's' : ''} — aparecerán como sugerencias al escribir.
             </p>
           )}
-          {SLOT_GROUPS.map(group => (
+          {slotsConfig.groups.map(group => (
             <div key={group.label} style={{ marginBottom: 20 }}>
               <h3 style={{ color: 'var(--color-muted)', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{group.label}</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -723,6 +884,7 @@ export default function MiEquipoGDT() {
                     <SlotInput
                       key={slot}
                       slot={slot}
+                      posicionDefault={slotsConfig.slotPosicion[slot] ?? null}
                       catalogoEquipos={catalogo}
                       value={form[slot]}
                       onChange={(val) => handleSlotChange(slot, val)}
@@ -733,7 +895,7 @@ export default function MiEquipoGDT() {
             </div>
           ))}
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando}>
               {guardando ? 'Guardando...' : 'Guardar equipo'}
             </button>
@@ -742,6 +904,17 @@ export default function MiEquipoGDT() {
                 Cancelar
               </button>
             )}
+            {/* Counter dinámico de progreso */}
+            {(() => {
+              const completados = slotsConfig.slotNames.filter(s => form[s]?.nombre?.trim()).length
+              const tot = slotsConfig.slotNames.length
+              const listo = completados === tot
+              return (
+                <span style={{ fontSize: 12, color: listo ? 'var(--color-success)' : 'var(--color-muted)', fontWeight: listo ? 600 : 400 }}>
+                  {completados}/{tot} jugadores
+                </span>
+              )
+            })()}
             <span style={{ color: 'var(--color-muted)', fontSize: 12 }}>
               Los jugadores nuevos quedan pendientes hasta que el admin los apruebe.
             </span>
@@ -753,22 +926,11 @@ export default function MiEquipoGDT() {
       {!tieneEquipo && !modoEdicion && (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-muted)' }}>
           <p>Todavía no cargaste tu equipo Gran DT.</p>
-          {ventanaInfo?.ventana ? (
-            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setModoEdicion(true)}>
-              Armar mi equipo
-            </button>
-          ) : (
-            <p style={{ fontSize: 13, marginTop: 8, color: 'var(--color-muted)' }}>
-              No hay una ventana abierta. Esperá a que el admin abra una para poder inscribirte.
-            </p>
-          )}
+          <button className="btn btn-primary" onClick={() => setModoEdicion(true)}>
+            Armar mi equipo
+          </button>
         </div>
       )}
     </div>
   )
 }
-
-const thStyle = { textAlign: 'left', padding: '6px 10px', color: 'var(--color-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }
-const tdStyle = { padding: '7px 10px', fontSize: 13 }
-const inputStyle = { background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '5px 8px', fontSize: 13 }
-const inputStyleV = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '6px 10px', fontSize: 13 }

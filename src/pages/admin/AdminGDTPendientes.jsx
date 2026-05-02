@@ -6,7 +6,12 @@ const POSICION_LABELS = { ARQ: 'Arquero', DEF: 'Defensor', MED: 'Mediocampista',
 
 export default function AdminGDTPendientes() {
   const [searchParams] = useSearchParams()
-  const ligaId = searchParams.get('liga_id') || undefined
+  const ligaIdUrl = searchParams.get('liga_id')   // string | null
+
+  // Liga seleccionada: inicializar desde URL si viene, si no se resuelve al cargar ligas
+  const [ligas,              setLigas]              = useState([])
+  const [ligaIdSeleccionado, setLigaIdSeleccionado] = useState(ligaIdUrl || null)
+
   const [pendientes, setPendientes] = useState([])
   const [catalogo, setCatalogo] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,14 +27,31 @@ export default function AdminGDTPendientes() {
   const [busquedaUnificar, setBusquedaUnificar] = useState('')
   const [candidatosUnificar, setCandidatosUnificar] = useState([])
 
-  useEffect(() => { cargar() }, [ligaId])
+  // Cargar ligas al montar. Si no viene liga_id en la URL, pre-seleccionar la default.
+  useEffect(() => {
+    api.gdtGetLigas()
+      .then(ls => {
+        const lista = Array.isArray(ls) ? ls : []
+        setLigas(lista)
+        if (!ligaIdUrl && lista.length > 0) {
+          const def = lista.find(l => l.es_default) || lista[0]
+          setLigaIdSeleccionado(String(def.id))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Recargar pendientes cada vez que cambia la liga seleccionada
+  useEffect(() => {
+    if (ligaIdSeleccionado !== null) cargar()
+  }, [ligaIdSeleccionado])
 
   async function cargar() {
     setLoading(true); setError(null)
     try {
       const [pendRes, catRes] = await Promise.all([
-        api.gdtGetPendientes(ligaId),
-        api.gdtGetCatalogo(ligaId),
+        api.gdtGetPendientes(ligaIdSeleccionado),
+        api.gdtGetCatalogo(ligaIdSeleccionado),
       ])
       setPendientes(pendRes.pendientes || [])
       setCatalogo(catRes || [])
@@ -115,7 +137,22 @@ export default function AdminGDTPendientes() {
     <div className="main-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>⏳ Jugadores Pendientes de Revisión</h2>
-        <button className="btn btn-secondary btn-sm" onClick={cargar}>↻ Actualizar</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {ligas.length > 1 && (
+            <select
+              value={ligaIdSeleccionado || ''}
+              onChange={e => { setExito(null); setLigaIdSeleccionado(e.target.value || null) }}
+              style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '5px 10px', fontSize: 13 }}
+            >
+              {ligas.map(l => (
+                <option key={l.id} value={l.id}>
+                  {l.nombre}{l.es_default ? ' ★' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={cargar}>↻ Actualizar</button>
+        </div>
       </div>
 
       {error && (
@@ -337,16 +374,16 @@ export default function AdminGDTPendientes() {
                       style={{ background: 'rgba(167,139,250,0.15)', border: '1px solid #a78bfa', color: '#a78bfa', fontSize: 12 }}
                       onClick={() => confirmarUnificar(c.id)}
                     >
-                      Unificar con este
+                                 Unificar
                     </button>
                   </div>
                 ))}
               </div>
             ) : busquedaUnificar.length >= 2 ? (
-              <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 14 }}>No se encontraron jugadores aprobados con ese nombre.</p>
+              <p style={{ color: 'var(--color-muted)', fontSize: 13 }}>Sin resultados.</p>
             ) : null}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="btn btn-secondary" onClick={() => setModalUnificar(null)}>Cancelar</button>
             </div>
           </div>
@@ -354,18 +391,4 @@ export default function AdminGDTPendientes() {
       )}
     </div>
   )
-}
-
-const thStyle = { textAlign: 'left', padding: '8px 12px', color: 'var(--color-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }
-const tdStyle = { padding: '10px 12px', fontSize: 13, verticalAlign: 'top' }
-const inputStyle = { background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '6px 10px', fontSize: 13 }
-const labelStyle = { display: 'block', color: 'var(--color-muted)', fontSize: 12, marginBottom: 5, fontWeight: 600 }
-const overlayStyle = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
-  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-}
-const modalStyle = {
-  background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-  borderRadius: 'var(--radius)', padding: 24, width: '100%', maxWidth: 520,
-  maxHeight: '90vh', overflowY: 'auto',
 }

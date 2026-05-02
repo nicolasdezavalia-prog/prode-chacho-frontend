@@ -7,7 +7,6 @@ function DropdownMenu({ label, items }) {
   const ref = useRef(null)
   const location = useLocation()
 
-  // Cerrar al hacer clic afuera
   useEffect(() => {
     function handle(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
@@ -16,7 +15,6 @@ function DropdownMenu({ label, items }) {
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
-  // Resaltar si algún item del dropdown está activo
   const isActive = items.some(item => location.pathname.startsWith(item.to))
 
   return (
@@ -96,24 +94,16 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      {/* Brand */}
       <Link to="/" className="navbar-brand">⚽ Prode Chacho</Link>
 
       <div className="navbar-links">
-        {/* INICIO */}
         <NavLink to="/" label="Inicio" exact />
-
-        {/* GDT — sección del usuario */}
         <NavLink to="/gdt/mi-equipo" label="Mi GDT" />
-
-        {/* COMIDAS */}
+        <NavLink to="/estadisticas" label="Estadísticas" />
         <NavLink to="/comidas" label="Comidas" />
-
-        {/* ADMIN HUB */}
         {isAdmin && <NavLink to="/admin" label="Admin" />}
       </div>
 
-      {/* Usuario */}
       <div className="navbar-user">
         <span>{user?.nombre}</span>
         <span className="badge badge-borrador" style={{ fontSize: 10, ...(isSuperAdmin ? { background: 'rgba(124,58,237,0.15)', color: '#7c3aed' } : {}) }}>
@@ -135,7 +125,6 @@ export default function Navbar() {
   )
 }
 
-// Link simple con highlight activo
 function NavLink({ to, label, exact }) {
   const location = useLocation()
   const active = exact ? location.pathname === to : location.pathname.startsWith(to)

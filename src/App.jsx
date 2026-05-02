@@ -14,6 +14,8 @@ import AdminGDTCatalogo from './pages/admin/AdminGDTCatalogo.jsx'
 import AdminGDTPendientes from './pages/admin/AdminGDTPendientes.jsx'
 import AdminGDTJugadores from './pages/admin/AdminGDTJugadores.jsx'
 import AdminGDTVentana from './pages/admin/AdminGDTVentana.jsx'
+import AdminGDTLigas from './pages/admin/AdminGDTLigas.jsx'
+import AdminGDTLigaSlots from './pages/admin/AdminGDTLigaSlots.jsx'
 import AdminFechaResumida from './pages/admin/AdminFechaResumida.jsx'
 import AdminTorneo from './pages/admin/AdminTorneo.jsx'
 import MiEquipoGDT from './pages/MiEquipoGDT.jsx'
@@ -33,6 +35,7 @@ import AdminComidasHistorico from './pages/admin/AdminComidasHistorico.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import Comidas from './pages/Comidas.jsx'
 import ComidaDetalle from './pages/ComidaDetalle.jsx'
+import Estadisticas from './pages/Estadisticas.jsx'
 import Navbar from './components/Navbar.jsx'
 import { api } from './api/index.js'
 
@@ -100,8 +103,11 @@ export default function App() {
             <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
+            <Route path="/estadisticas" element={<PrivateRoute><Estadisticas /></PrivateRoute>} />
             <Route path="/comidas" element={<PrivateRoute><Comidas /></PrivateRoute>} />
             <Route path="/comidas/:comidaId" element={<PrivateRoute><ComidaDetalle /></PrivateRoute>} />
+            <Route path="/fecha/:fechaId/enfrentamientos" element={<PrivateRoute><Enfrentamientos /></PrivateRoute>} />
+            <Route path="/gdt/mi-equipo" element={<PrivateRoute><MiEquipoGDT /></PrivateRoute>} />
             <Route path="/admin/torneo" element={<PrivateRoute adminOnly><AdminTorneo /></PrivateRoute>} />
             <Route path="/admin/fecha/nueva" element={<PrivateRoute adminOnly><AdminFecha /></PrivateRoute>} />
             <Route path="/admin/fecha/:fechaId" element={<PrivateRoute adminOnly><AdminFecha /></PrivateRoute>} />
@@ -115,6 +121,8 @@ export default function App() {
             <Route path="/admin/gdt/pendientes" element={<PrivateRoute adminOnly><AdminGDTPendientes /></PrivateRoute>} />
             <Route path="/admin/gdt/jugadores" element={<PrivateRoute adminOnly><AdminGDTJugadores /></PrivateRoute>} />
             <Route path="/admin/gdt/ventana" element={<PrivateRoute adminOnly><AdminGDTVentana /></PrivateRoute>} />
+            <Route path="/admin/gdt/ligas" element={<PrivateRoute adminOnly><AdminGDTLigas /></PrivateRoute>} />
+            <Route path="/admin/gdt/ligas/:ligaId/slots" element={<PrivateRoute adminOnly><AdminGDTLigaSlots /></PrivateRoute>} />
             <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><AdminUsuarios /></PrivateRoute>} />
             <Route path="/admin/deudores" element={<PrivateRoute adminOnly><AdminDeudores /></PrivateRoute>} />
             <Route path="/admin/permisos" element={<PrivateRoute adminOnly><AdminPermisos /></PrivateRoute>} />
@@ -127,8 +135,6 @@ export default function App() {
             <Route path="/admin/torneo/:torneoId/votacion" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidaVotacion /></PermisoRoute>} />
             <Route path="/admin/torneo/:torneoId/comidas-historico" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidasHistorico /></PermisoRoute>} />
             <Route path="/admin/resultados" element={<PrivateRoute adminOnly><AdminResultadosHub /></PrivateRoute>} />
-            <Route path="/fecha/:fechaId/enfrentamientos" element={<PrivateRoute><Enfrentamientos /></PrivateRoute>} />
-            <Route path="/gdt/mi-equipo" element={<PrivateRoute><MiEquipoGDT /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>

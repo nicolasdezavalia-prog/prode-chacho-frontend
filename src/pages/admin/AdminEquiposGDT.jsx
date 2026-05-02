@@ -19,6 +19,7 @@ function EstadoBadge({ estado }) {
 export default function AdminEquiposGDT() {
   const [searchParams] = useSearchParams()
   const ligaId = searchParams.get('liga_id') || undefined
+  const [slotsConfig, setSlotsConfig] = useState({ slotNames: SLOTS, total: 11 })
   const [data, setData]           = useState(null)
   const [todosJugadores, setTodosJugadores] = useState([])
   const [loading, setLoading]     = useState(true)
@@ -28,6 +29,15 @@ export default function AdminEquiposGDT() {
   const [accionando, setAccionando]         = useState(false)
 
   useEffect(() => { cargar() }, [ligaId])
+
+  useEffect(() => {
+    api.gdtGetLigaSlots(ligaId)
+      .then(data => {
+        if (data?.slots?.length > 0)
+          setSlotsConfig({ slotNames: data.slots.map(s => s.slot), total: data.total })
+      })
+      .catch(() => {}) // fallback: mantiene SLOTS F11
+  }, [ligaId])
 
   async function cargar() {
     setLoading(true); setError(null)
@@ -68,7 +78,7 @@ export default function AdminEquiposGDT() {
   const eliminados   = estadoGlobal.filter(j => j.estado === 'eliminado')
   const observados   = equipos.filter(e => e.estado === 'observado' || e.estado === 'requiere_correccion')
   const validos      = equipos.filter(e => e.estado === 'valido')
-  const sinEquipo    = equipos.filter(e => e.jugadores.length < 11 && e.estado !== 'observado' && e.estado !== 'requiere_correccion')
+  const sinEquipo    = equipos.filter(e => e.jugadores.length < slotsConfig.total && e.estado !== 'observado' && e.estado !== 'requiere_correccion')
 
   return (
     <div className="main-content">
@@ -97,21 +107,21 @@ export default function AdminEquiposGDT() {
       {observados.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'var(--color-warning)', marginBottom: 12 }}>⚠️ Excluidos del GDT ({observados.length})</h3>
-          {observados.map(eq => <EquipoCard key={eq.user_id} equipo={eq} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
+          {observados.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
         </div>
       )}
 
       {validos.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'var(--color-success)', marginBottom: 12 }}>✅ Equipos válidos ({validos.length})</h3>
-          {validos.map(eq => <EquipoCard key={eq.user_id} equipo={eq} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
+          {validos.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
         </div>
       )}
 
       {sinEquipo.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'var(--color-muted)', marginBottom: 8, fontSize: 13 }}>🔘 Sin equipo ({sinEquipo.length})</h3>
-          {sinEquipo.map(eq => <EquipoCard key={eq.user_id} equipo={eq} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
+          {sinEquipo.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
         </div>
       )}
 
@@ -146,7 +156,7 @@ export default function AdminEquiposGDT() {
 
 // ─── EquipoCard ───────────────────────────────────────────────────────────────
 
-function EquipoCard({ equipo, todosJugadores, onValidar, onInvalidar, onRecargar, accionando }) {
+function EquipoCard({ equipo, slotsConfig, todosJugadores, onValidar, onInvalidar, onRecargar, accionando }) {
   const [abierto, setAbierto]   = useState(equipo.estado !== 'valido')
   const [editSlot, setEditSlot] = useState(null)   // slot en edición
   const [busqueda, setBusqueda] = useState('')
@@ -196,7 +206,7 @@ function EquipoCard({ equipo, todosJugadores, onValidar, onInvalidar, onRecargar
           </button>
           <strong>{equipo.usuario}</strong>
           <EstadoBadge estado={equipo.estado} />
-          <span style={{ color: 'var(--color-muted)', fontSize: 12 }}>{equipo.jugadores.length}/11 slots</span>
+          <span style={{ color: 'var(--color-muted)', fontSize: 12 }}>{equipo.jugadores.length}/{slotsConfig.total} slots</span>
           {(equipo.pendientes_count > 0) && <span style={{ color: '#a78bfa', fontSize: 12 }}>⏳ {equipo.pendientes_count} pendientes</span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -206,7 +216,7 @@ function EquipoCard({ equipo, todosJugadores, onValidar, onInvalidar, onRecargar
               Marcar válido
             </button>
           )}
-          {equipo.estado !== 'requiere_correccion' && equipo.jugadores.length === 11 && (
+          {equipo.estado !== 'requiere_correccion' && equipo.jugadores.length === slotsConfig.total && (
             <button className="btn btn-sm" onClick={() => onInvalidar({ user_id: equipo.user_id, usuario: equipo.usuario })} disabled={accionando}
               style={{ fontSize: 12, padding: '4px 10px', background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
               Invalidar
@@ -245,7 +255,7 @@ function EquipoCard({ equipo, todosJugadores, onValidar, onInvalidar, onRecargar
             </tr>
           </thead>
           <tbody>
-            {SLOTS.map(slot => {
+            {slotsConfig.slotNames.map(slot => {
               const j   = equipo.jugadores.find(jj => jj.slot === slot)
               const obs = equipo.observaciones?.find(o => o.slot === slot)
               const enEdicion = editSlot === slot

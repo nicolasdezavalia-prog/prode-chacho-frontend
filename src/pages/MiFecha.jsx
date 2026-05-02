@@ -326,6 +326,7 @@ export default function MiFecha() {
   const [cruce, setCruce] = useState(null)
   const [gdtResultado, setGdtResultado] = useState(null)
   const [gdtAbierto, setGdtAbierto] = useState(false)
+  const [ligas, setLigas] = useState([])
   const [editando, setEditando] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -346,6 +347,8 @@ export default function MiFecha() {
       ])
       setFecha(f)
       setEventos(evs)
+      // Cargar ligas GDT en paralelo (para resolver gdt_liga_id → nombre/formato en el header)
+      api.gdtGetLigas().then(ls => setLigas(Array.isArray(ls) ? ls : [])).catch(() => {})
 
       // Cargar pronósticos
       try {
@@ -492,6 +495,13 @@ export default function MiFecha() {
 
   const resTotal = resultadoFecha()
 
+  // Resolver la liga GDT de esta fecha para mostrar contexto al usuario
+  const ligaGdt = fecha?.gdt_liga_id
+    ? ligas.find(l => l.id === fecha.gdt_liga_id) ?? null
+    : ligas.find(l => l.es_default) ?? null
+  // Mostrar solo si hay más de una liga activa (una sola liga default → no aporta valor)
+  const mostrarLigaGdt = ligas.length > 1 && ligaGdt != null
+
   return (
     <div>
       {/* Header */}
@@ -504,6 +514,23 @@ export default function MiFecha() {
           <div style={{fontSize: 13, color: 'var(--color-muted)'}}>
             {fecha?.bloque1_nombre} · {fecha?.bloque2_nombre}
           </div>
+          {mostrarLigaGdt && (
+            <div style={{ marginTop: 5 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: 'rgba(167,139,250,0.12)',
+                color: '#7c3aed',
+                border: '1px solid rgba(167,139,250,0.3)',
+                borderRadius: 99,
+                padding: '2px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+              }}>
+                🟪 Gran DT: {ligaGdt.nombre}{ligaGdt.es_default ? ' ★' : ''}
+                {ligaGdt.formato && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({ligaGdt.formato})</span>}
+              </span>
+            </div>
+          )}
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
           <Link to={`/fecha/${fechaId}/enfrentamientos`} className="btn btn-secondary btn-sm">
@@ -785,7 +812,6 @@ export default function MiFecha() {
               ✅ Fecha finalizada
             </span>
           )}
-          {fecha?.deadline && formatDeadline(fecha.deadline) && (
             <span style={{fontSize: 11, color: 'var(--color-muted)'}}>
               ⏰ Deadline: {formatDeadline(fecha.deadline)}
             </span>
@@ -793,48 +819,36 @@ export default function MiFecha() {
         </div>
       </div>
 
-      {/* Bloque 1 */}
+      {/* Bloques de pronósticos */}
       <BloquePronos
-        nombre={`${fecha?.bloque1_nombre} (eventos 1-15)`}
+        nombre={fecha?.bloque1_nombre || 'Bloque 1'}
         eventos={bloque1}
         pronosticos={pronosticos}
         onChangePronostico={handleChangePronostico}
-        editando={editando && puedeEditar}
+        editando={editando}
         bloqueNum={1}
       />
-
-      {/* Bloque 2 */}
       <BloquePronos
-        nombre={`${fecha?.bloque2_nombre} (eventos 16-30)`}
+        nombre={fecha?.bloque2_nombre || 'Bloque 2'}
         eventos={bloque2}
         pronosticos={pronosticos}
         onChangePronostico={handleChangePronostico}
-        editando={editando && puedeEditar}
+        editando={editando}
         bloqueNum={2}
       />
 
-      {/* Botón guardar al fondo */}
+      {/* Botón guardar inferior */}
       {puedeEditar && (
-        <div style={{marginTop: 20, textAlign: 'right'}}>
+        <div style={{marginTop: 16, textAlign: 'right'}}>
           <button
-            className="btn btn-primary btn-lg"
+            className="btn btn-primary"
             onClick={handleGuardar}
             disabled={saving}
           >
-            {saving ? 'Guardando...' : '💾 Guardar todos los pronósticos'}
+            {saving ? 'Guardando...' : '💾 Guardar pronósticos'}
           </button>
         </div>
       )}
     </div>
   )
-}
-
-const gdtThStyle = {
-  textAlign: 'left', padding: '6px 8px',
-  color: 'var(--color-muted)', fontSize: 11,
-  fontWeight: 600, textTransform: 'uppercase',
-}
-
-const gdtTdStyle = {
-  padding: '6px 8px', fontSize: 13,
 }

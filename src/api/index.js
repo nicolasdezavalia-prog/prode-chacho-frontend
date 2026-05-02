@@ -47,6 +47,8 @@ export const api = {
   saveCierre: (torneoId, data) => request('PUT', `/torneos/${torneoId}/tabla-mensual-cierre`, data),
   recalcularTabla: (torneoId) => request('POST', `/torneos/${torneoId}/recalcular-tabla`),
   getH2H: (torneoId, userId) => request('GET', `/torneos/${torneoId}/h2h/${userId}`),
+  getH2HGlobal: (userId) => request('GET', `/torneos/h2h-global/${userId}`),
+  getRecords: () => request('GET', '/torneos/records'),
   getTotalesBloque: (torneoId, fechaId) => request('GET', `/torneos/${torneoId}/totales-bloque${fechaId ? `?fecha_id=${fechaId}` : ''}`),
 
   // Usuarios
@@ -96,6 +98,20 @@ export const api = {
 
   // GDT — Ligas / Competencias
   gdtGetLigas: () => request('GET', '/gdt/ligas'),
+  gdtGetLigaSlots: (liga_id) => request('GET', `/gdt/liga/slots${liga_id ? `?liga_id=${liga_id}` : ''}`),
+
+  // GDT — Admin ligas
+  gdtAdminGetLigas:     ()           => request('GET',    '/gdt/admin/ligas'),
+  gdtAdminCrearLiga:    (data)       => request('POST',   '/gdt/admin/ligas', data),
+  gdtAdminEditarLiga:   (id, data)   => request('PUT',    `/gdt/admin/ligas/${id}`, data),
+  gdtAdminToggleActivo: (id)         => request('PATCH',  `/gdt/admin/ligas/${id}/activo`),
+  gdtAdminSetDefault:   (id)         => request('PATCH',  `/gdt/admin/ligas/${id}/default`),
+
+  // GDT — Admin slots de liga
+  gdtAdminGetSlots:      (ligaId)              => request('GET',    `/gdt/admin/ligas/${ligaId}/slots`),
+  gdtAdminAgregarSlot:   (ligaId, data)        => request('POST',   `/gdt/admin/ligas/${ligaId}/slots`, data),
+  gdtAdminEditarSlot:    (ligaId, slotId, data) => request('PUT',   `/gdt/admin/ligas/${ligaId}/slots/${slotId}`, data),
+  gdtAdminEliminarSlot:  (ligaId, slotId)      => request('DELETE', `/gdt/admin/ligas/${ligaId}/slots/${slotId}`),
 
   // GDT — Catálogo de equipos (admin)
   gdtGetCatalogo: (ligaId) => request('GET', `/gdt/catalogo${ligaId ? `?liga_id=${ligaId}` : ''}`),
@@ -114,8 +130,8 @@ export const api = {
   gdtMergeJugadores: (keepId, mergeId) => request('POST', '/gdt/jugadores/merge', { keep_id: keepId, merge_id: mergeId }), // admin
 
   // GDT — Equipo del usuario
-  gdtGetMiEquipo: () => request('GET', '/gdt/equipo'),
-  gdtGuardarEquipo: (jugadores) => request('POST', '/gdt/equipo', { jugadores }),
+  gdtGetMiEquipo: (liga_id) => request('GET', `/gdt/equipo${liga_id ? `?liga_id=${liga_id}` : ''}`),
+  gdtGuardarEquipo: (jugadores, liga_id) => request('POST', '/gdt/equipo', { jugadores, ...(liga_id != null ? { liga_id } : {}) }),
 
   // GDT — Admin acciones sobre equipos
   gdtGetEquipos: (ligaId) => request('GET', `/gdt/equipos${ligaId ? `?liga_id=${ligaId}` : ''}`),

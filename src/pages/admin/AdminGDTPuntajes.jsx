@@ -120,7 +120,7 @@ export default function AdminGDTPuntajes() {
         .filter(j => editados[j.jugador_id]?.puntos !== '')
         .map(j => {
           const ed  = editados[j.jugador_id]
-          const pts = parseInt(ed?.puntos, 10)
+          const pts = parseFloat(ed?.puntos)
           return { jugador_id: j.jugador_id, puntos: isNaN(pts) ? 0 : pts, jugo: ed?.jugo ?? true }
         })
         .filter(p => p.puntos !== null)

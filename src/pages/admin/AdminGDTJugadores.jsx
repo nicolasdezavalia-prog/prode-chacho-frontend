@@ -37,7 +37,12 @@ function ColHeader({ label, col, sort, onSort }) {
 
 export default function AdminGDTJugadores() {
   const [searchParams] = useSearchParams()
-  const ligaId = searchParams.get('liga_id') || undefined
+  const ligaIdUrl = searchParams.get('liga_id')   // string | null
+
+  // Liga seleccionada: inicializar desde URL si viene, si no se resuelve al cargar ligas
+  const [ligas,              setLigas]              = useState([])
+  const [ligaIdSeleccionado, setLigaIdSeleccionado] = useState(ligaIdUrl || null)
+
   const [jugadores, setJugadores] = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
@@ -60,11 +65,28 @@ export default function AdminGDTJugadores() {
   const [mergeBusqueda, setMergeBusqueda]   = useState('')
   const [mergeCandidatos, setMergeCandidatos] = useState([])
 
-  useEffect(() => { cargar() }, [ligaId])
+  // Cargar ligas al montar. Si no viene liga_id en la URL, pre-seleccionar la default.
+  useEffect(() => {
+    api.gdtGetLigas()
+      .then(ls => {
+        const lista = Array.isArray(ls) ? ls : []
+        setLigas(lista)
+        if (!ligaIdUrl && lista.length > 0) {
+          const def = lista.find(l => l.es_default) || lista[0]
+          setLigaIdSeleccionado(String(def.id))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Recargar jugadores cada vez que cambia la liga seleccionada
+  useEffect(() => {
+    if (ligaIdSeleccionado !== null) cargar()
+  }, [ligaIdSeleccionado])
 
   async function cargar() {
     setLoading(true); setError(null)
-    try { setJugadores(await api.gdtGetTodosJugadores(ligaId)) }
+    try { setJugadores(await api.gdtGetTodosJugadores(ligaIdSeleccionado)) }
     catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -169,7 +191,20 @@ export default function AdminGDTJugadores() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <h2 style={{ margin: 0 }}>⚽ Jugadores GDT <span style={{ color: 'var(--color-muted)', fontWeight: 400, fontSize: 16 }}>({filtrados.length}/{jugadores.length})</span></h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {ligas.length > 1 && (
+            <select
+              value={ligaIdSeleccionado || ''}
+              onChange={e => { setExito(null); setFiltros({ nombre: '', equipo_real: '', equipo_pais: '', posicion: '', estado: '', en_equipos: '' }); setLigaIdSeleccionado(e.target.value || null) }}
+              style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '5px 10px', fontSize: 13 }}
+            >
+              {ligas.map(l => (
+                <option key={l.id} value={l.id}>
+                  {l.nombre}{l.es_default ? ' ★' : ''}
+                </option>
+              ))}
+            </select>
+          )}
           {hayFiltros && (
             <button className="btn btn-secondary btn-sm" onClick={limpiarFiltros}>✕ Limpiar filtros</button>
           )}
