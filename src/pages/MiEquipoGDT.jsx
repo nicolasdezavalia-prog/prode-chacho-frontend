@@ -511,9 +511,13 @@ export default function MiEquipoGDT() {
   const tieneEquipo = equipoDB.length === slotsConfig.total
 
   // Slots con jugadores eliminados (para UX de corrección)
+  // eliminadosIds: Set de IDs derivado de estadoGlobal.eliminados (array de objetos {jugador_id,...})
+  const eliminadosIds = new Set(
+    (estadoGlobal?.eliminados ?? []).map(el => el?.jugador_id).filter(Boolean)
+  )
   const slotsEliminados = new Set(
-    equipoDB
-      .filter(e => e.estado_jugador === 'eliminado' || estadoGlobal.eliminados?.includes(e.jugador_id))
+    (equipoDB ?? [])
+      .filter(e => e.estado_jugador === 'eliminado' || eliminadosIds.has(e.jugador_id))
       .map(e => e.slot)
   )
   const requiereCorreccion = estadoEquipo === 'requiere_correccion' || slotsEliminados.size > 0
@@ -772,10 +776,10 @@ export default function MiEquipoGDT() {
           <strong style={{ color: 'var(--color-danger)', fontSize: 14, display: 'block', marginBottom: 6 }}>
             ⚠️ Tenés jugadores eliminados. Debés reemplazarlos.
           </strong>
-          {estadoGlobal.mi_equipo_invalidados?.length > 0 && (
+          {(estadoGlobal?.mi_equipo_invalidados?.length ?? 0) > 0 && (
             <ul style={{ margin: '6px 0 8px', paddingLeft: 18, color: 'var(--color-danger)', fontSize: 13 }}>
-              {estadoGlobal.mi_equipo_invalidados.map(j => (
-                <li key={j.slot}><strong>{j.slot}</strong>: {j.nombre} — cuenta como 0 pts</li>
+              {(estadoGlobal?.mi_equipo_invalidados ?? []).map(j => (
+                <li key={j.slot ?? j.jugador_id}><strong>{j.slot}</strong>: {j.nombre} — cuenta como 0 pts</li>
               ))}
             </ul>
           )}

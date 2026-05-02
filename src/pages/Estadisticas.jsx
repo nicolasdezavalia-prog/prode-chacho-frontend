@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
 
@@ -62,7 +63,7 @@ function TabH2H({ user }) {
   const [expandido, setExpandido] = useState(null)
 
   useEffect(() => {
-    api.getUsuarios().then(data => {
+    api.getUsuariosLista().then(data => {
       setUsuarios(data)
       const uid = user?.id
       if (uid) { setSelectedUserId(uid); loadH2H(uid) }
@@ -90,7 +91,8 @@ function TabH2H({ user }) {
         <div className="card-header">Jugador</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>Ver estadísticas de:</span>
-          <select value={selectedUserId || ''} onChange={e => handleUserChange(e.target.value)} style={{ minWidth: 200, fontSize: 14 }}>
+          <select value={selectedUserId ?? ''} onChange={e => handleUserChange(e.target.value)} style={{ minWidth: 200, fontSize: 14 }}>
+            <option value="">— Seleccioná un jugador —</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
           </select>
           {!h2hLoading && h2hData.length > 0 && (
@@ -108,7 +110,10 @@ function TabH2H({ user }) {
       <div className="card">
         <div className="card-header">⚔️ Head to Head — Histórico</div>
         {h2hLoading && <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: 32 }}>Cargando...</p>}
-        {!h2hLoading && h2hData.length === 0 && (
+        {!h2hLoading && !selectedUserId && (
+          <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: 32 }}>Seleccioná un jugador para ver sus estadísticas H2H.</p>
+        )}
+        {!h2hLoading && selectedUserId && h2hData.length === 0 && (
           <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: 32 }}>Sin enfrentamientos finalizados para este jugador.</p>
         )}
         {!h2hLoading && h2hData.length > 0 && (
@@ -447,15 +452,17 @@ function TabRecords() {
       {comida_mas_concurrida && (
         <div className="card">
           <div className="card-header">🎉 Comida más Concurrida</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>
-            {comida_mas_concurrida.lugar || 'Sin lugar registrado'}
-            <span style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 400, marginLeft: 8 }}>
-              {new Date(2000, comida_mas_concurrida.mes - 1).toLocaleString('es', { month: 'long' })} {comida_mas_concurrida.anio}
-            </span>
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--color-primary)', marginTop: 4 }}>
-            {comida_mas_concurrida.asistentes} asistentes
-          </div>
+          <Link to={`/comidas/${comida_mas_concurrida.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>
+              {comida_mas_concurrida.lugar || 'Sin lugar registrado'}
+              <span style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 400, marginLeft: 8 }}>
+                {new Date(2000, comida_mas_concurrida.mes - 1).toLocaleString('es', { month: 'long' })} {comida_mas_concurrida.anio}
+              </span>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--color-primary)', marginTop: 4 }}>
+              {comida_mas_concurrida.asistentes} asistentes →
+            </div>
+          </Link>
         </div>
       )}
 

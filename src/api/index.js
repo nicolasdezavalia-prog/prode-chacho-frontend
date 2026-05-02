@@ -53,6 +53,7 @@ export const api = {
 
   // Usuarios
   getUsuarios: () => request('GET', '/usuarios'),
+  getUsuariosLista: () => request('GET', '/usuarios/lista'),
   toggleRolUsuario: (id) => request('PATCH', `/usuarios/${id}/role`),
   generarResetLink: (id) => request('POST', `/usuarios/${id}/reset-link`),
   resetPassword: (token, password) => request('POST', '/auth/reset-password', { token, password }),

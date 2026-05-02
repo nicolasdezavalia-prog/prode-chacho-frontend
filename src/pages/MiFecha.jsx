@@ -812,6 +812,7 @@ export default function MiFecha() {
               ✅ Fecha finalizada
             </span>
           )}
+          {fecha?.deadline && (
             <span style={{fontSize: 11, color: 'var(--color-muted)'}}>
               ⏰ Deadline: {formatDeadline(fecha.deadline)}
             </span>
