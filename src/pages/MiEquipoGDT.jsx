@@ -270,6 +270,10 @@ function SlotInput({ slot, posicionDefault, catalogoEquipos, value, onChange }) 
   )
 }
 
+// ─── Estilos de tabla compartidos ────────────────────────────────────────────
+const thStyle = { textAlign: 'left', padding: '6px 10px', color: 'var(--color-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }
+const tdStyle = { padding: '8px 10px', verticalAlign: 'middle' }
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function MiEquipoGDT() {
@@ -925,6 +929,20 @@ export default function MiEquipoGDT() {
           </div>
         </div>
       )}
+
+      {/* Sin equipo */}
+      {!tieneEquipo && !modoEdicion && (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-muted)' }}>
+          <p>Todavía no cargaste tu equipo Gran DT.</p>
+          <button className="btn btn-primary" onClick={() => setModoEdicion(true)}>
+            Armar mi equipo
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+)}
 
       {/* Sin equipo */}
       {!tieneEquipo && !modoEdicion && (
