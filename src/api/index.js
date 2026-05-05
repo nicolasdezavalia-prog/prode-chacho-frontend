@@ -145,15 +145,15 @@ export const api = {
   gdtGuardarPuntajes: (fechaId, puntajes) => request('POST', `/gdt/puntajes/${fechaId}`, { puntajes }),
 
   // GDT — Ventana de cambios (usuario)
-  gdtGetVentanaActiva: () => request('GET', '/gdt/ventana/activa'),
-  gdtGetDisponibles: () => request('GET', '/gdt/ventana/disponibles'),
-  gdtHacerCambio: (slot, jugador_nuevo_id) => request('POST', '/gdt/ventana/cambio', { slot, jugador_nuevo_id }),
-  gdtHacerCambioNuevo: (slot, nuevo_jugador) => request('POST', '/gdt/ventana/cambio', { slot, nuevo_jugador }),
+  gdtGetVentanaActiva: (liga_id) => request('GET', `/gdt/ventana/activa${liga_id ? `?liga_id=${liga_id}` : ''}`),
+  gdtGetDisponibles:   (liga_id) => request('GET', `/gdt/ventana/disponibles${liga_id ? `?liga_id=${liga_id}` : ''}`),
+  gdtHacerCambio:      (slot, jugador_nuevo_id, liga_id) => request('POST', '/gdt/ventana/cambio', { slot, jugador_nuevo_id, ...(liga_id != null ? { liga_id } : {}) }),
+  gdtHacerCambioNuevo: (slot, nuevo_jugador,    liga_id) => request('POST', '/gdt/ventana/cambio', { slot, nuevo_jugador,    ...(liga_id != null ? { liga_id } : {}) }),
   gdtCrearEquipoCatalogoUsuario: (nombre) => request('POST', '/gdt/catalogo/usuario', { nombre }),
 
   // GDT — Ventana de cambios (admin)
-  gdtGetVentanas: (ligaId) => request('GET', `/gdt/admin/ventanas${ligaId ? `?liga_id=${ligaId}` : ''}`),
-  gdtAbrirVentana: (nombre, cambios_por_usuario) => request('POST', '/gdt/admin/ventanas', { nombre, cambios_por_usuario }),
+  gdtGetVentanas:  (ligaId) => request('GET', `/gdt/admin/ventanas${ligaId ? `?liga_id=${ligaId}` : ''}`),
+  gdtAbrirVentana: (nombre, cambios_por_usuario, liga_id) => request('POST', '/gdt/admin/ventanas', { nombre, cambios_por_usuario, ...(liga_id != null ? { liga_id } : {}) }),
   gdtCerrarVentana: (id) => request('POST', `/gdt/admin/ventanas/${id}/cerrar`),
   gdtGetDetalleVentana: (id) => request('GET', `/gdt/admin/ventanas/${id}/detalle`),
 

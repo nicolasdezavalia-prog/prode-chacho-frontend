@@ -361,7 +361,7 @@ export default function MiEquipoGDT() {
         api.gdtGetMiEquipo(ligaId),
         api.gdtGetEstadoJugadores(),
         api.gdtGetCatalogo(),
-        api.gdtGetVentanaActiva(),
+        api.gdtGetVentanaActiva(ligaId),
       ])
       setEquipoDB(equipoRes.equipo || [])
       setEstadoEquipo(equipoRes.estado_equipo || null)
@@ -375,10 +375,10 @@ export default function MiEquipoGDT() {
       setCatalogo(catalogoRes)
       setVentanaInfo(ventanaRes.ventana ? ventanaRes : null)
 
-      // Si hay ventana abierta, cargar disponibles
+      // Si hay ventana abierta, cargar disponibles (scoped a la misma liga)
       if (ventanaRes.ventana) {
         try {
-          const disp = await api.gdtGetDisponibles()
+          const disp = await api.gdtGetDisponibles(ligaId)
           setDisponibles(disp)
         } catch (_) {}
       }
@@ -464,7 +464,7 @@ export default function MiEquipoGDT() {
   async function hacerCambio(slot, jugadorNuevoId) {
     setHaciendoCambio(true); setError(null)
     try {
-      const res = await api.gdtHacerCambio(slot, jugadorNuevoId)
+      const res = await api.gdtHacerCambio(slot, jugadorNuevoId, ligaId)
       if (res.jugador_eliminado) {
         setExito(res.mensaje)
       } else {
@@ -494,7 +494,7 @@ export default function MiEquipoGDT() {
         equipo_real: equipoRaw.trim(),
         equipo_catalogo_id: catId || null,
         posicion,
-      })
+      }, ligaId)
       if (res.jugador_pendiente) {
         setExito(`⏳ Jugador creado. Queda pendiente de aprobación del admin. Tu equipo no participará en GDT hasta que sea aprobado.`)
       } else if (res.jugador_eliminado) {

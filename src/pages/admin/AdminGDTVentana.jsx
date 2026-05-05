@@ -3,15 +3,20 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 export default function AdminGDTVentana() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const ligaId = searchParams.get('liga_id') || undefined
   const [ventanas, setVentanas]     = useState([])
+  const [ligas, setLigas]           = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
   const [exito, setExito]           = useState(null)
   const [detalle, setDetalle]       = useState(null)  // { ventanaId, cambios }
   const [formNueva, setFormNueva]   = useState({ nombre: '', cambios: 2 })
   const [abriendo, setAbriendo]     = useState(false)
+
+  useEffect(() => {
+    api.gdtGetLigas().then(ls => setLigas(Array.isArray(ls) ? ls : [])).catch(() => {})
+  }, [])
 
   useEffect(() => { cargar() }, [ligaId])
 
@@ -26,7 +31,7 @@ export default function AdminGDTVentana() {
     if (!formNueva.nombre.trim()) { setError('Escribí un nombre para la ventana'); return }
     setAbriendo(true); setError(null)
     try {
-      await api.gdtAbrirVentana(formNueva.nombre.trim(), Number(formNueva.cambios) || 2)
+      await api.gdtAbrirVentana(formNueva.nombre.trim(), Number(formNueva.cambios) || 2, ligaId ? Number(ligaId) : null)
       setExito(`✅ Ventana "${formNueva.nombre}" abierta`)
       setFormNueva({ nombre: '', cambios: 2 })
       cargar()
@@ -57,6 +62,25 @@ export default function AdminGDTVentana() {
   return (
     <div className="main-content">
       <h2 style={{ marginBottom: 20 }}>🔄 Ventanas de Cambios GDT</h2>
+
+      {/* Selector de liga — visible si hay más de una */}
+      {ligas.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap', background: 'var(--color-surface2)', padding: '10px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--color-border)' }}>
+          <span style={{ fontSize: 11, color: 'var(--color-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>Liga</span>
+          {ligas.map(l => {
+            const sel = ligaId === String(l.id)
+            return (
+              <button
+                key={l.id}
+                onClick={() => setSearchParams(prev => { prev.set('liga_id', String(l.id)); return prev })}
+                style={{ padding: '5px 14px', borderRadius: 99, border: `2px solid ${sel ? 'var(--color-primary)' : 'transparent'}`, background: sel ? 'rgba(59,130,246,0.15)' : 'transparent', color: sel ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: sel ? 700 : 500, fontSize: 13, cursor: 'pointer' }}
+              >
+                {l.nombre}{l.es_default ? ' ★' : ''}{l.formato ? ` (${l.formato})` : ''}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {error && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 14, color: 'var(--color-danger)' }}>
@@ -201,6 +225,7 @@ export default function AdminGDTVentana() {
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <th style={thStyle}>Usuario</th>
                     <th style={thStyle}>Slot</th>
+                    <th style={thStyle}>Tipo</th>
                     <th style={thStyle}>Salió</th>
                     <th style={thStyle}>Entró</th>
                   </tr>
@@ -210,6 +235,12 @@ export default function AdminGDTVentana() {
                     <tr key={c.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                       <td style={tdStyle}><strong>{c.usuario}</strong></td>
                       <td style={{ ...tdStyle, color: 'var(--color-primary)', fontWeight: 600 }}>{c.slot}</td>
+                      <td style={tdStyle}>
+                        {c.es_correccion
+                          ? <span style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--color-danger)', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>Corrección</span>
+                          : <span style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)', borderRadius: 4, padding: '2px 7px', fontSize: 11 }}>Libre</span>
+                        }
+                      </td>
                       <td style={{ ...tdStyle, color: 'var(--color-danger)', fontSize: 12 }}>
                         {c.jugador_anterior ? `${c.jugador_anterior} (${c.equipo_anterior})` : '—'}
                       </td>
