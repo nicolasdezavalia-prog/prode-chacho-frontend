@@ -212,6 +212,9 @@ export default function AdminFecha() {
   const [recalculando, setRecalculando] = useState(false)
   const [cruces, setCruces] = useState([])
   const [movFecha, setMovFecha] = useState([])
+  // [PARCHE TEMPORAL] refresh snapshot GDT
+  const [showRefreshModal, setShowRefreshModal] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [jugadoresTorneo, setJugadoresTorneo] = useState([])
   const [apuestaForm, setApuestaForm] = useState({ paga_user_id: '', acreedor_user_id: '', importe: '', concepto: 'Deuda adicional' })
   const [savingApuesta, setSavingApuesta] = useState(false)
@@ -229,6 +232,22 @@ export default function AdminFecha() {
       setError('Error al recalcular: ' + err.message)
     } finally {
       setRecalculando(false)
+    }
+  }
+
+  // [PARCHE TEMPORAL] refresh snapshot GDT
+  const handleRefreshSnapshot = async () => {
+    setRefreshing(true)
+    setError('')
+    try {
+      const res = await api.gdtRefreshSnapshot(fechaId)
+      setShowRefreshModal(false)
+      setSuccess(res.message || 'Snapshot GDT actualizado. Hacé Recalcular para actualizar los resultados.')
+    } catch (err) {
+      setShowRefreshModal(false)
+      setError('Error al actualizar snapshot: ' + err.message)
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -329,6 +348,17 @@ export default function AdminFecha() {
                 style={{ fontSize: 12 }}
               >
                 {recalculando ? '⏳ Recalculando...' : '🔄 Recalcular'}
+              </button>
+            )}
+            {/* [PARCHE TEMPORAL] — ocultar después de usar */}
+            {fecha.estado !== 'borrador' && fecha.gdt_liga_id && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowRefreshModal(true)}
+                title="[PARCHE] Recrea el snapshot GDT desde el equipo actual"
+                style={{ fontSize: 12, color: 'var(--color-warning, #f59e0b)', borderColor: 'var(--color-warning, #f59e0b)' }}
+              >
+                ⚠️ Snapshot GDT
               </button>
             )}
             <button
@@ -802,6 +832,47 @@ export default function AdminFecha() {
               Sin apuestas adicionales cargadas para esta fecha.
             </p>
           )}
+        </div>
+      )}
+
+      {/* [PARCHE TEMPORAL] Modal refresh snapshot GDT */}
+      {showRefreshModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div style={{background:'var(--color-surface)',border:'2px solid #f59e0b',borderRadius:'var(--radius)',padding:28,width:'100%',maxWidth:480}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+              <span style={{fontSize:28}}>⚠️</span>
+              <h3 style={{margin:0,color:'#f59e0b'}}>Actualizar snapshot GDT</h3>
+            </div>
+            <p style={{margin:'0 0 12px 0',fontSize:14,lineHeight:1.6}}>
+              Vas a <strong>reemplazar el snapshot GDT de esta fecha</strong> con el estado actual de los equipos en la tabla live.
+            </p>
+            <ul style={{fontSize:13,color:'var(--color-muted)',margin:'0 0 16px 0',paddingLeft:20,lineHeight:1.8}}>
+              <li>Los equipos que se snapshotten son los que están ahora en <em>gdt_equipos</em>.</li>
+              <li><strong>No cambia</strong> ningún resultado, puntaje ni deuda ya cargada.</li>
+              <li>Para actualizar los resultados GDT después de esto, hacé <strong>Recalcular</strong>.</li>
+              <li>Esta acción <strong>no se puede deshacer</strong>.</li>
+            </ul>
+            <p style={{fontSize:13,fontWeight:600,color:'var(--color-danger)',margin:'0 0 20px 0'}}>
+              Asegurate de haber corregido el equipo del usuario antes de continuar.
+            </p>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowRefreshModal(false)}
+                disabled={refreshing}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn"
+                style={{background:'#f59e0b',color:'#fff',border:'none',fontWeight:700}}
+                onClick={handleRefreshSnapshot}
+                disabled={refreshing}
+              >
+                {refreshing ? '⏳ Actualizando...' : '⚠️ Sí, actualizar snapshot'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

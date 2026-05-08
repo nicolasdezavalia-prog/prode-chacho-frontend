@@ -108,6 +108,9 @@ export const api = {
   gdtAdminToggleActivo: (id)         => request('PATCH',  `/gdt/admin/ligas/${id}/activo`),
   gdtAdminSetDefault:   (id)         => request('PATCH',  `/gdt/admin/ligas/${id}/default`),
 
+  // GDT — [PARCHE TEMPORAL] Refresh snapshot
+  gdtRefreshSnapshot: (fechaId) => request('POST', `/gdt/admin/fecha/${fechaId}/refresh-snapshot`),
+
   // GDT — Admin slots de liga
   gdtAdminGetSlots:      (ligaId)              => request('GET',    `/gdt/admin/ligas/${ligaId}/slots`),
   gdtAdminAgregarSlot:   (ligaId, data)        => request('POST',   `/gdt/admin/ligas/${ligaId}/slots`, data),
