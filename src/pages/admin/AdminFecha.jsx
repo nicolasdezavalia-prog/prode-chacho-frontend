@@ -7,6 +7,17 @@ function formatARS(importe) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(importe)
 }
 
+// Convierte un ISO UTC (ej: "2026-05-08T15:59:00.000Z") al formato que espera
+// el input datetime-local en hora local del browser (ej: "2026-05-08T12:59" en ARG).
+// Funciona también con strings sin timezone (legacy, los trata como hora local).
+function toLocalDatetimeInput(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  if (isNaN(d)) return ''
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -134,7 +145,7 @@ export default function AdminFecha() {
         anio: f.anio,
         tipo: f.tipo || 'completa',
         importe_apuesta: f.importe_apuesta ?? '',
-        deadline: f.deadline ?? '',
+        deadline: f.deadline ? toLocalDatetimeInput(f.deadline) : '',
         gdt_liga_id: f.gdt_liga_id ?? ''
       })
       loadJugadoresTorneo(f.torneo_id)
@@ -154,7 +165,7 @@ export default function AdminFecha() {
         const created = await api.createFecha({
           ...form,
           importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
-          deadline: form.deadline === '' ? null : form.deadline,
+          deadline: form.deadline === '' ? null : new Date(form.deadline).toISOString(),
           gdt_liga_id: form.gdt_liga_id === '' ? null : parseInt(form.gdt_liga_id),
         })
         setSuccess('Fecha creada correctamente')
@@ -166,7 +177,7 @@ export default function AdminFecha() {
           anio: form.anio,
           tipo: form.tipo,
           importe_apuesta: form.importe_apuesta === '' ? null : parseInt(form.importe_apuesta),
-          deadline: form.deadline === '' ? null : form.deadline,
+          deadline: form.deadline === '' ? null : new Date(form.deadline).toISOString(),
           gdt_liga_id: form.gdt_liga_id === '' ? null : parseInt(form.gdt_liga_id),
         })
         setSuccess('Fecha actualizada')
@@ -350,7 +361,7 @@ export default function AdminFecha() {
                 {recalculando ? '⏳ Recalculando...' : '🔄 Recalcular'}
               </button>
             )}
-            {/* [PARCHE TEMPORAL] — ocultar después de usar */}
+            {/* [PARCHE TEMPORAL — OCULTO] refresh snapshot GDT. Descomentar si hace falta.
             {fecha.estado !== 'borrador' && fecha.gdt_liga_id && (
               <button
                 className="btn btn-secondary btn-sm"
@@ -361,6 +372,7 @@ export default function AdminFecha() {
                 ⚠️ Snapshot GDT
               </button>
             )}
+            */}
             <button
               className="btn btn-secondary btn-sm"
               onClick={handleEliminar}
