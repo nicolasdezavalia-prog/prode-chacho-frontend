@@ -25,7 +25,13 @@ function fmtEnvio(ts) {
 // Badge de envío: verde si en término, rojo si fuera de término, neutro si no hay deadline
 function BadgeEnvio({ ts, deadline, align = 'left' }) {
   if (!ts) return null
-  const d = new Date(ts)
+  // SQLite guarda timestamps UTC sin sufijo 'Z' (ej: "2026-05-08 22:53:00").
+  // Sin el Z el browser lo interpreta como hora local → 3h de diferencia.
+  // Normalizamos a ISO UTC antes de parsear.
+  const tsNorm = typeof ts === 'string' && !ts.includes('Z') && !ts.includes('+')
+    ? ts.replace(' ', 'T') + 'Z'
+    : ts
+  const d = new Date(tsNorm)
   if (isNaN(d.getTime())) return null
 
   const dd  = String(d.getDate()).padStart(2, '0')
