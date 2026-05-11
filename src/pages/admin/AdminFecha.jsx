@@ -82,6 +82,11 @@ export default function AdminFecha() {
     }
   }, [fechaId])
 
+  // Fase 5: recargar ligas cuando cambia el torneo del form (multi-torneo)
+  useEffect(() => {
+    if (form.torneo_id) loadGdtLigas(Number(form.torneo_id))
+  }, [form.torneo_id])
+
   useEffect(() => {
     if (!isNew && fecha?.deadline) {
       loadCumplimiento()
@@ -116,10 +121,11 @@ export default function AdminFecha() {
     } catch (_) {}
   }
 
-  const loadGdtLigas = async () => {
+  // Fase 5: ligas per-torneo. Si torneoId está, traer las del torneo; si no, fallback al activo.
+  const loadGdtLigas = async (torneoId) => {
     try {
-      const ligas = await api.gdtGetLigas()
-      setGdtLigas(ligas)
+      const ligas = await api.gdtGetLigas(torneoId)
+      setGdtLigas(Array.isArray(ligas) ? ligas : [])
     } catch (_) {}
   }
 

@@ -97,12 +97,12 @@ export const api = {
   getCrucesResumido: (fechaId) => request('GET', `/cruces/fecha/${fechaId}/resumido`),
   guardarResumido: (fechaId, resultados) => request('POST', `/cruces/fecha/${fechaId}/resumido`, { resultados }),
 
-  // GDT — Ligas / Competencias
-  gdtGetLigas: () => request('GET', '/gdt/ligas'),
+  // GDT — Ligas / Competencias (per-torneo: Fase 5)
+  gdtGetLigas: (torneo_id) => request('GET', `/gdt/ligas${torneo_id ? `?torneo_id=${torneo_id}` : ''}`),
   gdtGetLigaSlots: (liga_id) => request('GET', `/gdt/liga/slots${liga_id ? `?liga_id=${liga_id}` : ''}`),
 
-  // GDT — Admin ligas
-  gdtAdminGetLigas:     ()           => request('GET',    '/gdt/admin/ligas'),
+  // GDT — Admin ligas (per-torneo)
+  gdtAdminGetLigas:     (torneo_id)  => request('GET',    `/gdt/admin/ligas${torneo_id ? `?torneo_id=${torneo_id}` : ''}`),
   gdtAdminCrearLiga:    (data)       => request('POST',   '/gdt/admin/ligas', data),
   gdtAdminEditarLiga:   (id, data)   => request('PUT',    `/gdt/admin/ligas/${id}`, data),
   gdtAdminToggleActivo: (id)         => request('PATCH',  `/gdt/admin/ligas/${id}/activo`),

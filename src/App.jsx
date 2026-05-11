@@ -122,6 +122,7 @@ export default function App() {
             <Route path="/admin/gdt/jugadores" element={<PrivateRoute adminOnly><AdminGDTJugadores /></PrivateRoute>} />
             <Route path="/admin/gdt/ventana" element={<PrivateRoute adminOnly><AdminGDTVentana /></PrivateRoute>} />
             <Route path="/admin/gdt/ligas" element={<PrivateRoute adminOnly><AdminGDTLigas /></PrivateRoute>} />
+            <Route path="/admin/torneo/:torneoId/gdt/ligas" element={<PrivateRoute adminOnly><AdminGDTLigas /></PrivateRoute>} />
             <Route path="/admin/gdt/ligas/:ligaId/slots" element={<PrivateRoute adminOnly><AdminGDTLigaSlots /></PrivateRoute>} />
             <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><AdminUsuarios /></PrivateRoute>} />
             <Route path="/admin/deudores" element={<PrivateRoute adminOnly><AdminDeudores /></PrivateRoute>} />

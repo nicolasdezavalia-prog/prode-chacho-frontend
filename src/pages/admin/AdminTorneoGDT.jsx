@@ -2,13 +2,25 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { api } from '../../api/index.js'
 
+// `requiereLiga: true` indica que la card opera sobre UNA liga GDT — se navega con ?liga_id=X.
+// `requiereLiga: false` (ej. Ligas) navega sin liga_id porque gestiona TODAS las ligas del torneo.
 const CARDS = [
+  {
+    icon: '🏟️',
+    title: 'Ligas',
+    description: 'Crear y gestionar las ligas GDT de este torneo (Argentina, Brasileirão, etc.).',
+    to: null, // construido al vuelo con el torneoId
+    enabled: true,
+    requiereLiga: false,
+    esLigas: true,
+  },
   {
     icon: '🏆',
     title: 'Equipos',
     description: 'Ver y gestionar los equipos participantes del Gran DT.',
     to: '/admin/gdt/equipos',
     enabled: true,
+    requiereLiga: true,
   },
   {
     icon: '⚽',
@@ -16,6 +28,7 @@ const CARDS = [
     description: 'Administrar el plantel de jugadores disponibles.',
     to: '/admin/gdt/jugadores',
     enabled: true,
+    requiereLiga: true,
   },
   {
     icon: '⏳',
@@ -23,6 +36,7 @@ const CARDS = [
     description: 'Revisar transferencias y movimientos pendientes de aprobación.',
     to: '/admin/gdt/pendientes',
     enabled: true,
+    requiereLiga: true,
   },
   {
     icon: '🔄',
@@ -30,6 +44,7 @@ const CARDS = [
     description: 'Controlar la ventana de transferencias: apertura y cierre.',
     to: '/admin/gdt/ventana',
     enabled: true,
+    requiereLiga: true,
   },
   {
     icon: '⚙️',
@@ -37,6 +52,7 @@ const CARDS = [
     description: 'Gestionar el catálogo de jugadores disponibles para el mercado.',
     to: '/admin/gdt/catalogo',
     enabled: true,
+    requiereLiga: true,
   },
 ]
 
@@ -49,8 +65,9 @@ export default function AdminTorneoGDT() {
 
   useEffect(() => {
     api.getTorneo(torneoId).then(setTorneo).catch(() => {})
-    api.gdtGetLigas().then(data => {
-      const ligas = data.ligas || []
+    // Fase 5: ligas filtradas por torneo. El endpoint retorna un array, no { ligas }.
+    api.gdtGetLigas(torneoId).then(data => {
+      const ligas = Array.isArray(data) ? data : (data?.ligas || [])
       setGdtLigas(ligas)
       // Pre-seleccionar la liga default (o la primera activa)
       const def = ligas.find(l => l.es_default) || ligas[0]
@@ -58,9 +75,14 @@ export default function AdminTorneoGDT() {
     }).catch(() => {})
   }, [torneoId])
 
-  function navegarCon(to) {
+  function navegarCon(card) {
+    // Card de "Ligas": va a la gestión per-torneo, sin liga_id.
+    if (card.esLigas) {
+      navigate(`/admin/torneo/${torneoId}/gdt/ligas`)
+      return
+    }
     const qs = gdtLigaId ? `?liga_id=${gdtLigaId}` : ''
-    navigate(to + qs)
+    navigate(card.to + qs)
   }
 
   return (
@@ -112,7 +134,7 @@ export default function AdminTorneoGDT() {
         {CARDS.map((card) => (
           <button
             key={card.title}
-            onClick={() => card.enabled && navegarCon(card.to)}
+            onClick={() => card.enabled && navegarCon(card)}
             disabled={!card.enabled}
             style={{
               background: 'var(--color-surface)',

@@ -314,7 +314,7 @@ export default function MiEquipoGDT() {
   const [creandoJugador, setCreandoJugador] = useState(false)  // form crear jugador visible
   const [formNuevo, setFormNuevo] = useState({ nombre: '', equipoRaw: '', equipoCatalogoId: null, posicion: '' })
 
-  // Efecto 1: cargar ligas activas y pre-seleccionar default si no hay URL param
+  // Efecto 1: cargar ligas activas del torneo activo (Fase 5: per-torneo) y pre-seleccionar
   useEffect(() => {
     api.gdtGetLigas().then(ls => {
       const lista = Array.isArray(ls) ? ls : []
@@ -323,6 +323,15 @@ export default function MiEquipoGDT() {
         const def = lista.find(l => l.es_default) || lista[0]
         if (def) setLigaId(def.id)
         setLigaResolved(true) // desbloquea cargar() incluso si lista vacía → backend usa default
+      } else {
+        // Validar que la liga de la URL/localStorage pertenezca al torneo activo (Fase 5).
+        // Si no, caer a default para evitar mostrar equipos de torneos viejos.
+        const existe = lista.some(l => l.id === ligaIdUrl)
+        if (!existe) {
+          const def = lista.find(l => l.es_default) || lista[0]
+          if (def) setLigaId(def.id)
+          setLigaResolved(true)
+        }
       }
     }).catch(() => {
       if (ligaIdUrl === null) setLigaResolved(true) // fallback: cargar con null → backend usa default

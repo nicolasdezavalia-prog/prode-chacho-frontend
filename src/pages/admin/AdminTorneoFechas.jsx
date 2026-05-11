@@ -55,7 +55,7 @@ export default function AdminTorneoFechas() {
       const [t, fs, ls] = await Promise.all([
         api.getTorneo(torneoId),
         api.getFechas(torneoId),
-        api.gdtGetLigas(),
+        api.gdtGetLigas(torneoId),
       ])
       setTorneo(t)
       setFechas(fs)

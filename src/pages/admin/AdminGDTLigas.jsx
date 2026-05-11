@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 
 const FORMATOS = ['F5', 'F7', 'F9', 'F11', 'otro']
@@ -7,6 +7,9 @@ const FORMATOS = ['F5', 'F7', 'F9', 'F11', 'otro']
 const EMPTY_FORM = { nombre: '', descripcion: '', formato: 'F11', pais_categoria: '' }
 
 export default function AdminGDTLigas() {
+  // torneoId puede venir de la URL nueva /admin/torneo/:torneoId/gdt/ligas (Fase 5).
+  // Si no está (URL legacy /admin/gdt/ligas), el backend usa el torneo activo.
+  const { torneoId } = useParams()
   const [ligas,    setLigas]    = useState([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
@@ -18,12 +21,12 @@ export default function AdminGDTLigas() {
   const [guardando, setGuardando] = useState(false)
   const [errModal,  setErrModal]  = useState(null)
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargar() }, [torneoId])
 
   async function cargar() {
     setLoading(true); setError(null)
     try {
-      const data = await api.gdtAdminGetLigas()
+      const data = await api.gdtAdminGetLigas(torneoId)
       setLigas(data.ligas || [])
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
@@ -51,7 +54,9 @@ export default function AdminGDTLigas() {
     setGuardando(true); setErrModal(null)
     try {
       if (modal === 'crear') {
-        await api.gdtAdminCrearLiga(form)
+        // Pasar torneo_id en el body para que el backend lo asigne explícitamente.
+        // Si no viene en URL, el backend cae al torneo activo.
+        await api.gdtAdminCrearLiga({ ...form, ...(torneoId ? { torneo_id: Number(torneoId) } : {}) })
         setExito('Liga creada.')
       } else {
         await api.gdtAdminEditarLiga(modal.liga.id, form)
