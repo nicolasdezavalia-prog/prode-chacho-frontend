@@ -89,7 +89,7 @@ function BannerEstado({ puedeParticipar, motivos, estadoEquipo, observaciones })
 
 // ─── Componente de entrada de un slot ────────────────────────────────────────
 
-function SlotInput({ slot, posicionDefault, catalogoEquipos, value, onChange }) {
+function SlotInput({ slot, posicionDefault, catalogoEquipos, value, onChange, ligaId }) {
   const [busqueda, setBusqueda] = useState(value?.nombre || '')
   const [sugerencias, setSugerencias] = useState(null)
   const [buscando, setBuscando] = useState(false)
@@ -102,8 +102,8 @@ function SlotInput({ slot, posicionDefault, catalogoEquipos, value, onChange }) 
     if (!nombre?.trim() || nombre.trim().length < 3) return
     setBuscando(true)
     try {
-      // Pasar equipo_catalogo_id si está disponible (mejora la precisión)
-      const res = await api.gdtBuscarJugador(nombre, value?.equipo_catalogo_id || null)
+      // Pasar equipo_catalogo_id si está disponible (mejora la precisión) y ligaId (scope per-liga)
+      const res = await api.gdtBuscarJugador(nombre, value?.equipo_catalogo_id || null, ligaId)
       if (res.exacto) {
         onChange({ ...value, jugador_id: res.exacto.id, nombre: res.exacto.nombre, posicion: res.exacto.posicion || posicion })
         setSugerencias(null)
@@ -335,34 +335,40 @@ export default function MiEquipoGDT() {
     cargar()
   }, [ligaId, ligaResolved])
 
-  // Cargar configuración de slots de la liga (independiente del equipo del usuario)
+  // Persistir última liga visitada en localStorage para que el Navbar la pueda recordar.
+  // Se guarda solo cuando hay liga concreta (no null), para no pisar con valor vacío.
   useEffect(() => {
-    if (!ligaResolved) return
-    api.gdtGetLigaSlots(ligaId)
-      .then(data => {
-        if (data?.slots?.length > 0) {
-          setSlotsConfig({
-            slotNames: data.slots.map(s => s.slot),
-            groups: buildSlotGroups(data.slots),
-            total: data.total,
-            liga_id: data.liga_id ?? null,
-            // mapa slot→posicion derivado de la API — reemplaza SLOT_POSICION hardcodeado
-            slotPosicion: Object.fromEntries(data.slots.map(s => [s.slot, s.posicion])),
-          })
-        }
-      })
-      .catch(() => {}) // fallback: mantiene constantes F11 (incluye slotPosicion: SLOT_POSICION)
-  }, [ligaId, ligaResolved])
+    if (ligaId != null) {
+      try { localStorage.setItem('gdt:lastLigaId', String(ligaId)) } catch (_) {}
+    }
+  }, [ligaId])
+
+  // (slots de la liga se cargan dentro de cargar() para eliminar race condition con el form)
 
   async function cargar() {
     setLoading(true); setError(null)
     try {
-      const [equipoRes, estadoRes, catalogoRes, ventanaRes] = await Promise.all([
+      // Cargar slots PRIMERO (junto a todo lo demás en paralelo) para que el form se inicialice
+      // con los slots reales de la liga, no con F11 hardcoded.
+      const [slotsRes, equipoRes, estadoRes, catalogoRes, ventanaRes] = await Promise.all([
+        api.gdtGetLigaSlots(ligaId),
         api.gdtGetMiEquipo(ligaId),
-        api.gdtGetEstadoJugadores(),
-        api.gdtGetCatalogo(),
+        api.gdtGetEstadoJugadores(ligaId),
+        api.gdtGetCatalogo(ligaId),
         api.gdtGetVentanaActiva(ligaId),
       ])
+
+      // Construir slotsConfig: si la liga devolvió slots, usarlos; si no, fallback F11.
+      const nuevoSlotsConfig = (slotsRes?.slots?.length > 0)
+        ? {
+            slotNames: slotsRes.slots.map(s => s.slot),
+            groups: buildSlotGroups(slotsRes.slots),
+            total: slotsRes.total,
+            liga_id: slotsRes.liga_id ?? null,
+            slotPosicion: Object.fromEntries(slotsRes.slots.map(s => [s.slot, s.posicion])),
+          }
+        : { slotNames: SLOTS, groups: SLOT_GROUPS, total: 11, liga_id: ligaId, slotPosicion: SLOT_POSICION }
+      setSlotsConfig(nuevoSlotsConfig)
       setEquipoDB(equipoRes.equipo || [])
       setEstadoEquipo(equipoRes.estado_equipo || null)
       setPuedeParticipar(equipoRes.puede_participar ?? false)
@@ -383,15 +389,15 @@ export default function MiEquipoGDT() {
         } catch (_) {}
       }
 
-      // Inicializar form con datos actuales.
-      // Iteramos la unión de SLOTS (fallback F11) + slots reales del equipo del servidor,
-      // para cubrir tanto equipos F11 como cualquier formato de liga sin depender de timing de slotsConfig.
+      // Inicializar form con los slots REALES de la liga (no F11 hardcoded).
+      // Unión con slots del equipo guardado para cubrir casos donde la liga cambió slots
+      // y el equipo persistido tiene alguno legacy.
       const f = {}
-      const slotsParaInit = new Set([...SLOTS, ...(equipoRes.equipo || []).map(e => e.slot)])
+      const slotsParaInit = new Set([...nuevoSlotsConfig.slotNames, ...(equipoRes.equipo || []).map(e => e.slot)])
       for (const slot of slotsParaInit) {
         const j = (equipoRes.equipo || []).find(e => e.slot === slot)
-        // posicion: viene del DB, luego del mapa actual de slotsConfig, luego null
-        const posicionFallback = slotsConfig.slotPosicion[slot] ?? null
+        // posicion: viene del DB, luego del mapa real de la liga, luego null
+        const posicionFallback = nuevoSlotsConfig.slotPosicion[slot] ?? null
         f[slot] = j
           ? {
               equipo_raw: j.equipo_raw || j.equipo_real || '',
@@ -483,10 +489,10 @@ export default function MiEquipoGDT() {
     if (!posicion) { setError('La posición es obligatoria'); return }
     setHaciendoCambio(true); setError(null)
     try {
-      // Crear equipo si no existe en catálogo
+      // Crear equipo si no existe en catálogo (scoped a la liga seleccionada)
       let catId = equipoCatalogoId
       if (!catId && equipoRaw.trim()) {
-        const ec = await api.gdtCrearEquipoCatalogoUsuario(equipoRaw.trim())
+        const ec = await api.gdtCrearEquipoCatalogoUsuario(equipoRaw.trim(), ligaId)
         catId = ec.id
       }
       const res = await api.gdtHacerCambioNuevo(slot, {
@@ -896,6 +902,7 @@ export default function MiEquipoGDT() {
                       catalogoEquipos={catalogo}
                       value={form[slot]}
                       onChange={(val) => handleSlotChange(slot, val)}
+                      ligaId={ligaId}
                     />
                   ))}
                 </tbody>

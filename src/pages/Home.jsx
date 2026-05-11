@@ -132,7 +132,14 @@ function CruceDetalle({ cruce, fecha, gdtResultado }) {
         }}
           onClick={() => gdtResultado && toggleSeccion('GDT')}
         >
-          <span style={{color: 'var(--color-muted)'}}>🟪 GDT</span>
+          <span style={{color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: 4}}>
+            🟪 GDT
+            {cruce.fecha_gdt_liga_id != null && cruce.gdt_liga_nombre && (
+              <span style={{ fontSize: 10, opacity: 0.85 }} title={cruce.gdt_liga_nombre}>
+                {cruce.gdt_liga_nombre}{cruce.gdt_liga_formato ? ` (${cruce.gdt_liga_formato})` : ''}
+              </span>
+            )}
+          </span>
           <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4}}>
             {cruce.yo_gdt_duelos != null
               ? <>{cruce.yo_gdt_duelos} – {cruce.rival_gdt_duelos} {cruce.ganador_gdt === 'empate' ? '🤝' : cruce.yo_ganador_gdt ? '✅' : '❌'}</>

@@ -495,12 +495,16 @@ export default function MiFecha() {
 
   const resTotal = resultadoFecha()
 
-  // Resolver la liga GDT de esta fecha para mostrar contexto al usuario
-  const ligaGdt = fecha?.gdt_liga_id
+  // Resolver la liga GDT de esta fecha para mostrar contexto al usuario.
+  // I3: si la fecha tiene gdt_liga_id pero la liga no está en `ligas` activas, no caer
+  // silenciosamente a la default (mentiría el nombre); marcamos "desactivada".
+  const ligaGdtFromFecha = fecha?.gdt_liga_id != null
     ? ligas.find(l => l.id === fecha.gdt_liga_id) ?? null
-    : ligas.find(l => l.es_default) ?? null
-  // Mostrar solo si hay más de una liga activa (una sola liga default → no aporta valor)
-  const mostrarLigaGdt = ligas.length > 1 && ligaGdt != null
+    : null
+  const ligaDesactivada = fecha?.gdt_liga_id != null && ligaGdtFromFecha == null
+  const ligaGdt = ligaGdtFromFecha ?? (fecha?.gdt_liga_id == null ? (ligas.find(l => l.es_default) ?? null) : null)
+  // Mostrar el badge si hay multiliga, o si la liga de la fecha está desactivada (para alertar)
+  const mostrarLigaGdt = (ligas.length > 1 && ligaGdt != null) || ligaDesactivada
 
   return (
     <div>
@@ -516,19 +520,35 @@ export default function MiFecha() {
           </div>
           {mostrarLigaGdt && (
             <div style={{ marginTop: 5 }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: 'rgba(167,139,250,0.12)',
-                color: '#7c3aed',
-                border: '1px solid rgba(167,139,250,0.3)',
-                borderRadius: 99,
-                padding: '2px 10px',
-                fontSize: 12,
-                fontWeight: 600,
-              }}>
-                🟪 Gran DT: {ligaGdt.nombre}{ligaGdt.es_default ? ' ★' : ''}
-                {ligaGdt.formato && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({ligaGdt.formato})</span>}
-              </span>
+              {ligaDesactivada ? (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: 'var(--color-surface2)',
+                  color: 'var(--color-muted)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 99,
+                  padding: '2px 10px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }} title="La liga GDT asociada a esta fecha fue desactivada">
+                  🟪 Liga GDT desactivada
+                </span>
+              ) : (
+                <Link to={`/gdt/mi-equipo?liga_id=${ligaGdt.id}`} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: 'rgba(167,139,250,0.12)',
+                  color: '#7c3aed',
+                  border: '1px solid rgba(167,139,250,0.3)',
+                  borderRadius: 99,
+                  padding: '2px 10px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }} title={`Ver mi equipo de ${ligaGdt.nombre}`}>
+                  🟪 Gran DT: {ligaGdt.nombre}{ligaGdt.es_default ? ' ★' : ''}
+                  {ligaGdt.formato && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({ligaGdt.formato})</span>}
+                </Link>
+              )}
             </div>
           )}
         </div>

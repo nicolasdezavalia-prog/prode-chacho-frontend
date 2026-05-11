@@ -13,12 +13,23 @@ export default function AdminGDTVentana() {
   const [detalle, setDetalle]       = useState(null)  // { ventanaId, cambios }
   const [formNueva, setFormNueva]   = useState({ nombre: '', cambios: 2 })
   const [abriendo, setAbriendo]     = useState(false)
+  // Slots de la liga actual: usado para que `max` de "cambios por usuario" sea dinámico
+  // (no tiene sentido permitir 11 cambios en una liga F5 con 5 slots).
+  const [slotsLiga, setSlotsLiga]   = useState({ total: 11 })
 
   useEffect(() => {
     api.gdtGetLigas().then(ls => setLigas(Array.isArray(ls) ? ls : [])).catch(() => {})
   }, [])
 
   useEffect(() => { cargar() }, [ligaId])
+
+  // Cargar config de slots de la liga seleccionada para limitar "cambios por usuario"
+  useEffect(() => {
+    if (!ligaId) { setSlotsLiga({ total: 11 }); return }
+    api.gdtGetLigaSlots(ligaId)
+      .then(data => setSlotsLiga({ total: data?.total || 11 }))
+      .catch(() => setSlotsLiga({ total: 11 }))
+  }, [ligaId])
 
   async function cargar() {
     setLoading(true); setError(null)
@@ -138,16 +149,21 @@ export default function AdminGDTVentana() {
               <label style={labelStyle}>Cambios por usuario</label>
               <input
                 type="number"
-                min={1} max={11}
+                min={1} max={slotsLiga.total || 11}
                 value={formNueva.cambios}
                 onChange={e => setFormNueva(f => ({ ...f, cambios: e.target.value }))}
                 style={{ ...inputStyle, width: 80 }}
               />
             </div>
-            <button className="btn btn-primary" onClick={abrir} disabled={abriendo}>
+            <button className="btn btn-primary" onClick={abrir} disabled={abriendo || (ligas.length > 1 && !ligaId)}>
               {abriendo ? 'Abriendo...' : '🟢 Abrir ventana'}
             </button>
           </div>
+          {ligas.length > 1 && !ligaId && (
+            <p style={{ color: 'var(--color-warning)', fontSize: 12, marginTop: 10, fontWeight: 600 }}>
+              ⚠️ Seleccioná una liga arriba antes de abrir la ventana — si no, abriría en la liga default sin que lo notes.
+            </p>
+          )}
           <p style={{ color: 'var(--color-muted)', fontSize: 12, marginTop: 10 }}>
             Al abrir, los usuarios verán los jugadores disponibles (los que nadie tiene) y podrán hacer hasta N cambios.
             Si 4 o más usuarios eligen el mismo jugador, ese jugador queda eliminado (0 pts en duelos).

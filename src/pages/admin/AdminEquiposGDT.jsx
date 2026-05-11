@@ -19,7 +19,9 @@ function EstadoBadge({ estado }) {
 export default function AdminEquiposGDT() {
   const [searchParams] = useSearchParams()
   const ligaId = searchParams.get('liga_id') || undefined
-  const [slotsConfig, setSlotsConfig] = useState({ slotNames: SLOTS, total: 11 })
+  // null = todavía no cargado. Bloquea el render para evitar clasificar sinEquipo con
+  // total=11 falso antes de conocer el formato real de la liga (race condition de I5).
+  const [slotsConfig, setSlotsConfig] = useState(null)
   const [data, setData]           = useState(null)
   const [todosJugadores, setTodosJugadores] = useState([])
   const [loading, setLoading]     = useState(true)
@@ -30,22 +32,22 @@ export default function AdminEquiposGDT() {
 
   useEffect(() => { cargar() }, [ligaId])
 
-  useEffect(() => {
-    api.gdtGetLigaSlots(ligaId)
-      .then(data => {
-        if (data?.slots?.length > 0)
-          setSlotsConfig({ slotNames: data.slots.map(s => s.slot), total: data.total })
-      })
-      .catch(() => {}) // fallback: mantiene SLOTS F11
-  }, [ligaId])
-
   async function cargar() {
     setLoading(true); setError(null)
     try {
-      const [equiposData, jugadores] = await Promise.all([
+      // Slots se cargan junto al resto en un solo Promise.all: cualquier consumer
+      // (clasificación sinEquipo, header de slots/jugadores) ve el total real.
+      const [slotsRes, equiposData, jugadores] = await Promise.all([
+        api.gdtGetLigaSlots(ligaId),
         api.gdtGetEquipos(ligaId),
         api.gdtGetTodosJugadores(ligaId),
       ])
+      // Si la liga responde con config, usarla; si viene vacía, fallback F11 explícito
+      // (no silenciado: si gdtGetLigaSlots tira, el try-catch lo captura como error visible).
+      const cfg = (slotsRes?.slots?.length > 0)
+        ? { slotNames: slotsRes.slots.map(s => s.slot), total: slotsRes.total }
+        : { slotNames: SLOTS, total: 11 }
+      setSlotsConfig(cfg)
       setData(equiposData)
       setTodosJugadores(jugadores)
     } catch (e) { setError(e.message) }
@@ -54,7 +56,7 @@ export default function AdminEquiposGDT() {
 
   async function handleValidar(userId) {
     setAccionando(true)
-    try { await api.gdtValidarEquipo(userId); await cargar() }
+    try { await api.gdtValidarEquipo(userId, ligaId); await cargar() }
     catch (e) { setError(e.message) }
     finally { setAccionando(false) }
   }
@@ -63,7 +65,7 @@ export default function AdminEquiposGDT() {
     if (!modalInvalidar) return
     setAccionando(true)
     try {
-      await api.gdtInvalidarEquipo(modalInvalidar.user_id, motivoInput.trim() || null)
+      await api.gdtInvalidarEquipo(modalInvalidar.user_id, motivoInput.trim() || null, ligaId)
       setModalInvalidar(null); setMotivoInput('')
       await cargar()
     } catch (e) { setError(e.message) }
@@ -71,6 +73,11 @@ export default function AdminEquiposGDT() {
   }
 
   if (loading) return <div className="main-content"><p style={{ color: 'var(--color-muted)' }}>Cargando...</p></div>
+  if (!slotsConfig) return (
+    <div className="main-content">
+      <p style={{ color: 'var(--color-danger)' }}>{error || 'No se pudo cargar la configuración de la liga.'}</p>
+    </div>
+  )
 
   const equipos      = data?.equipos || []
   const estadoGlobal = data?.estado_global || []
@@ -107,21 +114,21 @@ export default function AdminEquiposGDT() {
       {observados.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'var(--color-warning)', marginBottom: 12 }}>⚠️ Excluidos del GDT ({observados.length})</h3>
-          {observados.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
+          {observados.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} ligaId={ligaId} />)}
         </div>
       )}
 
       {validos.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'var(--color-success)', marginBottom: 12 }}>✅ Equipos válidos ({validos.length})</h3>
-          {validos.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
+          {validos.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} ligaId={ligaId} />)}
         </div>
       )}
 
       {sinEquipo.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'var(--color-muted)', marginBottom: 8, fontSize: 13 }}>🔘 Sin equipo ({sinEquipo.length})</h3>
-          {sinEquipo.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} />)}
+          {sinEquipo.map(eq => <EquipoCard key={eq.user_id} equipo={eq} slotsConfig={slotsConfig} todosJugadores={todosJugadores} onValidar={handleValidar} onInvalidar={setModalInvalidar} onRecargar={cargar} accionando={accionando} ligaId={ligaId} />)}
         </div>
       )}
 
@@ -156,7 +163,7 @@ export default function AdminEquiposGDT() {
 
 // ─── EquipoCard ───────────────────────────────────────────────────────────────
 
-function EquipoCard({ equipo, slotsConfig, todosJugadores, onValidar, onInvalidar, onRecargar, accionando }) {
+function EquipoCard({ equipo, slotsConfig, todosJugadores, onValidar, onInvalidar, onRecargar, accionando, ligaId }) {
   const [abierto, setAbierto]   = useState(equipo.estado !== 'valido')
   const [editSlot, setEditSlot] = useState(null)   // slot en edición
   const [busqueda, setBusqueda] = useState('')
@@ -174,7 +181,7 @@ function EquipoCard({ equipo, slotsConfig, todosJugadores, onValidar, onInvalida
   async function asignarJugador(jugadorId) {
     setGuardando(true)
     try {
-      await api.gdtEditarSlot(equipo.user_id, editSlot, { jugador_id: jugadorId })
+      await api.gdtEditarSlot(equipo.user_id, editSlot, { jugador_id: jugadorId }, ligaId)
       setEditSlot(null); setBusqueda('')
       await onRecargar()
     } catch (e) { alert(e.message) }
@@ -189,7 +196,7 @@ function EquipoCard({ equipo, slotsConfig, todosJugadores, onValidar, onInvalida
     if (!equipoReal) { alert('Para crear nuevo: escribí "Nombre / Equipo"'); return }
     setGuardando(true)
     try {
-      await api.gdtEditarSlot(equipo.user_id, editSlot, { nombre, equipo_real: equipoReal })
+      await api.gdtEditarSlot(equipo.user_id, editSlot, { nombre, equipo_real: equipoReal }, ligaId)
       setEditSlot(null); setBusqueda('')
       await onRecargar()
     } catch (e) { alert(e.message) }

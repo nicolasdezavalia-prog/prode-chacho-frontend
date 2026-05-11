@@ -214,7 +214,7 @@ export default function AdminGDTJugadores() {
               const pais = prompt('¿Qué país asignar a los que no tienen?', 'Argentina')
               if (!pais) return
               try {
-                const res = await api.gdtBulkPais(pais)
+                const res = await api.gdtBulkPais(pais, ligaIdSeleccionado)
                 setExito(`✅ ${res.actualizados} actualizados con "${pais}"`); cargar()
               } catch (e) { setError(e.message) }
             }}

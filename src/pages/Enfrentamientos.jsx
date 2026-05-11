@@ -156,13 +156,13 @@ function CruceCard({ cruce, fecha, esMio }) {
         {/* Marcador principal */}
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center', gap: 12, marginBottom: 12
+          alignItems: 'center', gap: 8, marginBottom: 12
         }}>
           {/* User 1 */}
-          <div>
-            <div style={{fontWeight: 700, fontSize: 14}}>{cruce.user1_nombre}</div>
+          <div style={{minWidth: 0}}>
+            <div style={{fontWeight: 700, fontSize: 'clamp(12px, 3.5vw, 14px)', wordBreak: 'break-word'}}>{cruce.user1_nombre}</div>
             <div style={{
-              fontSize: 36, fontWeight: 800, lineHeight: 1,
+              fontSize: 'clamp(26px, 8vw, 36px)', fontWeight: 800, lineHeight: 1,
               color: ganador1 ? 'var(--color-success)' : ganador2 ? 'var(--color-danger)' : 'var(--color-text)'
             }}>
               {cruce.puntos_internos_u1 ?? '—'}
@@ -176,12 +176,13 @@ function CruceCard({ cruce, fecha, esMio }) {
           </div>
 
           {/* Centro */}
-          <div style={{textAlign: 'center'}}>
+          <div style={{textAlign: 'center', minWidth: 0}}>
             <div style={{fontSize: 12, color: 'var(--color-muted)', fontWeight: 600, marginBottom: 4}}>VS</div>
             {cruce.ganador_fecha && (
               <div style={{
-                fontSize: 12, fontWeight: 700,
-                color: empate ? 'var(--color-muted)' : 'var(--color-text)'
+                fontSize: 'clamp(10px, 2.5vw, 12px)', fontWeight: 700,
+                color: empate ? 'var(--color-muted)' : 'var(--color-text)',
+                wordBreak: 'break-word'
               }}>
                 {empate ? '🤝 Empate' : ganador1 ? `✅ ${cruce.user1_nombre}` : `✅ ${cruce.user2_nombre}`}
               </div>
@@ -189,10 +190,10 @@ function CruceCard({ cruce, fecha, esMio }) {
           </div>
 
           {/* User 2 */}
-          <div style={{textAlign: 'right'}}>
-            <div style={{fontWeight: 700, fontSize: 14}}>{cruce.user2_nombre}</div>
+          <div style={{textAlign: 'right', minWidth: 0}}>
+            <div style={{fontWeight: 700, fontSize: 'clamp(12px, 3.5vw, 14px)', wordBreak: 'break-word'}}>{cruce.user2_nombre}</div>
             <div style={{
-              fontSize: 36, fontWeight: 800, lineHeight: 1,
+              fontSize: 'clamp(26px, 8vw, 36px)', fontWeight: 800, lineHeight: 1,
               color: ganador2 ? 'var(--color-success)' : ganador1 ? 'var(--color-danger)' : 'var(--color-text)'
             }}>
               {cruce.puntos_internos_u2 ?? '—'}
@@ -206,14 +207,14 @@ function CruceCard({ cruce, fecha, esMio }) {
           </div>
         </div>
 
-        {/* Bloques */}
-        <div style={{display: 'flex', gap: 6, fontSize: 12}}>
+        {/* Bloques — en mobile pasan a varias filas si no caben */}
+        <div style={{display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 12}}>
           {[
             { key: 'A', emoji: '🟩', nombre: fecha.bloque1_nombre, u1: cruce.pts_tabla_a_u1, u2: cruce.pts_tabla_a_u2, ganador: cruce.ganador_tabla_a },
             { key: 'B', emoji: '🟦', nombre: fecha.bloque2_nombre, u1: cruce.pts_tabla_b_u1, u2: cruce.pts_tabla_b_u2, ganador: cruce.ganador_tabla_b },
           ].map((b) => (
             <div key={b.key} style={{
-              flex: 1, padding: '5px 8px',
+              flex: '1 1 130px', minWidth: 130, padding: '5px 8px',
               background: 'var(--color-surface2)',
               borderRadius: 6,
               border: `1px solid ${bloqueAbierto === b.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
@@ -237,7 +238,7 @@ function CruceCard({ cruce, fecha, esMio }) {
 
           {/* GDT */}
           <div style={{
-            flex: 1, padding: '5px 8px',
+            flex: '1 1 130px', minWidth: 130, padding: '5px 8px',
             background: 'var(--color-surface2)',
             borderRadius: 6, border: `1px solid ${gdtAbierto ? 'var(--color-primary)' : 'var(--color-border)'}`,
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -265,7 +266,7 @@ function CruceCard({ cruce, fecha, esMio }) {
 
         {/* Detalle pronósticos Bloque A o B */}
         {bloqueAbierto && puedeVerPronos && (
-          <div style={{marginTop: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden'}}>
+          <div style={{marginTop: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch'}}>
             {eventosCargando ? (
               <div style={{padding: '12px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 12}}>Cargando...</div>
             ) : eventosData ? (() => {
@@ -273,7 +274,7 @@ function CruceCard({ cruce, fecha, esMio }) {
               const fin    = bloqueAbierto === 'A' ? 15 : 30
               const evs    = eventosData.evs.filter(e => e.orden >= inicio && e.orden <= fin)
               return (
-                <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
+                <table style={{width: '100%', minWidth: 520, borderCollapse: 'collapse', fontSize: 12}}>
                   <thead>
                     <tr style={{background: '#fafafa', borderBottom: '1px solid var(--color-border)'}}>
                       <th style={{padding:'5px 8px', textAlign:'left', fontSize:10, color:'var(--color-muted)', fontWeight:600, textTransform:'uppercase'}}>#</th>
@@ -389,8 +390,8 @@ function CruceCard({ cruce, fecha, esMio }) {
 
         {/* GDT detalle colapsable */}
         {gdtResultado && gdtAbierto && (
-          <div style={{marginTop: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden'}}>
-            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
+          <div style={{marginTop: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch'}}>
+            <table style={{width: '100%', minWidth: 560, borderCollapse: 'collapse', fontSize: 12}}>
               <thead>
                 <tr style={{background: '#fafafa', borderBottom: '1px solid var(--color-border)'}}>
                   {['Slot', cruce.user1_nombre, 'Pts', '—', 'Pts', cruce.user2_nombre, ''].map((h, i) => (
@@ -511,44 +512,48 @@ function TablaBloqueTotal({ bloque, cruces, bloqueKey }) {
         TOTAL {nombre}
       </div>
 
-      {/* Ranking */}
-      <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13, border: bdr}}>
-        <tbody>
-          {jugadores.map((j, idx) => {
-            const pos = idx + 1
-            const bg = posColor(pos, n)
-            // color de texto: claro si fondo oscuro (verde/rojo intenso), oscuro si amarillo
-            const textCol = (pos === 1 && n > 3) || pos === n ? '#fff' : '#000'
-            return (
-              <tr key={j.user_id} style={{borderBottom: bdr}}>
-                <td style={{padding: '5px 12px', fontWeight: 700, borderRight: bdr}}>{j.nombre}</td>
-                <td style={{padding: '5px 12px', textAlign: 'right', borderRight: bdr, fontWeight: 600}}>{j.total_pts}</td>
-                <td style={{
-                  padding: '5px 0', background: bg, textAlign: 'center',
-                  fontWeight: 800, width: 34, color: textCol, fontSize: 12
-                }}>
-                  {pos}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-
-      {/* Cruces de esta fecha */}
-      {filasCruces.length > 0 && (
-        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12, border: bdr, borderTop: '2px solid #999', marginTop: 1}}>
+      {/* Ranking — scroll horizontal en mobile si los nombres son largos */}
+      <div style={{overflowX: 'auto', WebkitOverflowScrolling: 'touch'}}>
+        <table style={{width: '100%', minWidth: 280, borderCollapse: 'collapse', fontSize: 13, border: bdr}}>
           <tbody>
-            {filasCruces.map((r, i) => (
-              <tr key={i} style={{borderBottom: '1px solid #e8e8e8'}}>
-                <td style={{padding: '4px 10px', fontWeight: 600}}>{r.u1}</td>
-                <td style={{padding: '4px 8px', textAlign: 'right', fontWeight: 700}}>{r.p1}</td>
-                <td style={{padding: '4px 8px', textAlign: 'left', fontWeight: 700, color: 'var(--color-muted)'}}>{r.p2}</td>
-                <td style={{padding: '4px 10px', fontWeight: 600, textAlign: 'right'}}>{r.u2}</td>
-              </tr>
-            ))}
+            {jugadores.map((j, idx) => {
+              const pos = idx + 1
+              const bg = posColor(pos, n)
+              // color de texto: claro si fondo oscuro (verde/rojo intenso), oscuro si amarillo
+              const textCol = (pos === 1 && n > 3) || pos === n ? '#fff' : '#000'
+              return (
+                <tr key={j.user_id} style={{borderBottom: bdr}}>
+                  <td style={{padding: '5px 12px', fontWeight: 700, borderRight: bdr, whiteSpace: 'nowrap'}}>{j.nombre}</td>
+                  <td style={{padding: '5px 12px', textAlign: 'right', borderRight: bdr, fontWeight: 600}}>{j.total_pts}</td>
+                  <td style={{
+                    padding: '5px 0', background: bg, textAlign: 'center',
+                    fontWeight: 800, width: 34, color: textCol, fontSize: 12
+                  }}>
+                    {pos}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
+      </div>
+
+      {/* Cruces de esta fecha — scroll horizontal en mobile */}
+      {filasCruces.length > 0 && (
+        <div style={{overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderTop: '2px solid #999', marginTop: 1}}>
+          <table style={{width: '100%', minWidth: 320, borderCollapse: 'collapse', fontSize: 12, border: bdr}}>
+            <tbody>
+              {filasCruces.map((r, i) => (
+                <tr key={i} style={{borderBottom: '1px solid #e8e8e8'}}>
+                  <td style={{padding: '4px 10px', fontWeight: 600, whiteSpace: 'nowrap'}}>{r.u1}</td>
+                  <td style={{padding: '4px 8px', textAlign: 'right', fontWeight: 700}}>{r.p1}</td>
+                  <td style={{padding: '4px 8px', textAlign: 'left', fontWeight: 700, color: 'var(--color-muted)'}}>{r.p2}</td>
+                  <td style={{padding: '4px 10px', fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap'}}>{r.u2}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
@@ -591,9 +596,9 @@ export default function Enfrentamientos() {
   return (
     <div>
       {/* Header */}
-      <div className="flex-between mb-16">
-        <div>
-          <div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4}}>
+      <div className="flex-between mb-16" style={{flexWrap: 'wrap', gap: 8}}>
+        <div style={{minWidth: 0, flex: '1 1 auto'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap'}}>
             <Link to={`/fecha/${fechaId}`} className="btn btn-secondary btn-sm">← Volver</Link>
             <span className={`badge ${ESTADO_LABEL[fecha.estado]?.cls}`}>{ESTADO_LABEL[fecha.estado]?.label}</span>
           </div>
@@ -601,6 +606,19 @@ export default function Enfrentamientos() {
           <div className="text-muted" style={{fontSize: 13}}>
             {fecha.bloque1_nombre} · {fecha.bloque2_nombre}
           </div>
+          {/* Badge de liga GDT — datos vienen del JOIN en los cruces, todos comparten la misma liga */}
+          {cruces[0]?.fecha_gdt_liga_id != null && cruces[0]?.gdt_liga_nombre && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6,
+              background: 'rgba(167,139,250,0.12)',
+              color: '#7c3aed',
+              border: '1px solid rgba(167,139,250,0.3)',
+              borderRadius: 99, padding: '2px 10px', fontSize: 12, fontWeight: 600,
+            }}>
+              🟪 Gran DT: {cruces[0].gdt_liga_nombre}
+              {cruces[0].gdt_liga_formato && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({cruces[0].gdt_liga_formato})</span>}
+            </span>
+          )}
         </div>
       </div>
 

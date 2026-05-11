@@ -5,6 +5,9 @@ import { api } from '../../api/index.js'
 export default function AdminGDTPuntajes() {
   const { fechaId } = useParams()
   const [fecha, setFecha]       = useState(null)
+  // Liga GDT asociada a la fecha: { id, nombre, formato }. Da contexto en el header
+  // (antes el título "🏆 Puntajes GDT" no decía de qué liga se trataba).
+  const [liga, setLiga]         = useState(null)
   const [jugadores, setJugadores] = useState([])
   const [editados, setEditados]   = useState({})
   const [loading, setLoading]     = useState(true)
@@ -29,6 +32,11 @@ export default function AdminGDTPuntajes() {
         api.gdtGetPuntajes(fechaId),
       ])
       setFecha(fechaRes)
+      // Cargar liga de la fecha (gdtGetLigaSlots devuelve nombre+formato resuelta vía default si no hay id)
+      try {
+        const slotsRes = await api.gdtGetLigaSlots(fechaRes?.gdt_liga_id ?? undefined)
+        if (slotsRes?.liga_id) setLiga({ id: slotsRes.liga_id, nombre: slotsRes.liga_nombre, formato: slotsRes.formato })
+      } catch (_) { /* sin liga resuelta: header queda sin badge */ }
       const jugs = puntajesRes.jugadores || []
       setJugadores(jugs)
       const init = {}
@@ -157,6 +165,20 @@ export default function AdminGDTPuntajes() {
             ← {fecha?.nombre || `Fecha ${fechaId}`}
           </Link>
           <h2 style={{ margin: '4px 0 0' }}>🏆 Puntajes GDT</h2>
+          {liga && (
+            <div style={{ marginTop: 4 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: 'rgba(167,139,250,0.12)',
+                color: '#7c3aed',
+                border: '1px solid rgba(167,139,250,0.3)',
+                borderRadius: 99, padding: '2px 10px', fontSize: 12, fontWeight: 600,
+              }} title={`Liga GDT de esta fecha: ${liga.nombre}`}>
+                🟪 {liga.nombre}
+                {liga.formato && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({liga.formato})</span>}
+              </span>
+            </div>
+          )}
         </div>
         <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || !jugadores.length}>
           {guardando ? 'Guardando...' : 'Guardar y recalcular'}

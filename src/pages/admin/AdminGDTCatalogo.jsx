@@ -47,7 +47,7 @@ export default function AdminGDTCatalogo() {
     if (!nuevoNombre.trim()) return
     setGuardando(true); setError(null); setExito(null)
     try {
-      await api.gdtAddCatalogo(nuevoNombre.trim(), nuevoPais.trim() || undefined)
+      await api.gdtAddCatalogo(nuevoNombre.trim(), nuevoPais.trim() || undefined, ligaId)
       setNuevoNombre('')
       setNuevoPais('')
       setExito(`Equipo "${nuevoNombre.trim()}" agregado correctamente.`)

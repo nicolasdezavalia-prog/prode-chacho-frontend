@@ -55,7 +55,7 @@ function agruparPorTorneo(fechas) {
 
 // ─── Tab H2H ──────────────────────────────────────────────────────────────────
 
-function TabH2H({ user }) {
+function TabH2H({ user, ligaFiltro }) {
   const [usuarios, setUsuarios] = useState([])
   const [selectedUserId, setSelectedUserId] = useState(null)
   const [h2hData, setH2hData] = useState([])
@@ -70,10 +70,16 @@ function TabH2H({ user }) {
     }).catch(console.error)
   }, [user])
 
+  // Recargar H2H cuando cambia el filtro de liga (per-liga GDT)
+  useEffect(() => {
+    if (selectedUserId) loadH2H(selectedUserId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ligaFiltro])
+
   const loadH2H = async (uid) => {
     if (!uid) return
     setH2hLoading(true); setH2hData([]); setExpandido(null)
-    try { setH2hData(await api.getH2HGlobal(uid)) }
+    try { setH2hData(await api.getH2HGlobal(uid, ligaFiltro)) }
     catch (err) { console.error(err) }
     finally { setH2hLoading(false) }
   }
@@ -264,13 +270,14 @@ function TopDesafioCol({ title, color, items }) {
 
 // ─── Tab Records ──────────────────────────────────────────────────────────────
 
-function TabRecords() {
+function TabRecords({ ligaFiltro }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.getRecords().then(setData).catch(console.error).finally(() => setLoading(false))
-  }, [])
+    setLoading(true)
+    api.getRecords(ligaFiltro).then(setData).catch(console.error).finally(() => setLoading(false))
+  }, [ligaFiltro])
 
   if (loading) return <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: 40 }}>Cargando records...</p>
   if (!data) return <p style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 40 }}>Error cargando datos.</p>
@@ -475,6 +482,14 @@ function TabRecords() {
 export default function Estadisticas() {
   const { user } = useAuth()
   const [tab, setTab] = useState('h2h')
+  // Filtro de liga GDT: null = "Todas las ligas" (legacy: stats GDT agregados cross-liga).
+  // Solo afecta los stats GDT de H2H y Records; bloque A/B/torneo/eficiencia no se ven afectados.
+  const [ligas, setLigas] = useState([])
+  const [ligaFiltro, setLigaFiltro] = useState(null)
+
+  useEffect(() => {
+    api.gdtGetLigas().then(ls => setLigas(Array.isArray(ls) ? ls : [])).catch(() => {})
+  }, [])
 
   const tabs = [
     { key: 'h2h', label: '⚔️ H2H' },
@@ -487,6 +502,34 @@ export default function Estadisticas() {
         <div className="page-title">📊 Estadísticas Históricas</div>
       </div>
 
+      {/* Selector de liga GDT — solo visible si hay multiliga; afecta stats GDT (no A/B/torneo) */}
+      {ligas.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.05 }}>
+            🟪 Liga GDT
+          </span>
+          <button
+            onClick={() => setLigaFiltro(null)}
+            style={{ padding: '4px 12px', borderRadius: 99, border: `1px solid ${ligaFiltro == null ? 'var(--color-primary)' : 'var(--color-border)'}`, background: ligaFiltro == null ? 'rgba(59,130,246,0.12)' : 'transparent', color: ligaFiltro == null ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: ligaFiltro == null ? 700 : 500, fontSize: 12, cursor: 'pointer' }}
+            title="Stats GDT agregados de todas las ligas (legacy)"
+          >
+            Todas
+          </button>
+          {ligas.map(l => {
+            const sel = ligaFiltro === l.id
+            return (
+              <button
+                key={l.id}
+                onClick={() => setLigaFiltro(l.id)}
+                style={{ padding: '4px 12px', borderRadius: 99, border: `1px solid ${sel ? 'var(--color-primary)' : 'var(--color-border)'}`, background: sel ? 'rgba(59,130,246,0.12)' : 'transparent', color: sel ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: sel ? 700 : 500, fontSize: 12, cursor: 'pointer' }}
+              >
+                {l.nombre}{l.es_default ? ' ★' : ''}{l.formato ? ` (${l.formato})` : ''}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid var(--color-border)' }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === t.key ? 700 : 400, color: tab === t.key ? 'var(--color-primary)' : 'var(--color-muted)', padding: '8px 16px', borderBottom: tab === t.key ? '2px solid var(--color-primary)' : '2px solid transparent', marginBottom: -2, transition: 'color 0.15s' }}>
@@ -495,8 +538,8 @@ export default function Estadisticas() {
         ))}
       </div>
 
-      {tab === 'h2h' && <TabH2H user={user} />}
-      {tab === 'records' && <TabRecords />}
+      {tab === 'h2h' && <TabH2H user={user} ligaFiltro={ligaFiltro} />}
+      {tab === 'records' && <TabRecords ligaFiltro={ligaFiltro} />}
     </div>
   )
 }

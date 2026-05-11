@@ -110,7 +110,7 @@ export default function AdminGDTPendientes() {
     setBusquedaUnificar(texto)
     if (texto.trim().length < 2) { setCandidatosUnificar([]); return }
     try {
-      const res = await api.gdtBuscarJugador(texto, null)
+      const res = await api.gdtBuscarJugador(texto, null, ligaIdSeleccionado)
       // Combinar exacto y similares, excluir el propio jugador y pendientes
       const todos = [
         ...(res.exacto ? [res.exacto] : []),

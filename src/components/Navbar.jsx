@@ -92,13 +92,21 @@ export default function Navbar() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const isSuperAdmin = user?.role === 'superadmin'
 
+  // Última liga GDT visitada (persistida por MiEquipoGDT). Permite que "Mi GDT" del
+  // navbar recuerde el contexto multiliga: sin esto, siempre caería en la liga default.
+  let miGdtPath = '/gdt/mi-equipo'
+  try {
+    const last = localStorage.getItem('gdt:lastLigaId')
+    if (last) miGdtPath = `/gdt/mi-equipo?liga_id=${encodeURIComponent(last)}`
+  } catch (_) { /* localStorage no disponible: usar path simple */ }
+
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">⚽ Prode Chacho</Link>
 
       <div className="navbar-links">
         <NavLink to="/" label="Inicio" exact />
-        <NavLink to="/gdt/mi-equipo" label="Mi GDT" />
+        <NavLink to={miGdtPath} label="Mi GDT" />
         <NavLink to="/estadisticas" label="Estadísticas" />
         <NavLink to="/comidas" label="Comidas" />
         {isAdmin && <NavLink to="/admin" label="Admin" />}
@@ -127,7 +135,9 @@ export default function Navbar() {
 
 function NavLink({ to, label, exact }) {
   const location = useLocation()
-  const active = exact ? location.pathname === to : location.pathname.startsWith(to)
+  // Active check ignora querystring: "/gdt/mi-equipo?liga_id=3" matchea con "/gdt/mi-equipo"
+  const pathname = to.split('?')[0]
+  const active = exact ? location.pathname === pathname : location.pathname.startsWith(pathname)
   return (
     <Link
       to={to}
