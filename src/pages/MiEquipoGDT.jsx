@@ -359,7 +359,14 @@ export default function MiEquipoGDT() {
   // (slots de la liga se cargan dentro de cargar() para eliminar race condition con el form)
 
   async function cargar() {
-    setLoading(true); setError(null)
+    // Reset de estados de UI del flujo anterior (importante al cambiar de liga, para no
+    // arrastrar modales de edición/búsqueda abiertos en otra liga).
+    setLoading(true); setError(null); setExito(null)
+    setModoVentana(false)
+    setSlotEditando(null)
+    setBusquedaDisp('')
+    setCreandoJugador(false)
+    setFormNuevo({ nombre: '', equipoRaw: '', equipoCatalogoId: null, posicion: '' })
     try {
       // Cargar slots PRIMERO (junto a todo lo demás en paralelo) para que el form se inicialice
       // con los slots reales de la liga, no con F11 hardcoded.
@@ -423,8 +430,12 @@ export default function MiEquipoGDT() {
       }
       setForm(f)
 
-      // Auto-entrar en modo edición si no tiene equipo (no requiere ventana: es armado inicial)
-      if (!equipoRes.equipo || equipoRes.equipo.length === 0) setModoEdicion(true)
+      // Modo edición:
+      //   - equipo vacío → true (auto-armado inicial, no requiere ventana abierta)
+      //   - equipo cargado → false (vista read-only; cambios solo durante ventana abierta)
+      // Sin este reset, al saltar de una liga vacía a una cargada el modo edición se
+      // heredaba indebidamente → la liga cargada aparecía editable sin haber abierto ventana.
+      setModoEdicion(!equipoRes.equipo || equipoRes.equipo.length === 0)
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
