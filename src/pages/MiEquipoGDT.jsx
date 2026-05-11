@@ -273,6 +273,10 @@ function SlotInput({ slot, posicionDefault, catalogoEquipos, value, onChange, li
 // ─── Estilos de tabla compartidos ────────────────────────────────────────────
 const thStyle = { textAlign: 'left', padding: '6px 10px', color: 'var(--color-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }
 const tdStyle = { padding: '8px 10px', verticalAlign: 'middle' }
+// Estilo de input para SlotInput (edición de equipo) y para los inputs de cambio durante una ventana abierta.
+// inputStyleV se usa en el flow de ventana de cambios (alterna variantes según contexto).
+const inputStyle  = { background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '7px 10px', fontSize: 13 }
+const inputStyleV = inputStyle
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
