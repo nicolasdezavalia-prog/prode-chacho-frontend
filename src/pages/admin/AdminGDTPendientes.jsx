@@ -392,3 +392,10 @@ export default function AdminGDTPendientes() {
     </div>
   )
 }
+
+const thStyle      = { textAlign: 'left', padding: '6px 10px', color: 'var(--color-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }
+const tdStyle      = { padding: '8px 10px' }
+const labelStyle   = { display: 'block', fontSize: 11, color: 'var(--color-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }
+const inputStyle   = { background: 'var(--color-surface2)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-text)', padding: '7px 10px', fontSize: 13 }
+const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }
+const modalStyle   = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: 24, width: '100%', maxWidth: 520, maxHeight: '80vh', overflowY: 'auto' }
