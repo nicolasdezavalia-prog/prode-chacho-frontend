@@ -621,21 +621,41 @@ export default function MiEquipoGDT() {
       )}
 
       {/* Banner ventana abierta */}
-      {ventanaInfo?.ventana && (
-        <div style={{ background: 'rgba(59,130,246,0.1)', border: '2px solid var(--color-primary)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 16 }}>
+      {ventanaInfo?.ventana && (() => {
+        const esVentanaCorreccion = ventanaInfo.ventana.tipo === 'correccion'
+        const puedeAccederPanel = esVentanaCorreccion
+          ? slotsEliminados.size > 0   // corrección: solo si tiene eliminados
+          : ventanaInfo.ventana.cambios_restantes > 0
+        const bannerBg     = esVentanaCorreccion ? 'rgba(239,68,68,0.08)' : 'rgba(59,130,246,0.1)'
+        const bannerBorder = esVentanaCorreccion ? '2px solid var(--color-danger)' : '2px solid var(--color-primary)'
+        const bannerColor  = esVentanaCorreccion ? 'var(--color-danger)' : 'var(--color-primary)'
+        return (
+        <div style={{ background: bannerBg, border: bannerBorder, borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <strong style={{ color: 'var(--color-primary)' }}>🔄 Ventana abierta: {ventanaInfo.ventana.nombre}</strong>
+              {esVentanaCorreccion
+                ? <strong style={{ color: bannerColor }}>🔧 Ronda de corrección abierta</strong>
+                : <strong style={{ color: bannerColor }}>🔄 Ventana abierta: {ventanaInfo.ventana.nombre}</strong>
+              }
               <span style={{ color: 'var(--color-muted)', fontSize: 13, marginLeft: 12 }}>
-                {ventanaInfo.ventana.cambios_restantes} cambio(s) restante(s) de {ventanaInfo.ventana.cambios_por_usuario}
+                {esVentanaCorreccion
+                  ? `${slotsEliminados.size} slot(s) a corregir`
+                  : `${ventanaInfo.ventana.cambios_restantes} cambio(s) restante(s) de ${ventanaInfo.ventana.cambios_por_usuario}`
+                }
               </span>
             </div>
-            {ventanaInfo.ventana.cambios_restantes > 0 && (
+            {puedeAccederPanel && (
               <button
-                className="btn btn-primary btn-sm"
+                className="btn btn-sm"
+                style={esVentanaCorreccion
+                  ? { background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontWeight: 600 }
+                  : {}}
                 onClick={() => setModoVentana(!modoVentana)}
               >
-                {modoVentana ? 'Ocultar cambios' : '🔄 Hacer cambios'}
+                {modoVentana
+                  ? 'Ocultar'
+                  : esVentanaCorreccion ? '🔧 Corregir slots' : '🔄 Hacer cambios'
+                }
               </button>
             )}
           </div>
@@ -644,7 +664,10 @@ export default function MiEquipoGDT() {
           {modoVentana && (
             <div style={{ marginTop: 14, borderTop: '1px solid var(--color-border)', paddingTop: 14 }}>
               <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 10 }}>
-                Hacé clic en un slot para cambiarlo. Solo podés elegir jugadores libres (que nadie tiene actualmente).
+                {esVentanaCorreccion
+                  ? 'Reemplazá los slots marcados con ❌ — solo podés cambiar esos jugadores.'
+                  : 'Hacé clic en un slot para cambiarlo. Solo podés elegir jugadores libres (que nadie tiene actualmente).'
+                }
               </p>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
@@ -656,7 +679,10 @@ export default function MiEquipoGDT() {
                   </tr>
                 </thead>
                 <tbody>
-                  {slotsConfig.slotNames.map(slot => {
+                  {(esVentanaCorreccion
+                    ? slotsConfig.slotNames.filter(s => slotsEliminados.has(s))
+                    : slotsConfig.slotNames
+                  ).map(slot => {
                     const j = equipoDB.find(e => e.slot === slot)
                     const enEdicion = slotEditando === slot
                     const fueYaSoltado = ventanaInfo.soltados_ids?.includes(j?.jugador_id)
@@ -802,7 +828,8 @@ export default function MiEquipoGDT() {
             </div>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {/* Banner corrección requerida */}
       {requiereCorreccion && (

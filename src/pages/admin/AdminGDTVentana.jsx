@@ -13,6 +13,7 @@ export default function AdminGDTVentana() {
   const [detalle, setDetalle]       = useState(null)  // { ventanaId, cambios }
   const [formNueva, setFormNueva]   = useState({ nombre: '', cambios: 2 })
   const [abriendo, setAbriendo]     = useState(false)
+  const [abriendoCorreccion, setAbriendoCorreccion] = useState(false)
   // Slots de la liga actual: usado para que `max` de "cambios por usuario" sea dinámico
   // (no tiene sentido permitir 11 cambios en una liga F5 con 5 slots).
   const [slotsLiga, setSlotsLiga]   = useState({ total: 11 })
@@ -48,6 +49,17 @@ export default function AdminGDTVentana() {
       cargar()
     } catch (e) { setError(e.message) }
     finally { setAbriendo(false) }
+  }
+
+  async function abrirCorreccion() {
+    if (!confirm('¿Abrir ronda de corrección?\n\nSolo los usuarios con jugadores eliminados podrán hacer cambios, y únicamente en esos slots.')) return
+    setAbriendoCorreccion(true); setError(null)
+    try {
+      const res = await api.gdtAbrirCorreccion(ligaId ? Number(ligaId) : null)
+      setExito(`🔧 Ronda de corrección abierta. ${res.afectados_count} usuario(s) con slots a corregir.`)
+      cargar()
+    } catch (e) { setError(e.message) }
+    finally { setAbriendoCorreccion(false) }
   }
 
   async function cerrar(id, nombre) {
@@ -131,7 +143,8 @@ export default function AdminGDTVentana() {
           </div>
         </div>
       ) : (
-        /* Formulario nueva ventana */
+        <>
+        {/* Formulario nueva ventana */}
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: 20, marginBottom: 24 }}>
           <h3 style={{ margin: '0 0 14px 0', fontSize: 15 }}>Abrir nueva ventana de cambios</h3>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -169,6 +182,29 @@ export default function AdminGDTVentana() {
             Si 4 o más usuarios eligen el mismo jugador, ese jugador queda eliminado (0 pts en duelos).
           </p>
         </div>
+
+        {/* Ronda de corrección */}
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius)', padding: 20, marginBottom: 24 }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: 15, color: 'var(--color-danger)' }}>🔧 Ronda de corrección</h3>
+          <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 12, margin: '0 0 12px' }}>
+            Abrí una ventana restringida para usuarios que tienen jugadores eliminados.
+            Solo esos usuarios podrán hacer cambios, y únicamente en los slots afectados.
+          </p>
+          <button
+            className="btn btn-sm"
+            style={{ background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer', fontWeight: 600 }}
+            onClick={abrirCorreccion}
+            disabled={abriendoCorreccion || (ligas.length > 1 && !ligaId)}
+          >
+            {abriendoCorreccion ? 'Abriendo...' : '🔧 Abrir ronda de corrección'}
+          </button>
+          {ligas.length > 1 && !ligaId && (
+            <p style={{ color: 'var(--color-warning)', fontSize: 12, marginTop: 8, fontWeight: 600 }}>
+              ⚠️ Seleccioná una liga arriba primero.
+            </p>
+          )}
+        </div>
+        </>
       )}
 
       {/* Historial */}
@@ -191,7 +227,12 @@ export default function AdminGDTVentana() {
           <tbody>
             {ventanas.map(v => (
               <tr key={v.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <td style={tdStyle}><strong>{v.nombre}</strong></td>
+                <td style={tdStyle}>
+                  <strong>{v.nombre}</strong>
+                  {v.tipo === 'correccion' && (
+                    <span style={{ marginLeft: 6, fontSize: 10, background: 'rgba(239,68,68,0.15)', color: 'var(--color-danger)', borderRadius: 3, padding: '1px 5px', fontWeight: 600, textTransform: 'uppercase' }}>corrección</span>
+                  )}
+                </td>
                 <td style={tdStyle}>
                   <span style={{ color: v.estado === 'abierta' ? 'var(--color-success)' : 'var(--color-muted)', fontWeight: 600, fontSize: 12 }}>
                     {v.estado === 'abierta' ? '🟢 Abierta' : '🔒 Cerrada'}

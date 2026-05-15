@@ -157,6 +157,7 @@ export const api = {
   // GDT — Ventana de cambios (admin)
   gdtGetVentanas:  (ligaId) => request('GET', `/gdt/admin/ventanas${ligaId ? `?liga_id=${ligaId}` : ''}`),
   gdtAbrirVentana: (nombre, cambios_por_usuario, liga_id) => request('POST', '/gdt/admin/ventanas', { nombre, cambios_por_usuario, ...(liga_id != null ? { liga_id } : {}) }),
+  gdtAbrirCorreccion: (liga_id) => request('POST', '/gdt/admin/ventanas/abrir-correccion', { ...(liga_id != null ? { liga_id } : {}) }),
   gdtCerrarVentana: (id) => request('POST', `/gdt/admin/ventanas/${id}/cerrar`),
   gdtGetDetalleVentana: (id) => request('GET', `/gdt/admin/ventanas/${id}/detalle`),
 
