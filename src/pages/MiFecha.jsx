@@ -205,6 +205,14 @@ function BloquePronos({ nombre, eventos, pronosticos, onChangePronostico, editan
                 ) : (
                   editando ? (
                     <div className="pronostico-input-group" style={{flexDirection:'column', gap:4, alignItems:'flex-start'}}>
+                      {/* Encabezado de puntaje: opcion_unica tiene un único pts global */}
+                      {subtipo === 'opcion_unica' && cfg?.pts !== undefined && (
+                        <span style={{fontSize:11, color:'var(--color-muted)'}}>🎯 Acierto: {cfg.pts} pts</span>
+                      )}
+                      {/* Encabezado de puntaje: multi_select acumula pts por cada acierto */}
+                      {subtipo === 'multi_select' && cfg?.pts_por_acierto !== undefined && (
+                        <span style={{fontSize:11, color:'var(--color-muted)'}}>🎯 {cfg.pts_por_acierto} pts por cada acierto</span>
+                      )}
                       {(subtipo === 'opcion_unica' || subtipo === 'binaria') && (cfg?.opciones || []).map(op => (
                         <label key={op.id} style={{display:'flex', gap:6, alignItems:'center', cursor:'pointer', fontSize:13}}>
                           <input type="radio" name={`preg-${ev.id}`} value={op.id}
@@ -260,15 +268,40 @@ function BloquePronos({ nombre, eventos, pronosticos, onChangePronostico, editan
                       )}
                     </div>
                   ) : (
-                    <span className="evento-pronostico">
-                      {/* Abierta en modo lectura: mostrar respuesta enviada */}
-                      {subtipo === 'abierta'
-                        ? (pron.opcion_elegida
-                            ? <em style={{fontSize:12}}>"{pron.opcion_elegida}"</em>
-                            : <span style={{color:'var(--color-warning)'}}>sin respuesta</span>)
-                        : (labelPronPregunta
-                            ? labelPronPregunta
-                            : <span style={{color: 'var(--color-warning)'}}>sin pronóstico</span>)}
+                    <span className="evento-pronostico" style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2}}>
+                      {/* Línea principal: respuesta del usuario */}
+                      <span>
+                        {subtipo === 'abierta'
+                          ? (pron.opcion_elegida
+                              ? <em style={{fontSize:12}}>"{pron.opcion_elegida}"</em>
+                              : <span style={{color:'var(--color-warning)'}}>sin respuesta</span>)
+                          : subtipo === 'binaria' && pron.opcion_elegida
+                            ? (() => {
+                                const opElegida = (cfg?.opciones || []).find(o => o.id === pron.opcion_elegida)
+                                return opElegida
+                                  ? <>{opElegida.label} <span style={{color:'var(--color-muted)',fontSize:11}}>({opElegida.pts}pts)</span></>
+                                  : labelPronPregunta
+                              })()
+                            : (labelPronPregunta
+                                ? labelPronPregunta
+                                : <span style={{color: 'var(--color-warning)'}}>sin pronóstico</span>)}
+                      </span>
+                      {/* Caption con estructura de puntaje del evento (siempre visible) */}
+                      {subtipo === 'binaria' && pron.opcion_elegida && (() => {
+                        const otra = (cfg?.opciones || []).find(o => o.id !== pron.opcion_elegida)
+                        return otra ? (
+                          <span style={{fontSize:10, color:'var(--color-muted)'}}>({otra.label}: {otra.pts}pts)</span>
+                        ) : null
+                      })()}
+                      {subtipo === 'opcion_unica' && cfg?.pts !== undefined && (
+                        <span style={{fontSize:10, color:'var(--color-muted)'}}>🎯 vale {cfg.pts} pts</span>
+                      )}
+                      {subtipo === 'multi_select' && cfg?.pts_por_acierto !== undefined && (
+                        <span style={{fontSize:10, color:'var(--color-muted)'}}>🎯 {cfg.pts_por_acierto} pts/acierto</span>
+                      )}
+                      {subtipo === 'abierta' && cfg?.pts_max !== undefined && (
+                        <span style={{fontSize:10, color:'var(--color-muted)'}}>🎯 máx {cfg.pts_max} pts</span>
+                      )}
                     </span>
                   )
                 )}

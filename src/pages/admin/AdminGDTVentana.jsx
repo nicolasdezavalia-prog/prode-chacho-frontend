@@ -14,6 +14,7 @@ export default function AdminGDTVentana() {
   const [formNueva, setFormNueva]   = useState({ nombre: '', cambios: 2 })
   const [abriendo, setAbriendo]     = useState(false)
   const [abriendoCorreccion, setAbriendoCorreccion] = useState(false)
+  const [cerrando, setCerrando]     = useState(false)
   // Slots de la liga actual: usado para que `max` de "cambios por usuario" sea dinámico
   // (no tiene sentido permitir 11 cambios en una liga F5 con 5 slots).
   const [slotsLiga, setSlotsLiga]   = useState({ total: 11 })
@@ -64,11 +65,21 @@ export default function AdminGDTVentana() {
 
   async function cerrar(id, nombre) {
     if (!confirm(`¿Cerrar la ventana "${nombre}"? Los usuarios ya no podrán hacer cambios.`)) return
+    setCerrando(true); setError(null)
     try {
-      await api.gdtCerrarVentana(id)
-      setExito(`Ventana "${nombre}" cerrada`)
+      const res = await api.gdtCerrarVentana(id)
+      if (res.nueva_ronda_correccion) {
+        const cant = res.eliminados?.length ?? 0
+        setExito(`✅ Ventana "${nombre}" cerrada. Se detectaron ${cant} jugador${cant !== 1 ? 'es' : ''} eliminado${cant !== 1 ? 's' : ''} — se abrió automáticamente una nueva ronda de corrección.`)
+      } else if (res.eliminados?.length > 0) {
+        const cant = res.eliminados.length
+        setExito(`✅ Ventana "${nombre}" cerrada. ${cant} jugador${cant !== 1 ? 'es' : ''} eliminado${cant !== 1 ? 's' : ''} — ya había una ventana activa, no se abrió otra.`)
+      } else {
+        setExito(`✅ Ventana "${nombre}" cerrada. Sin nuevos eliminados.`)
+      }
       cargar()
     } catch (e) { setError(e.message) }
+    finally { setCerrando(false) }
   }
 
   async function verDetalle(id) {
@@ -134,10 +145,11 @@ export default function AdminGDTVentana() {
               </button>
               <button
                 className="btn btn-sm"
-                style={{ background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontWeight: 600 }}
+                style={{ background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: cerrando ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: cerrando ? 0.6 : 1 }}
                 onClick={() => cerrar(ventanaAbierta.id, ventanaAbierta.nombre)}
+                disabled={cerrando}
               >
-                🔒 Cerrar ventana
+                {cerrando ? 'Cerrando...' : '🔒 Cerrar ventana'}
               </button>
             </div>
           </div>
@@ -252,10 +264,11 @@ export default function AdminGDTVentana() {
                     {v.estado === 'abierta' && (
                       <button
                         className="btn btn-sm"
-                        style={{ background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                        style={{ background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 4, cursor: cerrando ? 'not-allowed' : 'pointer', opacity: cerrando ? 0.6 : 1 }}
                         onClick={() => cerrar(v.id, v.nombre)}
+                        disabled={cerrando}
                       >
-                        Cerrar
+                        {cerrando ? 'Cerrando...' : 'Cerrar'}
                       </button>
                     )}
                   </div>

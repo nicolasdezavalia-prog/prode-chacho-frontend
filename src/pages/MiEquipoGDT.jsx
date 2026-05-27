@@ -478,7 +478,9 @@ export default function MiEquipoGDT() {
 
       const res = await api.gdtGuardarEquipo(jugadores, slotsConfig.liga_id)
 
-      if (res.puede_participar) {
+      if (res.ronda_correccion_abierta) {
+        setExito('🔧 Equipo guardado. Todos presentaron su equipo — se abrió una ronda de corrección automática por jugadores eliminados.')
+      } else if (res.puede_participar) {
         setExito('✅ Equipo guardado. Tu equipo participa en GDT.')
       } else if (res.pendientes_count > 0) {
         setExito(`⏳ Equipo guardado. ${res.pendientes_count} jugador${res.pendientes_count > 1 ? 'es' : ''} pendiente${res.pendientes_count > 1 ? 's' : ''} de aprobación del admin.`)
@@ -495,7 +497,7 @@ export default function MiEquipoGDT() {
     setHaciendoCambio(true); setError(null)
     try {
       const res = await api.gdtHacerCambio(slot, jugadorNuevoId, ligaId)
-      if (res.jugador_eliminado) {
+      if (res.mensaje) {
         setExito(res.mensaje)
       } else {
         setExito(`✅ Cambio realizado. Te quedan ${res.cambios_restantes} cambio(s).`)
@@ -527,7 +529,7 @@ export default function MiEquipoGDT() {
       }, ligaId)
       if (res.jugador_pendiente) {
         setExito(`⏳ Jugador creado. Queda pendiente de aprobación del admin. Tu equipo no participará en GDT hasta que sea aprobado.`)
-      } else if (res.jugador_eliminado) {
+      } else if (res.mensaje) {
         setExito(res.mensaje)
       } else {
         setExito(`✅ Cambio realizado. Te quedan ${res.cambios_restantes} cambio(s).`)
