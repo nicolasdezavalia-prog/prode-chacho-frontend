@@ -216,4 +216,16 @@ export const api = {
   updateMundialConfig: (torneoId, data) => request('PUT', `/mundial/${torneoId}/config`, data),
   getMundialEquiposCatalogo: (torneoId) => request('GET', `/mundial/${torneoId}/equipos`),
   getMundialPremios: (torneoId) => request('GET', `/mundial/${torneoId}/premios`),
+
+  // Mundial — Fase 2.1 (catálogo de equipos: CRUD + alta masiva).
+  // Endpoints admin: requieren rol admin/superadmin + permiso 'gestionar_mundial'.
+  // Editable solo en estados 'configuracion' o 'abierto' (el backend devuelve 409 si no).
+  seedMundial2026Equipos: (torneoId) =>
+    request('POST', `/mundial/${torneoId}/equipos/seed-mundial-2026`),
+  createMundialEquipo: (torneoId, data) =>
+    request('POST', `/mundial/${torneoId}/equipos`, data),
+  updateMundialEquipo: (torneoId, equipoId, data) =>
+    request('PATCH', `/mundial/${torneoId}/equipos/${equipoId}`, data),
+  deleteMundialEquipo: (torneoId, equipoId) =>
+    request('DELETE', `/mundial/${torneoId}/equipos/${equipoId}`),
 };

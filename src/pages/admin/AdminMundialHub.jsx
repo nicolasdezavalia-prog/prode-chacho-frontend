@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '../../api/index.js'
 import MundialIcon from '../../components/MundialIcon.jsx'
+import AdminMundialEquipos from './AdminMundialEquipos.jsx'
 
 /**
  * Hub admin del módulo Mundial — Fase 1.
@@ -45,6 +46,9 @@ export default function AdminMundialHub() {
   const [avanzando, setAvanzando] = useState(false)
   const [error, setError]     = useState('')
   const [info, setInfo]       = useState('')
+  // Tabs state-based (Fase 2.1). Solo 'config' y 'equipos' están activas.
+  // Las demás (preguntas, premios, resultados, cambios) entran en fases siguientes.
+  const [activeTab, setActiveTab] = useState('config')
 
   useEffect(() => { load() }, [torneoId])
 
@@ -171,9 +175,17 @@ export default function AdminMundialHub() {
         marginBottom: 16,
         overflowY: 'hidden',
       }}>
-        <Tab label="⚙️ Config"     active />
-        <Tab label="❓ Preguntas"  disabled tip="Disponible en Fase 2" />
-        <Tab label="🌐 Equipos"    disabled tip="Disponible en Fase 2" />
+        <Tab
+          label="⚙️ Config"
+          active={activeTab === 'config'}
+          onClick={() => setActiveTab('config')}
+        />
+        <Tab label="❓ Preguntas"  disabled tip="Disponible en Fase 2.2" />
+        <Tab
+          label="🌐 Equipos"
+          active={activeTab === 'equipos'}
+          onClick={() => setActiveTab('equipos')}
+        />
         <Tab label="🏆 Premios"    disabled tip="Disponible en Fase 2" />
         <Tab label="📋 Resultados" disabled tip="Disponible en Fase 3" />
         <Tab label="🔁 Cambios"    disabled tip="Disponible en Fase 5" />
@@ -194,80 +206,95 @@ export default function AdminMundialHub() {
       )}
 
       {/* Tab Config */}
-      <form onSubmit={handleGuardarConfig} className="card">
-        <div className="card-header">Configuración general</div>
+      {activeTab === 'config' && (
+        <>
+          <form onSubmit={handleGuardarConfig} className="card">
+            <div className="card-header">Configuración general</div>
 
-        {!editable && (
+            {!editable && (
+              <div style={{
+                padding: '8px 12px',
+                background: 'rgba(0,0,0,0.04)',
+                color: 'var(--color-muted)',
+                borderRadius: 6,
+                marginBottom: 12,
+                fontSize: 13,
+              }}>
+                ℹ️ La configuración solo se puede editar mientras el estado es{' '}
+                <strong>Configuración</strong> o <strong>Abierto</strong>.
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label>Costo por paquete de cambios (USD)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.costo_cambio_usd}
+                  onChange={e => setForm(f => ({ ...f, costo_cambio_usd: e.target.value }))}
+                  disabled={!editable}
+                />
+              </div>
+              <div className="form-group">
+                <label>Cambios máx. por usuario</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.cambios_por_usuario}
+                  onChange={e => setForm(f => ({ ...f, cambios_por_usuario: e.target.value }))}
+                  disabled={!editable}
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label>Deadline de carga (opcional, ISO 8601)</label>
+                <input
+                  type="text"
+                  placeholder="2026-06-10T20:00:00-03:00"
+                  value={form.deadline_carga}
+                  onChange={e => setForm(f => ({ ...f, deadline_carga: e.target.value }))}
+                  disabled={!editable}
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary" disabled={!editable || saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </form>
+
           <div style={{
-            padding: '8px 12px',
-            background: 'rgba(0,0,0,0.04)',
+            marginTop: 24,
+            fontSize: 12,
             color: 'var(--color-muted)',
-            borderRadius: 6,
-            marginBottom: 12,
-            fontSize: 13,
+            lineHeight: 1.5,
           }}>
-            ℹ️ La configuración solo se puede editar mientras el estado es{' '}
-            <strong>Configuración</strong> o <strong>Abierto</strong>.
+            <strong>Fase 2.1.</strong> Activas: <em>Config</em> y <em>Equipos</em>.
+            Preguntas (Fase 2.2), Premios (Fase 2), Resultados (Fase 3) y Cambios (Fase 5)
+            entran en fases siguientes. Tampoco hay carga de respuestas de usuarios,
+            ranking ni importer de Excel todavía.
           </div>
-        )}
+        </>
+      )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div className="form-group">
-            <label>Costo por paquete de cambios (USD)</label>
-            <input
-              type="number"
-              min="0"
-              value={form.costo_cambio_usd}
-              onChange={e => setForm(f => ({ ...f, costo_cambio_usd: e.target.value }))}
-              disabled={!editable}
-            />
-          </div>
-          <div className="form-group">
-            <label>Cambios máx. por usuario</label>
-            <input
-              type="number"
-              min="0"
-              value={form.cambios_por_usuario}
-              onChange={e => setForm(f => ({ ...f, cambios_por_usuario: e.target.value }))}
-              disabled={!editable}
-            />
-          </div>
-          <div className="form-group" style={{ gridColumn: 'span 2' }}>
-            <label>Deadline de carga (opcional, ISO 8601)</label>
-            <input
-              type="text"
-              placeholder="2026-06-10T20:00:00-03:00"
-              value={form.deadline_carga}
-              onChange={e => setForm(f => ({ ...f, deadline_carga: e.target.value }))}
-              disabled={!editable}
-            />
-          </div>
-        </div>
-
-        <button type="submit" className="btn btn-primary" disabled={!editable || saving}>
-          {saving ? 'Guardando...' : 'Guardar'}
-        </button>
-      </form>
-
-      <div style={{
-        marginTop: 24,
-        fontSize: 12,
-        color: 'var(--color-muted)',
-        lineHeight: 1.5,
-      }}>
-        <strong>Fase 1.</strong> Solo está activa la pestaña <em>Config</em>. Las demás
-        (Preguntas, Equipos, Premios, Resultados, Cambios) se habilitan en fases siguientes.
-        Tampoco hay carga de respuestas de usuarios, ni ranking, ni importer de Excel.
-      </div>
+      {/* Tab Equipos */}
+      {activeTab === 'equipos' && (
+        <AdminMundialEquipos
+          torneoId={torneoId}
+          estado={config.estado}
+          onChanged={load}
+        />
+      )}
     </div>
   )
 }
 
-function Tab({ label, active, disabled, tip }) {
+function Tab({ label, active, disabled, tip, onClick }) {
   return (
     <button
       title={tip}
       disabled={disabled}
+      onClick={onClick}
       style={{
         background: 'none',
         border: 'none',
