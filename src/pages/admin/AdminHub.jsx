@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../App.jsx'
+import { api } from '../../api/index.js'
+import MundialIcon from '../../components/MundialIcon.jsx'
 
-const ALL_CARDS = [
+const BASE_CARDS = [
   {
     icon: '🏆',
     title: 'Torneos',
@@ -47,7 +50,36 @@ const ALL_CARDS = [
 export default function AdminHub() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const cards = ALL_CARDS.filter(c => !c.superadminOnly || user?.role === 'superadmin')
+  // Tarjeta Mundial: aparece solo si hay >=1 torneo de tipo 'mundial_preguntas'.
+  const [mundialTorneos, setMundialTorneos] = useState([])
+
+  useEffect(() => {
+    let cancel = false
+    api.getMundialTorneos()
+      .then(ts => { if (!cancel) setMundialTorneos(Array.isArray(ts) ? ts : []) })
+      .catch(() => { /* sin Mundial → no agregamos la tarjeta */ })
+    return () => { cancel = true }
+  }, [])
+
+  const cards = [...BASE_CARDS]
+  if (mundialTorneos.length > 0) {
+    // Si hay 1 solo torneo Mundial, link directo a su hub; si hay varios, al listado de torneos.
+    const to = mundialTorneos.length === 1
+      ? `/admin/torneo/${mundialTorneos[0].id}/mundial`
+      : '/admin/torneo'
+    // Insertar después de "Torneos" para mantener cercanía visual.
+    cards.splice(1, 0, {
+      icon: <MundialIcon size={48} />,
+      title: 'Mundial',
+      description: mundialTorneos.length === 1
+        ? `Configurar el torneo Mundial "${mundialTorneos[0].nombre}".`
+        : `Gestionar ${mundialTorneos.length} torneos Mundial activos.`,
+      to,
+      enabled: true,
+      superadminOnly: false,
+    })
+  }
+  const visibles = cards.filter(c => !c.superadminOnly || user?.role === 'superadmin')
 
   return (
     <div style={{ maxWidth: 720, margin: '48px auto', padding: '0 16px' }}>
@@ -63,7 +95,7 @@ export default function AdminHub() {
         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: 16,
       }}>
-        {cards.map((card) => (
+        {visibles.map((card) => (
           <button
             key={card.title}
             onClick={() => card.enabled && navigate(card.to)}
@@ -92,7 +124,9 @@ export default function AdminHub() {
               e.currentTarget.style.boxShadow = 'none'
             }}
           >
-            <span style={{ fontSize: 32 }}>{card.icon}</span>
+            {typeof card.icon === 'string'
+              ? <span style={{ fontSize: 32 }}>{card.icon}</span>
+              : card.icon}
             <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--color-text)' }}>
               {card.title}
             </span>

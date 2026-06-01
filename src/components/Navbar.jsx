@@ -106,6 +106,7 @@ export default function Navbar() {
 
       <div className="navbar-links">
         <NavLink to="/" label="Inicio" exact />
+        <NavLink to="/juegos" label="Juegos" />
         <NavLink to={miGdtPath} label="Mi GDT" />
         <NavLink to="/estadisticas" label="Estadísticas" />
         <NavLink to="/comidas" label="Comidas" />

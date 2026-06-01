@@ -208,4 +208,12 @@ export const api = {
   getPermisosCatalogo: () => request('GET', '/permisos/catalogo'),
   getUsuariosPermisos: () => request('GET', '/permisos/usuarios'),
   updatePermisosUsuario: (userId, permisos) => request('PUT', `/permisos/usuarios/${userId}`, { permisos }),
+
+  // Mundial — Fase 1 (lecturas + edición de config).
+  // Carga de respuestas, ranking, scoring e importer Excel quedan para Fases posteriores.
+  getMundialTorneos: () => request('GET', '/mundial/torneos'),
+  getMundialConfig: (torneoId) => request('GET', `/mundial/${torneoId}/config`),
+  updateMundialConfig: (torneoId, data) => request('PUT', `/mundial/${torneoId}/config`, data),
+  getMundialEquiposCatalogo: (torneoId) => request('GET', `/mundial/${torneoId}/equipos`),
+  getMundialPremios: (torneoId) => request('GET', `/mundial/${torneoId}/premios`),
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../../api/index.js'
+import MundialIcon from '../../components/MundialIcon.jsx'
 
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
@@ -111,6 +112,27 @@ function TorneoRow({ torneo, usuarios, onUpdated }) {
             ? <input style={inputStyle} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             : <span style={{ fontWeight: 600 }}>{torneo.nombre}</span>
           }
+          {torneo.tipo === 'mundial_preguntas' && (
+            <span
+              style={{
+                marginLeft: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                background: 'rgba(99,102,241,0.12)',
+                color: '#6366f1',
+                borderRadius: 99,
+                verticalAlign: 'middle',
+                letterSpacing: '0.05em',
+              }}
+              title="Torneo de tipo Mundial (preguntas)"
+            >
+              <MundialIcon size={11} /> MUNDIAL
+            </span>
+          )}
         </td>
 
         {/* Semestre */}
@@ -123,17 +145,21 @@ function TorneoRow({ torneo, usuarios, onUpdated }) {
 
         {/* Bloque A */}
         <td style={cellStyle}>
-          {editing
-            ? <input style={inputStyle} value={form.bloque1_nombre} onChange={e => setForm(f => ({ ...f, bloque1_nombre: e.target.value }))} />
-            : <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>{torneo.bloque1_nombre || 'Bloque 1'}</span>
+          {torneo.tipo === 'mundial_preguntas'
+            ? <span style={{ color: 'var(--color-muted)' }}>—</span>
+            : editing
+              ? <input style={inputStyle} value={form.bloque1_nombre} onChange={e => setForm(f => ({ ...f, bloque1_nombre: e.target.value }))} />
+              : <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>{torneo.bloque1_nombre || 'Bloque 1'}</span>
           }
         </td>
 
         {/* Bloque B */}
         <td style={cellStyle}>
-          {editing
-            ? <input style={inputStyle} value={form.bloque2_nombre} onChange={e => setForm(f => ({ ...f, bloque2_nombre: e.target.value }))} />
-            : <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>{torneo.bloque2_nombre || 'Bloque 2'}</span>
+          {torneo.tipo === 'mundial_preguntas'
+            ? <span style={{ color: 'var(--color-muted)' }}>—</span>
+            : editing
+              ? <input style={inputStyle} value={form.bloque2_nombre} onChange={e => setForm(f => ({ ...f, bloque2_nombre: e.target.value }))} />
+              : <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>{torneo.bloque2_nombre || 'Bloque 2'}</span>
           }
         </td>
 
@@ -165,34 +191,46 @@ function TorneoRow({ torneo, usuarios, onUpdated }) {
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <Link
-                to={`/admin/torneo/${torneo.id}/fechas`}
-                className="btn btn-primary btn-sm"
-                style={{ fontSize: 11 }}
-              >
-                📅 Fechas
-              </Link>
-              <Link
-                to={`/admin/torneo/${torneo.id}/resultados`}
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: 11 }}
-              >
-                📋 Resultados
-              </Link>
-              <Link
-                to={`/admin/torneo/${torneo.id}/gdt`}
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: 11 }}
-              >
-                ⚽ Gran DT
-              </Link>
-              <Link
-                to={`/admin/torneo/${torneo.id}/comida-config`}
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: 11 }}
-              >
-                🍽️ Comidas
-              </Link>
+              {torneo.tipo === 'mundial_preguntas' ? (
+                <Link
+                  to={`/admin/torneo/${torneo.id}/mundial`}
+                  className="btn btn-primary btn-sm"
+                  style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  <MundialIcon size={12} /> Configurar Mundial
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to={`/admin/torneo/${torneo.id}/fechas`}
+                    className="btn btn-primary btn-sm"
+                    style={{ fontSize: 11 }}
+                  >
+                    📅 Fechas
+                  </Link>
+                  <Link
+                    to={`/admin/torneo/${torneo.id}/resultados`}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11 }}
+                  >
+                    📋 Resultados
+                  </Link>
+                  <Link
+                    to={`/admin/torneo/${torneo.id}/gdt`}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11 }}
+                  >
+                    ⚽ Gran DT
+                  </Link>
+                  <Link
+                    to={`/admin/torneo/${torneo.id}/comida-config`}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11 }}
+                  >
+                    🍽️ Comidas
+                  </Link>
+                </>
+              )}
               <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)} style={{ fontSize: 11 }}>
                 ✏️ Editar
               </button>
@@ -269,7 +307,7 @@ export default function AdminTorneo() {
   const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [showNuevo, setShowNuevo] = useState(false)
-  const [nuevoForm, setNuevoForm] = useState({ nombre: '', semestre: '', bloque1_nombre: '', bloque2_nombre: '' })
+  const [nuevoForm, setNuevoForm] = useState({ nombre: '', semestre: '', bloque1_nombre: '', bloque2_nombre: '', tipo: 'prode_semestral' })
   const [creando, setCreando] = useState(false)
   const [error, setError] = useState('')
 
@@ -291,13 +329,19 @@ export default function AdminTorneo() {
     if (!nuevoForm.nombre || !nuevoForm.semestre) return
     setCreando(true)
     try {
+      const esMundial = nuevoForm.tipo === 'mundial_preguntas'
       await api.createTorneo({
         nombre: nuevoForm.nombre,
         semestre: nuevoForm.semestre,
-        bloque1_nombre: nuevoForm.bloque1_nombre || 'Bloque 1',
-        bloque2_nombre: nuevoForm.bloque2_nombre || 'Bloque 2',
+        tipo: nuevoForm.tipo,
+        // Bloques no aplican a torneos Mundial — mandar defaults igual no rompe nada,
+        // pero los omitimos para no contaminar el modelo.
+        ...(esMundial ? {} : {
+          bloque1_nombre: nuevoForm.bloque1_nombre || 'Bloque 1',
+          bloque2_nombre: nuevoForm.bloque2_nombre || 'Bloque 2',
+        }),
       })
-      setNuevoForm({ nombre: '', semestre: '', bloque1_nombre: '', bloque2_nombre: '' })
+      setNuevoForm({ nombre: '', semestre: '', bloque1_nombre: '', bloque2_nombre: '', tipo: 'prode_semestral' })
       setShowNuevo(false)
       await load()
     } catch (err) {
@@ -339,12 +383,25 @@ export default function AdminTorneo() {
           <div className="card-header">Nuevo Torneo</div>
           <form onSubmit={handleCrear}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label>Tipo de torneo</label>
+                <select
+                  value={nuevoForm.tipo}
+                  onChange={e => setNuevoForm(f => ({ ...f, tipo: e.target.value }))}
+                >
+                  <option value="prode_semestral">⚽ Prode semestral (fechas, cruces, GDT)</option>
+                  <option value="mundial_preguntas">🌍 Mundial — preguntas (sin fechas ni GDT)</option>
+                </select>
+                <small style={{ display: 'block', marginTop: 4, color: 'var(--color-muted)', fontSize: 11 }}>
+                  El tipo se elige al crear y no se puede cambiar después. Si te equivocás, borrás y volvés a crear.
+                </small>
+              </div>
               <div className="form-group">
                 <label>Nombre</label>
                 <input
                   value={nuevoForm.nombre}
                   onChange={e => setNuevoForm(f => ({ ...f, nombre: e.target.value }))}
-                  placeholder="Ej: Prode Chacho 2025"
+                  placeholder={nuevoForm.tipo === 'mundial_preguntas' ? 'Ej: Mundial 2026' : 'Ej: Prode Chacho 2025'}
                   required
                 />
               </div>
@@ -357,22 +414,26 @@ export default function AdminTorneo() {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label>Nombre Bloque A (eventos 1–15)</label>
-                <input
-                  value={nuevoForm.bloque1_nombre}
-                  onChange={e => setNuevoForm(f => ({ ...f, bloque1_nombre: e.target.value }))}
-                  placeholder="Bloque 1"
-                />
-              </div>
-              <div className="form-group">
-                <label>Nombre Bloque B (eventos 16–30)</label>
-                <input
-                  value={nuevoForm.bloque2_nombre}
-                  onChange={e => setNuevoForm(f => ({ ...f, bloque2_nombre: e.target.value }))}
-                  placeholder="Bloque 2"
-                />
-              </div>
+              {nuevoForm.tipo !== 'mundial_preguntas' && (
+                <>
+                  <div className="form-group">
+                    <label>Nombre Bloque A (eventos 1–15)</label>
+                    <input
+                      value={nuevoForm.bloque1_nombre}
+                      onChange={e => setNuevoForm(f => ({ ...f, bloque1_nombre: e.target.value }))}
+                      placeholder="Bloque 1"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Nombre Bloque B (eventos 16–30)</label>
+                    <input
+                      value={nuevoForm.bloque2_nombre}
+                      onChange={e => setNuevoForm(f => ({ ...f, bloque2_nombre: e.target.value }))}
+                      placeholder="Bloque 2"
+                    />
+                  </div>
+                </>
+              )}
             </div>
             <button type="submit" className="btn btn-primary" disabled={creando}>
               {creando ? 'Creando...' : 'Crear Torneo'}

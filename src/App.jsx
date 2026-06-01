@@ -36,6 +36,10 @@ import ResetPassword from './pages/ResetPassword.jsx'
 import Comidas from './pages/Comidas.jsx'
 import ComidaDetalle from './pages/ComidaDetalle.jsx'
 import Estadisticas from './pages/Estadisticas.jsx'
+import GameSelector from './pages/GameSelector.jsx'
+import MundialLista from './pages/MundialLista.jsx'
+import MundialPlaceholder from './pages/MundialPlaceholder.jsx'
+import AdminMundialHub from './pages/admin/AdminMundialHub.jsx'
 import Navbar from './components/Navbar.jsx'
 import { api } from './api/index.js'
 
@@ -101,6 +105,9 @@ export default function App() {
             <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+            <Route path="/juegos" element={<PrivateRoute><GameSelector /></PrivateRoute>} />
+            <Route path="/mundial" element={<PrivateRoute><MundialLista /></PrivateRoute>} />
+            <Route path="/mundial/:torneoId" element={<PrivateRoute><MundialPlaceholder /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
             <Route path="/estadisticas" element={<PrivateRoute><Estadisticas /></PrivateRoute>} />
@@ -136,6 +143,7 @@ export default function App() {
             <Route path="/admin/torneo/:torneoId/votacion" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidaVotacion /></PermisoRoute>} />
             <Route path="/admin/torneo/:torneoId/comidas-historico" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidasHistorico /></PermisoRoute>} />
             <Route path="/admin/resultados" element={<PrivateRoute adminOnly><AdminResultadosHub /></PrivateRoute>} />
+            <Route path="/admin/torneo/:torneoId/mundial" element={<PrivateRoute adminOnly><AdminMundialHub /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
