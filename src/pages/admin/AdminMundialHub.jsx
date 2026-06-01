@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { api } from '../../api/index.js'
 import MundialIcon from '../../components/MundialIcon.jsx'
 import AdminMundialEquipos from './AdminMundialEquipos.jsx'
+import AdminMundialPreguntas from './AdminMundialPreguntas.jsx'
 
 /**
  * Hub admin del módulo Mundial — Fase 1.
@@ -180,7 +181,11 @@ export default function AdminMundialHub() {
           active={activeTab === 'config'}
           onClick={() => setActiveTab('config')}
         />
-        <Tab label="❓ Preguntas"  disabled tip="Disponible en Fase 2.2" />
+        <Tab
+          label="❓ Preguntas"
+          active={activeTab === 'preguntas'}
+          onClick={() => setActiveTab('preguntas')}
+        />
         <Tab
           label="🌐 Equipos"
           active={activeTab === 'equipos'}
@@ -269,10 +274,10 @@ export default function AdminMundialHub() {
             color: 'var(--color-muted)',
             lineHeight: 1.5,
           }}>
-            <strong>Fase 2.1.</strong> Activas: <em>Config</em> y <em>Equipos</em>.
-            Preguntas (Fase 2.2), Premios (Fase 2), Resultados (Fase 3) y Cambios (Fase 5)
-            entran en fases siguientes. Tampoco hay carga de respuestas de usuarios,
-            ranking ni importer de Excel todavía.
+            <strong>Fase 2.2.</strong> Activas: <em>Config</em>, <em>Equipos</em> y <em>Preguntas</em>.
+            Premios (Fase 2), Resultados (Fase 3) y Cambios (Fase 5) entran en fases
+            siguientes. Tampoco hay carga de respuestas de usuarios, ranking ni importer
+            de Excel todavía.
           </div>
         </>
       )}
@@ -280,6 +285,15 @@ export default function AdminMundialHub() {
       {/* Tab Equipos */}
       {activeTab === 'equipos' && (
         <AdminMundialEquipos
+          torneoId={torneoId}
+          estado={config.estado}
+          onChanged={load}
+        />
+      )}
+
+      {/* Tab Preguntas */}
+      {activeTab === 'preguntas' && (
+        <AdminMundialPreguntas
           torneoId={torneoId}
           estado={config.estado}
           onChanged={load}

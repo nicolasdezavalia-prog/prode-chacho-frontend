@@ -228,4 +228,23 @@ export const api = {
     request('PATCH', `/mundial/${torneoId}/equipos/${equipoId}`, data),
   deleteMundialEquipo: (torneoId, equipoId) =>
     request('DELETE', `/mundial/${torneoId}/equipos/${equipoId}`),
+
+  // Mundial — Fase 2.2 (preguntas: CRUD + bulk).
+  // Editable según estado:
+  //   'configuracion': POST/PUT bulk/DELETE/PATCH (todos los campos salvo numero+tipo).
+  //   'abierto':       PATCH solo enunciado/aclaracion/activa.
+  //   resto:           bloqueado (409).
+  // Las respuestas con warnings traen el shape:
+  //   { pregunta, warnings: [{ codigos_no_encontrados: [...] }] }  para POST/PATCH
+  //   { creados, actualizados, total, warnings: [{ pregunta_numero, codigos_no_encontrados }] }  para bulk
+  getMundialPreguntas: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/preguntas`),
+  createMundialPregunta: (torneoId, data) =>
+    request('POST', `/mundial/${torneoId}/preguntas`, data),
+  updateMundialPregunta: (torneoId, preguntaId, data) =>
+    request('PATCH', `/mundial/${torneoId}/preguntas/${preguntaId}`, data),
+  deleteMundialPregunta: (torneoId, preguntaId) =>
+    request('DELETE', `/mundial/${torneoId}/preguntas/${preguntaId}`),
+  bulkMundialPreguntas: (torneoId, preguntas) =>
+    request('PUT', `/mundial/${torneoId}/preguntas/bulk`, { preguntas }),
 };
