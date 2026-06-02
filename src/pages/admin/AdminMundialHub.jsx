@@ -63,12 +63,13 @@ function buildDeadlineISO(fecha, hora) {
   return `${fecha}T${hora}:00-03:00`
 }
 
-/** Preview legible 'DD/MM/YYYY HH:MM' a partir de los campos del form. */
+/** Preview legible 'DD/MM/YYYY HH:MM hs' a partir de los campos del form.
+ *  Mismo formato que muestra MundialResponder al usuario final (formato AR). */
 function previewDeadline(fecha, hora) {
   if (!fecha || !hora) return ''
   const [y, m, d] = fecha.split('-')
   if (!y || !m || !d) return ''
-  return `${d}/${m}/${y} ${hora}`
+  return `${d}/${m}/${y} ${hora} hs`
 }
 
 export default function AdminMundialHub() {

@@ -48,6 +48,22 @@ const ESTADO_MSG = {
 }
 
 /**
+ * Formatea un `deadline_carga` ISO con offset -03:00 al formato canónico
+ * que ve el usuario: `DD/MM/YYYY HH:MM hs`. Parsea por regex para evitar el
+ * `toLocaleString()` del browser, que renderiza distinto según la locale del
+ * SO (ej: '6/11/2026, 7:00:00 PM' en inglés → ambiguo entre junio/noviembre).
+ * Si el ISO no matchea el formato canónico, devuelve '' para que el caller
+ * decida si oculta el bloque o muestra un fallback.
+ */
+function formatDeadlineDisplay(isoStr) {
+  if (!isoStr || typeof isoStr !== 'string') return ''
+  const m = isoStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})(?::\d{2})?(?:\.\d+)?-03:00$/)
+  if (!m) return ''
+  const [, y, mes, d, hhmm] = m
+  return `${d}/${mes}/${y} ${hhmm} hs`
+}
+
+/**
  * Clasifica una respuesta como 'completa' | 'parcial' | 'vacia' según el tipo
  * de pregunta y su config. Reglas (Fase 2.5):
  *   - opcion_unica:          completa si `opcion` no vacía
@@ -217,11 +233,15 @@ export default function MundialResponder() {
           <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
             {torneo.semestre}
             <span style={{ marginLeft: 10 }}>· Estado: <strong>{ESTADO_LABEL[estado] || estado}</strong></span>
-            {deadline && !isNaN(deadline.getTime()) && (
-              <span style={{ marginLeft: 10 }}>
-                · Deadline: <strong>{deadline.toLocaleString()}</strong>
-              </span>
-            )}
+            {(() => {
+              const fmt = formatDeadlineDisplay(config.deadline_carga)
+              if (!fmt) return null
+              return (
+                <span style={{ marginLeft: 10 }}>
+                  · Cierre de carga: <strong>{fmt}</strong>
+                </span>
+              )
+            })()}
           </div>
         </div>
       </div>
@@ -235,7 +255,10 @@ export default function MundialResponder() {
           borderRadius: 8, marginBottom: 16, fontSize: 14, lineHeight: 1.5,
         }}>
           {deadlineVencido
-            ? <>⏰ <strong>Deadline vencido</strong> ({deadline.toLocaleString()}). Las respuestas ya no pueden modificarse.</>
+            ? (() => {
+                const fmt = formatDeadlineDisplay(config.deadline_carga)
+                return <>⏰ <strong>Deadline vencido</strong>{fmt ? ` (${fmt})` : ''}. Las respuestas ya no pueden modificarse.</>
+              })()
             : <>ℹ️ {ESTADO_MSG[estado] || `Carga no disponible en estado '${estado}'.`}</>}
           {isAdmin && (
             <div style={{ marginTop: 10 }}>
