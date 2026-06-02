@@ -75,6 +75,7 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
   const [openId, setOpenId]                   = useState(null)
   const [showNuevo, setShowNuevo]             = useState(false)
   const [showImporter, setShowImporter]       = useState(false)
+  const [seedingPreguntas, setSeedingPreguntas] = useState(false)
 
   const fullEdit  = ESTADOS_FULL_EDIT.has(estado)
   const patchEdit = ESTADOS_PATCH_EDIT.has(estado)
@@ -161,6 +162,29 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
     onChanged?.()
   }
 
+  async function handleSeedPreguntas() {
+    if (!fullEdit) return
+    const ok = confirm(
+      `¿Cargar las 36 preguntas del Mundial 2026?\n\n` +
+      `Si ya hay preguntas cargadas con los mismos números, se actualizan ` +
+      `(UPSERT — pisa enunciado, tipo, config, etc.).`
+    )
+    if (!ok) return
+    setSeedingPreguntas(true)
+    clearMessages()
+    try {
+      const r = await api.seedMundial2026Preguntas(torneoId)
+      setInfo(`Seed OK · creadas: ${r.creados} · actualizadas: ${r.actualizados} · total: ${r.total}`)
+      if (Array.isArray(r.warnings) && r.warnings.length > 0) setWarnings(r.warnings)
+      await load()
+      onChanged?.()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSeedingPreguntas(false)
+    }
+  }
+
   if (loading) return <div className="loading">Cargando preguntas...</div>
 
   // Vista exclusiva del importer cuando está activo (toggle full-screen del tab).
@@ -213,6 +237,16 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
           <strong>{preguntas.length}</strong> pregunta(s) cargada(s)
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleSeedPreguntas}
+            disabled={!fullEdit || seedingPreguntas}
+            title={!fullEdit
+              ? `No disponible en estado '${estado}'`
+              : 'Cargar las 36 preguntas del Mundial 2026 (UPSERT: si ya hay, las actualiza)'}
+          >
+            {seedingPreguntas ? 'Cargando...' : '🌍 Cargar 36 preguntas del Mundial 2026'}
+          </button>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => { setShowImporter(true); clearMessages() }}

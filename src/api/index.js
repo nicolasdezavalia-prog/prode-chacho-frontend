@@ -247,4 +247,19 @@ export const api = {
     request('DELETE', `/mundial/${torneoId}/preguntas/${preguntaId}`),
   bulkMundialPreguntas: (torneoId, preguntas) =>
     request('PUT', `/mundial/${torneoId}/preguntas/bulk`, { preguntas }),
+  seedMundial2026Preguntas: (torneoId) =>
+    request('POST', `/mundial/${torneoId}/preguntas/seed-mundial-2026`),
+
+  // Mundial — Fase 2.4 (respuestas del usuario)
+  // - getMundialPreguntasActivas: filtra `?activa=1` en el GET de preguntas (uso user).
+  // - getMundialMisRespuestas:    devuelve solo las respuestas del user autenticado.
+  // - saveMundialMisRespuestas:   bulk save atómico. Cross-check strict de equipos
+  //                                contra catálogo activo. 409 si estado != 'abierto'
+  //                                o si deadline_carga vencido.
+  getMundialPreguntasActivas: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/preguntas?activa=1`),
+  getMundialMisRespuestas: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/mis-respuestas`),
+  saveMundialMisRespuestas: (torneoId, respuestas) =>
+    request('PUT', `/mundial/${torneoId}/mis-respuestas`, { respuestas }),
 };
