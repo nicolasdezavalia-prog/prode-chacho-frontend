@@ -38,6 +38,39 @@ const PROXIMO_ESTADO = {
   finalizado:       null,
 }
 
+/**
+ * Parsea un `deadline_carga` ISO con offset -03:00 (formato canónico que
+ * generamos al guardar) y devuelve { fecha: 'YYYY-MM-DD', hora: 'HH:MM' }.
+ * Si el valor no matchea (vacío, formato exótico), devuelve campos vacíos
+ * y el usuario re-ingresa. No intenta convertir desde UTC u otros offsets
+ * para no introducir bugs de zona horaria silenciosos.
+ */
+function parseDeadlineISO(s) {
+  if (!s || typeof s !== 'string') return { fecha: '', hora: '' }
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?(?:\.\d+)?-03:00$/)
+  if (!m) return { fecha: '', hora: '' }
+  return { fecha: m[1], hora: m[2] }
+}
+
+/**
+ * Combina fecha (YYYY-MM-DD) + hora (HH:MM) en ISO 8601 con offset -03:00.
+ * Si alguno está vacío o malformado, devuelve null → backend persiste sin deadline.
+ */
+function buildDeadlineISO(fecha, hora) {
+  if (!fecha || !hora) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null
+  if (!/^\d{2}:\d{2}$/.test(hora))        return null
+  return `${fecha}T${hora}:00-03:00`
+}
+
+/** Preview legible 'DD/MM/YYYY HH:MM' a partir de los campos del form. */
+function previewDeadline(fecha, hora) {
+  if (!fecha || !hora) return ''
+  const [y, m, d] = fecha.split('-')
+  if (!y || !m || !d) return ''
+  return `${d}/${m}/${y} ${hora}`
+}
+
 export default function AdminMundialHub() {
   const { torneoId } = useParams()
   const [torneo, setTorneo]   = useState(null)
@@ -64,10 +97,12 @@ export default function AdminMundialHub() {
       if (!t) throw new Error('Torneo Mundial no encontrado (¿está bien la URL?)')
       setTorneo(t)
       setConfig(cfg)
+      const parsedDeadline = parseDeadlineISO(cfg.deadline_carga)
       setForm({
         costo_cambio_usd:    cfg.costo_cambio_usd ?? 30,
         cambios_por_usuario: cfg.cambios_por_usuario ?? 3,
-        deadline_carga:      cfg.deadline_carga || '',
+        deadline_fecha:      parsedDeadline.fecha,
+        deadline_hora:       parsedDeadline.hora,
       })
     } catch (e) { setError(e.message) }
   }
@@ -83,7 +118,9 @@ export default function AdminMundialHub() {
       const body = {
         costo_cambio_usd:    parseInt(form.costo_cambio_usd, 10),
         cambios_por_usuario: parseInt(form.cambios_por_usuario, 10),
-        deadline_carga:      form.deadline_carga || null,
+        // Solo se persiste si ambos campos están completos. Si uno está vacío,
+        // mandamos null (el backend ya acepta null para borrar el deadline).
+        deadline_carga:      buildDeadlineISO(form.deadline_fecha, form.deadline_hora),
       }
       await api.updateMundialConfig(torneoId, body)
       setInfo('Configuración guardada.')
@@ -252,14 +289,46 @@ export default function AdminMundialHub() {
                 />
               </div>
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label>Deadline de carga (opcional, ISO 8601)</label>
-                <input
-                  type="text"
-                  placeholder="2026-06-10T20:00:00-03:00"
-                  value={form.deadline_carga}
-                  onChange={e => setForm(f => ({ ...f, deadline_carga: e.target.value }))}
-                  disabled={!editable}
-                />
+                <label>Deadline de carga (opcional)</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    value={form.deadline_fecha}
+                    onChange={e => setForm(f => ({ ...f, deadline_fecha: e.target.value }))}
+                    disabled={!editable}
+                    style={{ flex: '1 1 170px', maxWidth: 220 }}
+                  />
+                  <input
+                    type="time"
+                    step="60"
+                    value={form.deadline_hora}
+                    onChange={e => setForm(f => ({ ...f, deadline_hora: e.target.value }))}
+                    disabled={!editable}
+                    style={{ flex: '0 0 130px' }}
+                  />
+                  {(form.deadline_fecha || form.deadline_hora) && editable && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setForm(f => ({ ...f, deadline_fecha: '', deadline_hora: '' }))}
+                      title="Quitar deadline"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
+                  Horario Argentina (UTC-3)
+                </div>
+                {(form.deadline_fecha && form.deadline_hora) ? (
+                  <div style={{ fontSize: 13, color: 'var(--color-text)', marginTop: 6 }}>
+                    Cierre de carga: <strong>{previewDeadline(form.deadline_fecha, form.deadline_hora)}</strong>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 6, fontStyle: 'italic' }}>
+                    Sin deadline (la carga queda abierta hasta el cambio de estado manual).
+                  </div>
+                )}
               </div>
             </div>
 
