@@ -86,26 +86,87 @@ export default function MundialConfigEditor({ tipo, config, onChange, disabled, 
 }
 
 // ── opcion_unica ────────────────────────────────────────────────────────────
+// Soporta dos modos:
+//   - Uniforme (default):     { opciones: [...], pts: N }
+//   - Asimétrico por opción:  { opciones: [...], pts_por_opcion: { OpcA: 15, OpcB: 10 } }
+// Toggle controla qué modo se usa. Toggle OFF→ON inicializa todas las opciones
+// con el valor `pts` actual. Toggle ON→OFF usa el PRIMER valor de pts_por_opcion
+// como pts único (decisión simple, sin promedios).
 function EditorOpcionUnica({ config, onChange, disabled }) {
   const opciones = Array.isArray(config.opciones) ? config.opciones : []
-  const set = (patch) => onChange({ ...config, ...patch })
+  const tienePorOpc = config.pts_por_opcion !== undefined && config.pts === undefined
+
+  const setOpciones = (nuevasOpciones) => {
+    if (tienePorOpc) {
+      // Sincronizar las keys del pts_por_opcion con las opciones nuevas.
+      // Las nuevas inicializan en 0. Las eliminadas se borran.
+      const nuevoPorOpc = {}
+      for (const opt of nuevasOpciones) {
+        nuevoPorOpc[opt] = (config.pts_por_opcion && config.pts_por_opcion[opt]) ?? 0
+      }
+      onChange({ ...config, opciones: nuevasOpciones, pts_por_opcion: nuevoPorOpc })
+    } else {
+      onChange({ ...config, opciones: nuevasOpciones })
+    }
+  }
+
+  const togglePorOpcion = (checked) => {
+    if (checked) {
+      // OFF → ON: usar el pts uniforme actual como valor base para todas las opciones.
+      const ptsBase = Number.isInteger(config.pts) ? config.pts : 0
+      const pts_por_opcion = {}
+      for (const opt of opciones) pts_por_opcion[opt] = ptsBase
+      const next = { ...config, pts_por_opcion }
+      delete next.pts
+      onChange(next)
+    } else {
+      // ON → OFF: usar el PRIMER valor como pts único (decisión simple).
+      const primerValor = opciones.length > 0
+        ? ((config.pts_por_opcion && config.pts_por_opcion[opciones[0]]) ?? 0)
+        : 0
+      const next = { ...config, pts: primerValor }
+      delete next.pts_por_opcion
+      onChange(next)
+    }
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 10 }}>
-        <label style={labelStyle}>Puntos por acierto</label>
-        <input
-          type="number" min="0"
-          value={config.pts ?? 0}
-          onChange={e => set({ pts: toIntPos(e.target.value) })}
-          disabled={disabled}
-          style={{ ...inputBase, width: 120 }}
-        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: disabled ? 'default' : 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={tienePorOpc}
+            onChange={e => togglePorOpcion(e.target.checked)}
+            disabled={disabled}
+          />
+          Puntaje distinto por opción
+        </label>
+        <small style={{ fontSize: 11, color: 'var(--color-muted)', display: 'block', marginTop: 2 }}>
+          {tienePorOpc
+            ? 'Cada opción tiene su propio puntaje (asimétrico). Ej: "Sí: 15, No: 10".'
+            : 'Puntaje uniforme: cualquier opción acertada vale lo mismo.'}
+        </small>
       </div>
+
+      {!tienePorOpc && (
+        <div style={{ marginBottom: 10 }}>
+          <label style={labelStyle}>Puntos por acierto</label>
+          <input
+            type="number" min="0"
+            value={config.pts ?? 0}
+            onChange={e => onChange({ ...config, pts: toIntPos(e.target.value) })}
+            disabled={disabled}
+            style={{ ...inputBase, width: 120 }}
+          />
+        </div>
+      )}
+
       <label style={labelStyle}>Opciones (una por línea)</label>
       <textarea
         rows={Math.max(3, opciones.length + 1)}
         value={opciones.join('\n')}
-        onChange={e => set({ opciones: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+        onChange={e => setOpciones(e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
         disabled={disabled}
         style={{ ...inputBase, width: '100%', fontFamily: 'inherit', resize: 'vertical' }}
         placeholder={'Sí\nNo'}
@@ -113,6 +174,29 @@ function EditorOpcionUnica({ config, onChange, disabled }) {
       <small style={{ color: 'var(--color-muted)', fontSize: 11 }}>
         {opciones.length} opción(es). Una por línea. Sin duplicados.
       </small>
+
+      {tienePorOpc && opciones.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <label style={labelStyle}>Puntos por opción</label>
+          <div style={{ ...fieldset, marginBottom: 0 }}>
+            {opciones.map(opt => (
+              <div key={opt} style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                <div style={{ fontSize: 13 }}>{opt}</div>
+                <input
+                  type="number" min="0"
+                  value={(config.pts_por_opcion && config.pts_por_opcion[opt]) ?? 0}
+                  onChange={e => onChange({
+                    ...config,
+                    pts_por_opcion: { ...(config.pts_por_opcion || {}), [opt]: toIntPos(e.target.value) },
+                  })}
+                  disabled={disabled}
+                  style={{ ...inputBase, width: '100%' }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

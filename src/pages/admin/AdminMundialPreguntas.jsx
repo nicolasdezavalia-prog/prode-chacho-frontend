@@ -26,6 +26,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/index.js'
 import MundialConfigEditor, { PLANTILLAS_CONFIG, TIPO_LABEL } from './MundialConfigEditor.jsx'
+import ImportarPreguntasMundial from './ImportarPreguntasMundial.jsx'
 
 const ESTADOS_FULL_EDIT  = new Set(['configuracion'])
 const ESTADOS_PATCH_EDIT = new Set(['configuracion', 'abierto'])
@@ -73,6 +74,7 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
   const [warnings, setWarnings]               = useState([])
   const [openId, setOpenId]                   = useState(null)
   const [showNuevo, setShowNuevo]             = useState(false)
+  const [showImporter, setShowImporter]       = useState(false)
 
   const fullEdit  = ESTADOS_FULL_EDIT.has(estado)
   const patchEdit = ESTADOS_PATCH_EDIT.has(estado)
@@ -149,7 +151,30 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
     }
   }
 
+  async function handleImportDone(resumen) {
+    setShowImporter(false)
+    clearMessages()
+    const partes = [`creadas: ${resumen.creados}`, `actualizadas: ${resumen.actualizados}`, `total: ${resumen.total}`]
+    setInfo(`Importación OK · ${partes.join(' · ')}`)
+    if (Array.isArray(resumen.warnings) && resumen.warnings.length > 0) setWarnings(resumen.warnings)
+    await load()
+    onChanged?.()
+  }
+
   if (loading) return <div className="loading">Cargando preguntas...</div>
+
+  // Vista exclusiva del importer cuando está activo (toggle full-screen del tab).
+  if (showImporter) {
+    return (
+      <ImportarPreguntasMundial
+        torneoId={torneoId}
+        equiposCatalogo={equiposCatalogo}
+        preguntasExistentes={preguntas}
+        onDone={handleImportDone}
+        onCancel={() => setShowImporter(false)}
+      />
+    )
+  }
 
   return (
     <div>
@@ -188,6 +213,14 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
           <strong>{preguntas.length}</strong> pregunta(s) cargada(s)
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => { setShowImporter(true); clearMessages() }}
+            disabled={!fullEdit}
+            title={!fullEdit ? `No disponible en estado '${estado}'` : 'Cargar preguntas desde Excel (.xlsx)'}
+          >
+            📥 Importar Excel
+          </button>
           <button
             className="btn btn-primary btn-sm"
             onClick={() => { setShowNuevo(v => !v); clearMessages() }}
