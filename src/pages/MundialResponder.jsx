@@ -47,6 +47,46 @@ const ESTADO_MSG = {
   finalizado:       'Mundial finalizado. El ranking estará disponible pronto.',
 }
 
+/**
+ * Clasifica una respuesta como 'completa' | 'parcial' | 'vacia' según el tipo
+ * de pregunta y su config. Reglas (Fase 2.5):
+ *   - opcion_unica:          completa si `opcion` no vacía
+ *   - equipo_categoria:      completa si `equipo` no vacío
+ *   - instancia_eliminacion: completa si `instancia` no vacía
+ *   - numero_exacto / numero_por_banda: completa si `numero` es entero >= 0
+ *   - multi_equipo: completa si `equipos.length === cfg.n_equipos`; parcial si
+ *                   tiene algunos pero menos que n; vacía si vacío.
+ *   - respuesta_manual / regla_especial: completa si `texto.trim() !== ''`
+ * Nota: solo `multi_equipo` puede ser 'parcial'. El resto es binario.
+ */
+function evaluarRespuesta(tipo, cfg, respuesta) {
+  const r = respuesta || {}
+  if (Object.keys(r).length === 0) return 'vacia'
+  switch (tipo) {
+    case 'opcion_unica':
+      return (typeof r.opcion === 'string' && r.opcion !== '') ? 'completa' : 'vacia'
+    case 'equipo_categoria':
+      return (typeof r.equipo === 'string' && r.equipo !== '') ? 'completa' : 'vacia'
+    case 'instancia_eliminacion':
+      return (typeof r.instancia === 'string' && r.instancia !== '') ? 'completa' : 'vacia'
+    case 'numero_exacto':
+    case 'numero_por_banda':
+      return (Number.isInteger(r.numero) && r.numero >= 0) ? 'completa' : 'vacia'
+    case 'multi_equipo': {
+      const arr = Array.isArray(r.equipos) ? r.equipos : []
+      const n   = (cfg && Number.isInteger(cfg.n_equipos)) ? cfg.n_equipos : 0
+      if (arr.length === 0) return 'vacia'
+      if (n > 0 && arr.length < n) return 'parcial'
+      return 'completa'
+    }
+    case 'respuesta_manual':
+    case 'regla_especial':
+      return (typeof r.texto === 'string' && r.texto.trim() !== '') ? 'completa' : 'vacia'
+    default:
+      return 'vacia'
+  }
+}
+
 export default function MundialResponder() {
   const { torneoId } = useParams()
   const { user }     = useAuth()
@@ -103,10 +143,23 @@ export default function MundialResponder() {
   const deadlineVencido = deadline && !isNaN(deadline.getTime()) && new Date() > deadline
   const cargaAbierta    = estado === 'abierto' && !deadlineVencido
 
-  const respondidas = useMemo(() => {
-    return Object.values(respuestasUsr).filter(r => r && Object.keys(r).length > 0).length
-  }, [respuestasUsr])
-  const total = preguntas.length
+  // Mapa { pregunta_id: 'completa' | 'parcial' | 'vacia' } + parseo de cfg una sola vez.
+  const evaluacion = useMemo(() => {
+    const estados = {}
+    const cfgs    = {}
+    for (const p of preguntas) {
+      let cfg = {}
+      try { cfg = JSON.parse(p.config_json) || {} } catch { cfg = {} }
+      cfgs[p.id]    = cfg
+      estados[p.id] = evaluarRespuesta(p.tipo_pregunta, cfg, respuestasUsr[p.id])
+    }
+    return { estados, cfgs }
+  }, [preguntas, respuestasUsr])
+
+  const completas   = useMemo(() => Object.values(evaluacion.estados).filter(s => s === 'completa').length, [evaluacion])
+  const parciales   = useMemo(() => Object.values(evaluacion.estados).filter(s => s === 'parcial').length, [evaluacion])
+  const total       = preguntas.length
+  const incompletas = total - completas
 
   const isDirty = useMemo(() => {
     return JSON.stringify(respuestasUsr) !== JSON.stringify(respuestasOriginal)
@@ -213,10 +266,30 @@ export default function MundialResponder() {
           fontSize: 13, color: 'var(--color-muted)', marginBottom: 12,
           display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center',
         }}>
-          <span><strong>{respondidas}</strong> de <strong>{total}</strong> preguntas respondidas</span>
+          <span><strong>{completas}</strong> de <strong>{total}</strong> preguntas completas</span>
+          {parciales > 0 && (
+            <span style={{ color: '#a16207' }}>
+              · {parciales} parcial{parciales > 1 ? 'es' : ''}
+            </span>
+          )}
           {isDirty && cargaAbierta && (
             <span style={{ color: '#a16207' }}>⚠ Tenés cambios sin guardar</span>
           )}
+        </div>
+      )}
+
+      {/* Banner amarillo: hay preguntas sin completar. NO bloquea el guardado. */}
+      {cargaAbierta && preguntas.length > 0 && incompletas > 0 && (
+        <div style={{
+          padding: '10px 14px',
+          background: 'rgba(234,179,8,0.12)',
+          color: '#a16207',
+          borderRadius: 8, marginBottom: 12, fontSize: 13, lineHeight: 1.45,
+          border: '1px solid rgba(234,179,8,0.30)',
+        }}>
+          ⚠ Quedan <strong>{incompletas}</strong> pregunta{incompletas > 1 ? 's' : ''} sin completar
+          {parciales > 0 && <> (incluye {parciales} parcial{parciales > 1 ? 'es' : ''})</>}.
+          Podés guardar parcial y completar el resto antes del deadline.
         </div>
       )}
 
@@ -230,8 +303,8 @@ export default function MundialResponder() {
         </div>
       ) : (
         preguntas.map(p => {
-          let cfg = null
-          try { cfg = JSON.parse(p.config_json) } catch { cfg = {} }
+          const cfg    = evaluacion.cfgs[p.id] || {}
+          const estado = evaluacion.estados[p.id] || 'vacia'
           return (
             <div key={p.id} className="card" style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
@@ -241,6 +314,22 @@ export default function MundialResponder() {
                 }}>
                   #{p.numero}
                 </span>
+                {estado === 'completa' && (
+                  <span
+                    title="Respuesta completa"
+                    style={{ color: 'var(--color-success)', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
+                  >
+                    ✓
+                  </span>
+                )}
+                {estado === 'parcial' && (
+                  <span
+                    title="Respuesta incompleta — faltan equipos"
+                    style={{ color: '#a16207', fontSize: 14, fontWeight: 700, lineHeight: 1 }}
+                  >
+                    ⚠
+                  </span>
+                )}
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, flex: 1 }}>
                   {p.enunciado}
                 </h3>
