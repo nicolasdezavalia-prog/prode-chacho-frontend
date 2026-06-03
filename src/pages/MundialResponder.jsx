@@ -120,6 +120,9 @@ export default function MundialResponder() {
   const [misPuntos, setMisPuntos]           = useState({ visible: false, items: [], pts_totales: 0 })
   const [loading, setLoading]               = useState(true)
   const [error, setError]                   = useState('')
+  // Fase preprod — distinguir errores de acceso (403) del resto para mostrar
+  // un layout amigable en lugar del bloque rojo de error genérico.
+  const [accesoDenegado, setAccesoDenegado] = useState(false)
   const [info, setInfo]                     = useState('')
   const [saving, setSaving]                 = useState(false)
 
@@ -128,6 +131,7 @@ export default function MundialResponder() {
   async function load() {
     setLoading(true)
     setError('')
+    setAccesoDenegado(false)
     try {
       const [torneosAll, cfg, preg, equipos, misRes, misPts] = await Promise.all([
         api.getMundialTorneos(),
@@ -158,7 +162,14 @@ export default function MundialResponder() {
         ? misPts
         : { visible: false, items: [], pts_totales: 0 })
     } catch (e) {
-      setError(e.message)
+      // Distinguimos el 403 de acceso por mensaje del backend (que es estable).
+      // No tenemos status code en el error de fetch wrapper, pero el message
+      // viene del JSON `error` del backend: "No tenés acceso a este torneo Mundial".
+      if (e?.message && /no tenés acceso/i.test(e.message)) {
+        setAccesoDenegado(true)
+      } else {
+        setError(e.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -237,6 +248,26 @@ export default function MundialResponder() {
   }
 
   if (loading) return <div className="loading">Cargando Mundial...</div>
+  // Acceso denegado: usuario común no asignado a este torneo. Layout amigable
+  // (no bloque rojo de error) con link de vuelta al selector.
+  if (accesoDenegado) {
+    return (
+      <div style={{ maxWidth: 480, margin: '64px auto', textAlign: 'center', padding: '0 16px' }}>
+        <div style={{ marginBottom: 12 }}>
+          <MundialIcon size={56} />
+        </div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+          No tenés acceso a este torneo
+        </h1>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
+          Pedile al admin que te agregue como participante del Mundial.
+        </p>
+        <Link to="/juegos" className="btn btn-secondary btn-sm">
+          ← Volver al selector
+        </Link>
+      </div>
+    )
+  }
   if (error && !torneo) return <div className="error-msg" style={{ margin: 24 }}>{error}</div>
 
   return (

@@ -35,16 +35,22 @@ export default function MundialLista() {
   if (torneos === null) return <div className="loading">Cargando...</div>
 
   if (torneos.length === 0) {
+    // Lista vacía puede significar:
+    //   (a) no hay Mundial creado todavía, o
+    //   (b) sí hay Mundial pero el usuario no está asignado como participante.
+    // El backend filtra por torneo_jugadores, así que no podemos distinguir
+    // (a) de (b) sin endpoint extra. Mensaje genérico que cubre ambos casos.
     return (
       <div style={{ maxWidth: 480, margin: '64px auto', textAlign: 'center', padding: '0 16px' }}>
         <div style={{ marginBottom: 12 }}>
           <MundialIcon size={56} />
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-          No hay Mundial activo aún
+          No estás participando de ningún Mundial
         </h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
-          Cuando se configure un torneo Mundial vas a poder entrar desde acá.
+          Si pensás que esto es un error, pedile al admin que te agregue como
+          participante del torneo correspondiente.
         </p>
         <Link to="/juegos" className="btn btn-secondary btn-sm">
           ← Volver al selector

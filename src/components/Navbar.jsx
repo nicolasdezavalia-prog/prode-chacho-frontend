@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../App.jsx'
+import { api } from '../api/index.js'
 
 function DropdownMenu({ label, items }) {
   const [open, setOpen] = useState(false)
@@ -100,17 +101,54 @@ export default function Navbar() {
     if (last) miGdtPath = `/gdt/mi-equipo?liga_id=${encodeURIComponent(last)}`
   } catch (_) { /* localStorage no disponible: usar path simple */ }
 
+  // Navbar contextual (Fase preprod): solo mostramos links de un "juego"
+  // si el user tiene acceso. Los endpoints ya están filtrados por backend
+  // (torneo_jugadores), así que confiamos en lo que devuelven.
+  //   - tradicionales[]: torneos NO Mundial accesibles al user.
+  //   - mundiales[]:     torneos Mundial accesibles al user.
+  // Regla: admin/superadmin SIEMPRE ve los links tradicionales (para
+  // administrar aunque no juegue). Los links Mundial requieren al menos
+  // un Mundial accesible (no tiene sentido linkear a algo inexistente).
+  const [tradicionales, setTradicionales] = useState(null)
+  const [mundiales, setMundiales]         = useState(null)
+
+  useEffect(() => {
+    if (!user) return
+    let cancel = false
+    api.getTorneos()
+      .then(ts => {
+        if (cancel) return
+        const tradi = (Array.isArray(ts) ? ts : []).filter(t => t.tipo !== 'mundial_preguntas')
+        setTradicionales(tradi)
+      })
+      .catch(() => { if (!cancel) setTradicionales([]) })
+    api.getMundialTorneos()
+      .then(ts => { if (!cancel) setMundiales(Array.isArray(ts) ? ts : []) })
+      .catch(() => { if (!cancel) setMundiales([]) })
+    return () => { cancel = true }
+  }, [user?.id])
+
+  const verTradicional   = isAdmin || (Array.isArray(tradicionales) && tradicionales.length > 0)
+  const verMundial       = Array.isArray(mundiales) && mundiales.length > 0
+  const mundialUnicoId   = (verMundial && mundiales.length === 1) ? mundiales[0].id : null
+  const miMundialPath    = mundialUnicoId ? `/mundial/${mundialUnicoId}` : '/mundial'
+
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">⚽ Prode Chacho</Link>
 
       <div className="navbar-links">
-        <NavLink to="/" label="Inicio" exact />
+        {verTradicional && <NavLink to="/" label="Inicio" exact />}
         <NavLink to="/juegos" label="Juegos" />
-        <NavLink to={miGdtPath} label="Mi GDT" />
-        <NavLink to="/estadisticas" label="Estadísticas" />
-        <NavLink to="/comidas" label="Comidas" />
-        {isAdmin && <NavLink to="/admin" label="Admin" />}
+        {verTradicional && <NavLink to={miGdtPath} label="Mi GDT" />}
+        {verTradicional && <NavLink to="/estadisticas" label="Estadísticas" />}
+        {verTradicional && <NavLink to="/comidas" label="Comidas" />}
+        {/* Mundial: "Mi Mundial" siempre; Ranking/Respuestas solo cuando hay
+            exactamente 1 Mundial (sino el destino directo no tiene sentido). */}
+        {verMundial      && <NavLink to={miMundialPath} label="Mi Mundial" exact={!!mundialUnicoId} />}
+        {mundialUnicoId  && <NavLink to={`/mundial/${mundialUnicoId}/ranking`}   label="Ranking" />}
+        {mundialUnicoId  && <NavLink to={`/mundial/${mundialUnicoId}/respuestas`} label="Respuestas" />}
+        {isAdmin         && <NavLink to="/admin" label="Admin" />}
       </div>
 
       <div className="navbar-user">

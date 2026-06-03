@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/index.js'
+import { useAuth } from '../App.jsx'
 import MundialIcon from '../components/MundialIcon.jsx'
 
 /**
@@ -15,14 +16,29 @@ import MundialIcon from '../components/MundialIcon.jsx'
  */
 export default function GameSelector() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+
   const [mundialTorneos, setMundialTorneos] = useState(null) // null = cargando
   const [errorMundial, setErrorMundial] = useState('')
+
+  // Torneos tradicionales (no-Mundial) accesibles al user.
+  // Backend ya filtra por torneo_jugadores (admin/superadmin ve todo).
+  // null = cargando.
+  const [tradicionales, setTradicionales] = useState(null)
 
   useEffect(() => {
     let cancel = false
     api.getMundialTorneos()
       .then(ts => { if (!cancel) setMundialTorneos(Array.isArray(ts) ? ts : []) })
       .catch(e => { if (!cancel) { setMundialTorneos([]); setErrorMundial(e.message) } })
+    api.getTorneos()
+      .then(ts => {
+        if (cancel) return
+        const tradi = (Array.isArray(ts) ? ts : []).filter(t => t.tipo !== 'mundial_preguntas')
+        setTradicionales(tradi)
+      })
+      .catch(() => { if (!cancel) setTradicionales([]) })
     return () => { cancel = true }
   }, [])
 
@@ -36,6 +52,18 @@ export default function GameSelector() {
   else if (mundialTorneos.length === 1)
                               subtituloMundial = `${mundialTorneos[0].nombre} — entrar`
   else                        subtituloMundial = `${mundialTorneos.length} torneos disponibles`
+
+  // Card "Prode Chacho": activa si admin/superadmin (bypass) o si el user
+  // tiene al menos un torneo tradicional accesible. Sino, deshabilitada con
+  // mensaje "No estás participando".
+  const cargandoTradi = tradicionales === null
+  const hayTradicional = Array.isArray(tradicionales) && tradicionales.length > 0
+  const verProde = isAdmin || hayTradicional
+
+  let subtituloProde
+  if (cargandoTradi)          subtituloProde = 'Cargando...'
+  else if (verProde)          subtituloProde = 'Fechas, cruces, Gran DT, tablas y comidas'
+  else                        subtituloProde = 'No estás participando'
 
   return (
     <div style={{ maxWidth: 760, margin: '48px auto', padding: '0 16px' }}>
@@ -54,9 +82,9 @@ export default function GameSelector() {
         <GameCard
           icon="⚽"
           title="Prode Chacho"
-          subtitle="Fechas, cruces, Gran DT, tablas y comidas"
-          enabled
-          onClick={() => navigate('/')}
+          subtitle={subtituloProde}
+          enabled={verProde}
+          onClick={() => verProde && navigate('/')}
         />
         <GameCard
           icon={<MundialIcon width={90} height={60} />}
