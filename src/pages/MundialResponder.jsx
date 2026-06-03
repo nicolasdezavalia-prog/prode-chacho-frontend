@@ -114,6 +114,10 @@ export default function MundialResponder() {
   const [equiposCatalogo, setEquiposCatalogo] = useState([])
   const [respuestasUsr, setRespuestasUsr]   = useState({}) // { pregunta_id: respuesta_obj }
   const [respuestasOriginal, setRespuestasOriginal] = useState({})
+  // Fase 3 — mis puntos por pregunta. misPuntos.visible indica si el backend
+  // está exponiendo el detalle (estado >= grupos_jugados). ptsPorPregunta es
+  // un map { pregunta_id: pts_obtenidos|null } para badge en cada card.
+  const [misPuntos, setMisPuntos]           = useState({ visible: false, items: [], pts_totales: 0 })
   const [loading, setLoading]               = useState(true)
   const [error, setError]                   = useState('')
   const [info, setInfo]                     = useState('')
@@ -125,12 +129,15 @@ export default function MundialResponder() {
     setLoading(true)
     setError('')
     try {
-      const [torneosAll, cfg, preg, equipos, misRes] = await Promise.all([
+      const [torneosAll, cfg, preg, equipos, misRes, misPts] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialConfig(torneoId),
         api.getMundialPreguntasActivas(torneoId),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
         api.getMundialMisRespuestas(torneoId).catch(() => []),
+        // Mis puntos: en estado < grupos_jugados el backend devuelve visible:false.
+        // El .catch ofrece fallback amigable si el endpoint falla por cualquier motivo.
+        api.getMundialMisPuntos(torneoId).catch(() => ({ visible: false, items: [], pts_totales: 0 })),
       ])
       const t = (torneosAll || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
@@ -147,6 +154,9 @@ export default function MundialResponder() {
       }
       setRespuestasUsr(mapRes)
       setRespuestasOriginal(JSON.parse(JSON.stringify(mapRes)))
+      setMisPuntos(misPts && typeof misPts === 'object'
+        ? misPts
+        : { visible: false, items: [], pts_totales: 0 })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -176,6 +186,14 @@ export default function MundialResponder() {
   const parciales   = useMemo(() => Object.values(evaluacion.estados).filter(s => s === 'parcial').length, [evaluacion])
   const total       = preguntas.length
   const incompletas = total - completas
+
+  // Fase 3 — map { pregunta_id: pts_obtenidos|null } para mostrar badge por card.
+  // pts_obtenidos === null → pregunta sin resultado cargado todavía → no se muestra badge.
+  const ptsPorPregunta = useMemo(() => {
+    const m = {}
+    for (const it of (misPuntos.items || [])) m[it.pregunta_id] = it.pts_obtenidos
+    return m
+  }, [misPuntos])
 
   const isDirty = useMemo(() => {
     return JSON.stringify(respuestasUsr) !== JSON.stringify(respuestasOriginal)
@@ -316,6 +334,27 @@ export default function MundialResponder() {
         </div>
       )}
 
+      {/* Fase 3 — banner azul: mis puntos totales + link al ranking.
+          Solo cuando el backend marca visible:true (estado >= grupos_jugados). */}
+      {misPuntos.visible && (
+        <div style={{
+          padding: '12px 16px',
+          background: 'rgba(59,130,246,0.08)',
+          color: 'var(--color-text)',
+          borderRadius: 8, marginBottom: 16, fontSize: 14, lineHeight: 1.45,
+          border: '1px solid rgba(59,130,246,0.25)',
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+        }}>
+          <span>
+            🏆 Tus puntos: <strong style={{ fontSize: 16 }}>{misPuntos.pts_totales}</strong>
+          </span>
+          <span style={{ flex: 1 }} />
+          <Link to={`/mundial/${torneoId}/ranking`} className="btn btn-secondary btn-sm">
+            Ver ranking →
+          </Link>
+        </div>
+      )}
+
       {/* Lista de preguntas */}
       {preguntas.length === 0 ? (
         <div style={{
@@ -356,6 +395,32 @@ export default function MundialResponder() {
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, flex: 1 }}>
                   {p.enunciado}
                 </h3>
+                {/* Fase 3 — badge de pts si misPuntos.visible. null = pendiente. */}
+                {misPuntos.visible && (() => {
+                  const pts = ptsPorPregunta[p.id]
+                  if (pts === undefined || pts === null) {
+                    return (
+                      <span style={{
+                        fontSize: 11, color: 'var(--color-muted)',
+                        background: 'rgba(0,0,0,0.04)', padding: '2px 8px', borderRadius: 99,
+                        whiteSpace: 'nowrap',
+                      }} title="Resultado aún no cargado">
+                        pendiente
+                      </span>
+                    )
+                  }
+                  const acerto = pts > 0
+                  return (
+                    <span style={{
+                      fontSize: 12, fontWeight: 700,
+                      color: acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                      background: acerto ? 'rgba(22,163,74,0.10)' : 'rgba(0,0,0,0.04)',
+                      padding: '2px 8px', borderRadius: 99, whiteSpace: 'nowrap',
+                    }}>
+                      {acerto ? `+${pts} pts` : `${pts} pts`}
+                    </span>
+                  )
+                })()}
               </div>
               {p.aclaracion && (
                 <div style={{

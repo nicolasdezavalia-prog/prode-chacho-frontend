@@ -40,6 +40,7 @@ import GameSelector from './pages/GameSelector.jsx'
 import MundialLista from './pages/MundialLista.jsx'
 import MundialPlaceholder from './pages/MundialPlaceholder.jsx'
 import MundialResponder from './pages/MundialResponder.jsx'
+import MundialRanking from './pages/MundialRanking.jsx'
 import AdminMundialHub from './pages/admin/AdminMundialHub.jsx'
 import Navbar from './components/Navbar.jsx'
 import { api } from './api/index.js'
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="/juegos" element={<PrivateRoute><GameSelector /></PrivateRoute>} />
             <Route path="/mundial" element={<PrivateRoute><MundialLista /></PrivateRoute>} />
             <Route path="/mundial/:torneoId" element={<PrivateRoute><MundialResponder /></PrivateRoute>} />
+            <Route path="/mundial/:torneoId/ranking" element={<PrivateRoute><MundialRanking /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
             <Route path="/estadisticas" element={<PrivateRoute><Estadisticas /></PrivateRoute>} />

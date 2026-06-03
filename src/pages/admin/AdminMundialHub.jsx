@@ -4,6 +4,7 @@ import { api } from '../../api/index.js'
 import MundialIcon from '../../components/MundialIcon.jsx'
 import AdminMundialEquipos from './AdminMundialEquipos.jsx'
 import AdminMundialPreguntas from './AdminMundialPreguntas.jsx'
+import AdminMundialResultados from './AdminMundialResultados.jsx'
 
 /**
  * Hub admin del módulo Mundial — Fase 1.
@@ -230,7 +231,11 @@ export default function AdminMundialHub() {
           onClick={() => setActiveTab('equipos')}
         />
         <Tab label="🏆 Premios"    disabled tip="Disponible en Fase 2" />
-        <Tab label="📋 Resultados" disabled tip="Disponible en Fase 3" />
+        <Tab
+          label="📋 Resultados"
+          active={activeTab === 'resultados'}
+          onClick={() => setActiveTab('resultados')}
+        />
         <Tab label="🔁 Cambios"    disabled tip="Disponible en Fase 5" />
       </div>
 
@@ -364,6 +369,15 @@ export default function AdminMundialHub() {
       {/* Tab Preguntas */}
       {activeTab === 'preguntas' && (
         <AdminMundialPreguntas
+          torneoId={torneoId}
+          estado={config.estado}
+          onChanged={load}
+        />
+      )}
+
+      {/* Tab Resultados — Fase 3 */}
+      {activeTab === 'resultados' && (
+        <AdminMundialResultados
           torneoId={torneoId}
           estado={config.estado}
           onChanged={load}

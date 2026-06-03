@@ -262,4 +262,30 @@ export const api = {
     request('GET', `/mundial/${torneoId}/mis-respuestas`),
   saveMundialMisRespuestas: (torneoId, respuestas) =>
     request('PUT', `/mundial/${torneoId}/mis-respuestas`, { respuestas }),
+
+  // Mundial — Fase 3 (resultados + ranking + mis-puntos)
+  // - getMundialResultados:   solo visible en estado >= 'grupos_jugados' (sino 403).
+  // - saveMundialResultado:   upsert; requiere estado >= 'grupos_jugados';
+  //                           cross-check de equipos contra catálogo activo.
+  // - deleteMundialResultado: borra el resultado cargado de una pregunta.
+  // - getMundialRanking:      { visible, motivo, estado, ranking, preguntas_con_resultado, total_preguntas }.
+  //                           Si visible=false, ranking=[] y motivo explica el porqué.
+  // - getMundialMisPuntos:    { visible, estado, items, pts_totales }. items[].pts_obtenidos
+  //                           es null si la pregunta aún no tiene resultado cargado.
+  getMundialResultados: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/resultados`),
+  saveMundialResultado: (torneoId, preguntaId, resultado_json) =>
+    request('POST', `/mundial/${torneoId}/resultados/${preguntaId}`, { resultado_json }),
+  deleteMundialResultado: (torneoId, preguntaId) =>
+    request('DELETE', `/mundial/${torneoId}/resultados/${preguntaId}`),
+  getMundialRanking: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/ranking`),
+  getMundialMisPuntos: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/mis-puntos`),
+
+  // Fase 3.1 — respuestas de todos los users para UNA pregunta. Admin-only.
+  // Pensado para el editor de overrides_pts de tipos texto.
+  // Gate: estado >= 'grupos_jugados' (sino 403). Devuelve [] si nadie respondió.
+  getMundialRespuestasPregunta: (torneoId, preguntaId) =>
+    request('GET', `/mundial/${torneoId}/preguntas/${preguntaId}/respuestas`),
 };
