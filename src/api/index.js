@@ -63,9 +63,13 @@ export const api = {
   //   201 con { id, nombre, email, role }. 409 si email duplicado.
   // - cambiarPasswordUsuario(id, password): pisa password del user.
   //   Mín 6 caracteres. Invalida magic links pendientes del user.
+  // - editarNombreUsuario(id, nombre): edita el nombre visible (admin only).
+  //   No toca email/role/password/magic link. Trim + validación non-empty.
   createUsuario: (data) => request('POST', '/usuarios', data),
   cambiarPasswordUsuario: (id, password) =>
     request('POST', `/usuarios/${id}/password`, { password }),
+  editarNombreUsuario: (id, nombre) =>
+    request('PATCH', `/usuarios/${id}`, { nombre }),
 
   // Fechas
   getFechas: (torneoId) => request('GET', `/fechas/torneo/${torneoId}`),

@@ -80,6 +80,10 @@ export default function AdminMundialHub() {
   const [form, setForm]       = useState(null)
   const [saving, setSaving]   = useState(false)
   const [avanzando, setAvanzando] = useState(false)
+  const [forzando, setForzando] = useState(false)
+  // Estado seleccionado en el select de "Forzar estado". Vacío = no hay
+  // selección. Se limpia al éxito.
+  const [forzarEstadoSel, setForzarEstadoSel] = useState('')
   const [error, setError]     = useState('')
   const [info, setInfo]       = useState('')
   // Tabs state-based (Fase 2.1). Solo 'config' y 'equipos' están activas.
@@ -153,6 +157,32 @@ export default function AdminMundialHub() {
     }
   }
 
+  // ── Forzar estado (admin override) ──────────────────────────────────────
+  // Permite al admin saltar la máquina de estados (incluyendo retroceder).
+  // Backend: PUT /config con { estado, force: true } (Fase preprod).
+  // NO borra respuestas ni resultados — el admin asume el riesgo si retrocede.
+  async function handleForzarEstado() {
+    if (!forzarEstadoSel || forzarEstadoSel === config.estado) return
+    const ok = confirm(
+      `Vas a cambiar el estado del torneo de "${ESTADO_LABEL[config.estado]}" a "${ESTADO_LABEL[forzarEstadoSel]}".\n\n` +
+      `Esto SALTA la máquina de estados forward-only. Si retrocedés, se desbloquea la edición de preguntas/equipos.\n\n` +
+      `Las respuestas y resultados ya cargados NO se borran. Pueden quedar inconsistentes si después editás preguntas.\n\n` +
+      `¿Continuar?`
+    )
+    if (!ok) return
+    setForzando(true); setError(''); setInfo('')
+    try {
+      await api.updateMundialConfig(torneoId, { estado: forzarEstadoSel, force: true })
+      setInfo(`Estado forzado a "${ESTADO_LABEL[forzarEstadoSel]}".`)
+      setForzarEstadoSel('')
+      await load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setForzando(false)
+    }
+  }
+
   if (error && !torneo) return <div className="error-msg" style={{ margin: 24 }}>{error}</div>
   if (!torneo || !config) return <div className="loading">Cargando...</div>
 
@@ -196,13 +226,58 @@ export default function AdminMundialHub() {
             <button
               className="btn btn-primary"
               onClick={handleAvanzarEstado}
-              disabled={avanzando}
+              disabled={avanzando || forzando}
             >
               {avanzando ? 'Avanzando...' : `→ Pasar a "${ESTADO_LABEL[proximo]}"`}
             </button>
           ) : (
             <span className="badge badge-finalizada">Torneo finalizado</span>
           )}
+        </div>
+
+        {/* Forzar estado (admin override) — Fase preprod */}
+        <div style={{
+          marginTop: 14, paddingTop: 14,
+          borderTop: '1px dashed var(--color-border)',
+        }}>
+          <div style={{
+            fontSize: 11, color: 'var(--color-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.05em',
+            marginBottom: 6,
+          }}>
+            🔧 Forzar estado (override admin)
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10, lineHeight: 1.45 }}>
+            Salta la máquina de estados forward-only. Útil si te equivocaste o necesitás
+            retroceder. <strong>No borra respuestas ni resultados.</strong>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              value={forzarEstadoSel}
+              onChange={e => setForzarEstadoSel(e.target.value)}
+              disabled={forzando || avanzando}
+              style={{
+                padding: '6px 10px', fontSize: 13,
+                border: '1px solid var(--color-border)', borderRadius: 6,
+                background: 'white',
+              }}
+            >
+              <option value="">— Elegí el estado al que querés ir —</option>
+              {Object.keys(ESTADO_LABEL).map(estado => (
+                <option key={estado} value={estado} disabled={estado === config.estado}>
+                  {ESTADO_LABEL[estado]}{estado === config.estado ? ' (actual)' : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleForzarEstado}
+              disabled={!forzarEstadoSel || forzarEstadoSel === config.estado || forzando || avanzando}
+            >
+              {forzando ? 'Forzando...' : 'Forzar estado'}
+            </button>
+          </div>
         </div>
       </div>
 

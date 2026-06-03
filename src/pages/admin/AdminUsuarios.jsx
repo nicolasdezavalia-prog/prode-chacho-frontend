@@ -35,6 +35,13 @@ export default function AdminUsuarios() {
   // { userId: timestamp } para mostrar flash verde "Clave actualizada" por un rato
   const [okClavePara, setOkClavePara] = useState({})
 
+  // ── Edición de nombre (inline por fila) ────────────────────────────────
+  // Estructura: edicionNombre = { userId | null, nombre: '', error: '' }
+  // Solo una fila puede estar editando a la vez.
+  const [edicionNombre, setEdicionNombre] = useState({ userId: null, nombre: '', error: '' })
+  const [guardandoNombre, setGuardandoNombre] = useState(false)
+  const [okNombrePara, setOkNombrePara] = useState({})
+
   useEffect(() => { load() }, [])
 
   const load = async () => {
@@ -175,6 +182,44 @@ export default function AdminUsuarios() {
     }
   }
 
+  // ── Edición de nombre ──────────────────────────────────────────────────
+  const handleAbrirEdicionNombre = (u) => {
+    setEdicionNombre({ userId: u.id, nombre: u.nombre || '', error: '' })
+  }
+  const handleCancelarEdicionNombre = () => {
+    if (guardandoNombre) return
+    setEdicionNombre({ userId: null, nombre: '', error: '' })
+  }
+  const handleSubmitEdicionNombre = async (u) => {
+    if (guardandoNombre) return
+    const nuevo = (edicionNombre.nombre || '').trim()
+    if (nuevo.length === 0) {
+      setEdicionNombre(e => ({ ...e, error: 'El nombre no puede estar vacío.' }))
+      return
+    }
+    if (nuevo === (u.nombre || '').trim()) {
+      // Sin cambios → cerrar sin pegar al backend.
+      setEdicionNombre({ userId: null, nombre: '', error: '' })
+      return
+    }
+    setGuardandoNombre(true)
+    try {
+      const updated = await api.editarNombreUsuario(u.id, nuevo)
+      setUsuarios(prev => prev.map(x => x.id === u.id ? { ...x, nombre: updated.nombre } : x))
+      setEdicionNombre({ userId: null, nombre: '', error: '' })
+      setOkNombrePara(p => ({ ...p, [u.id]: Date.now() }))
+      setTimeout(() => {
+        setOkNombrePara(p => {
+          const next = { ...p }; delete next[u.id]; return next
+        })
+      }, 3500)
+    } catch (e) {
+      setEdicionNombre(ed => ({ ...ed, error: e.message }))
+    } finally {
+      setGuardandoNombre(false)
+    }
+  }
+
   if (loading) return <div className="loading">Cargando...</div>
 
   return (
@@ -288,8 +333,70 @@ export default function AdminUsuarios() {
                   background: esMismo ? 'rgba(59,130,246,0.04)' : 'transparent',
                 }}>
                   <td style={{ padding: '10px 12px', fontWeight: esMismo ? 700 : 400 }}>
-                    {u.nombre}
-                    {esMismo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
+                    {edicionNombre.userId === u.id ? (
+                      // Modo edición inline: input + Guardar / Cancelar.
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <input
+                          type="text"
+                          value={edicionNombre.nombre}
+                          onChange={e => setEdicionNombre(ed => ({ ...ed, nombre: e.target.value, error: '' }))}
+                          disabled={guardandoNombre}
+                          style={{
+                            width: '100%', padding: '4px 8px', fontSize: 13,
+                            border: '1px solid var(--color-border)', borderRadius: 4,
+                          }}
+                          autoFocus
+                          maxLength={100}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter')  handleSubmitEdicionNombre(u)
+                            if (e.key === 'Escape') handleCancelarEdicionNombre()
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleSubmitEdicionNombre(u)}
+                            disabled={guardandoNombre}
+                            style={{ fontSize: 11 }}
+                          >
+                            {guardandoNombre ? '...' : 'Guardar'}
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleCancelarEdicionNombre}
+                            disabled={guardandoNombre}
+                            style={{ fontSize: 11 }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                        {edicionNombre.error && (
+                          <div style={{ fontSize: 11, color: 'var(--color-danger)' }}>{edicionNombre.error}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{u.nombre}</span>
+                        {esMismo && <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>(vos)</span>}
+                        <button
+                          type="button"
+                          onClick={() => handleAbrirEdicionNombre(u)}
+                          title="Editar nombre"
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            padding: '2px 4px', fontSize: 12, color: 'var(--color-muted)',
+                            lineHeight: 1,
+                          }}
+                        >
+                          ✏️
+                        </button>
+                        {okNombrePara[u.id] && (
+                          <span style={{ fontSize: 11, color: 'var(--color-success)' }}>
+                            ✓ Nombre actualizado
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '10px 12px', color: 'var(--color-muted)', fontSize: 13 }}>{u.email}</td>
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
