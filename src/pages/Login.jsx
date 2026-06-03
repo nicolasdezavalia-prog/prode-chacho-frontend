@@ -18,7 +18,9 @@ export default function Login() {
     try {
       const data = await api.login(email, password)
       login(data.user, data.token)
-      navigate('/')
+      // Post-login → /juegos (selector). Desde ahí el user elige Prode Chacho
+      // o Mundial (sujeto a sus asignaciones de torneo_jugadores).
+      navigate('/juegos')
     } catch (err) {
       setError(err.message)
     } finally {

@@ -105,7 +105,9 @@ export default function App() {
         {user && <Navbar />}
         <div className="main-content">
           <Routes>
-            <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+            {/* Si un user ya logueado intenta volver a /login, lo bounceamos
+                al selector — mismo destino que el post-login flow. */}
+            <Route path="/login" element={user ? <Navigate to="/juegos" /> : <Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
             <Route path="/juegos" element={<PrivateRoute><GameSelector /></PrivateRoute>} />
