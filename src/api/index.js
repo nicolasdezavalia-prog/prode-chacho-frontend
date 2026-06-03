@@ -288,4 +288,12 @@ export const api = {
   // Gate: estado >= 'grupos_jugados' (sino 403). Devuelve [] si nadie respondió.
   getMundialRespuestasPregunta: (torneoId, preguntaId) =>
     request('GET', `/mundial/${torneoId}/preguntas/${preguntaId}/respuestas`),
+
+  // Fase 3.3 — vista social: respuestas de TODOS los participantes en TODAS
+  // las preguntas activas. Accesible por cualquier user del torneo.
+  // Gate: visible solo cuando ya no se puede cambiar la planilla
+  //   (estado != 'abierto' OR deadline_carga vencido).
+  // Si no visible, devuelve { visible: false, motivo, mensaje }.
+  getMundialRespuestasPublicas: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/respuestas-publicas`),
 };

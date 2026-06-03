@@ -334,6 +334,20 @@ export default function MundialResponder() {
         </div>
       )}
 
+      {/* Fase 3.3 — link permanente a respuestas de participantes.
+          El usuario puede entrar siempre; el backend decide si mostrar el
+          mensaje de bloqueo o las respuestas según estado + deadline. */}
+      {preguntas.length > 0 && (
+        <div style={{
+          marginBottom: 12, fontSize: 13,
+          display: 'flex', justifyContent: 'flex-end',
+        }}>
+          <Link to={`/mundial/${torneoId}/respuestas`} className="btn btn-secondary btn-sm">
+            👥 Ver respuestas de participantes
+          </Link>
+        </div>
+      )}
+
       {/* Fase 3 — banner azul: mis puntos totales + link al ranking.
           Solo cuando el backend marca visible:true (estado >= grupos_jugados). */}
       {misPuntos.visible && (
