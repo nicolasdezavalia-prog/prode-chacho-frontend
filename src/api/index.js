@@ -57,6 +57,15 @@ export const api = {
   toggleRolUsuario: (id) => request('PATCH', `/usuarios/${id}/role`),
   generarResetLink: (id) => request('POST', `/usuarios/${id}/reset-link`),
   resetPassword: (token, password) => request('POST', '/auth/reset-password', { token, password }),
+  // Pre-prod (admin-only):
+  // - createUsuario({ nombre, email, password, role? }): crea usuario.
+  //   role default 'user' (JUGADOR). Solo 'user' o 'admin' aceptados.
+  //   201 con { id, nombre, email, role }. 409 si email duplicado.
+  // - cambiarPasswordUsuario(id, password): pisa password del user.
+  //   Mín 6 caracteres. Invalida magic links pendientes del user.
+  createUsuario: (data) => request('POST', '/usuarios', data),
+  cambiarPasswordUsuario: (id, password) =>
+    request('POST', `/usuarios/${id}/password`, { password }),
 
   // Fechas
   getFechas: (torneoId) => request('GET', `/fechas/torneo/${torneoId}`),

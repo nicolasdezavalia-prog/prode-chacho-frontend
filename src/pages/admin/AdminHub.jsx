@@ -47,13 +47,21 @@ const BASE_CARDS = [
   },
 ]
 
+// Pre-producción: la tarjeta Mundial está oculta en el panel principal para
+// evitar duplicidad — la gestión del Mundial vive en Admin → Torneos →
+// "Configurar Mundial". Para reactivar la tarjeta, poner este flag en `true`.
+// Cuando esté en true, el useEffect de abajo fetchea los torneos Mundial y
+// la tarjeta se inserta dinámicamente después de "Torneos".
+const SHOW_MUNDIAL_CARD = false
+
 export default function AdminHub() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  // Tarjeta Mundial: aparece solo si hay >=1 torneo de tipo 'mundial_preguntas'.
+  // Tarjeta Mundial: aparece solo si SHOW_MUNDIAL_CARD=true Y hay >=1 torneo Mundial.
   const [mundialTorneos, setMundialTorneos] = useState([])
 
   useEffect(() => {
+    if (!SHOW_MUNDIAL_CARD) return  // ahorrar el fetch si la tarjeta está oculta
     let cancel = false
     api.getMundialTorneos()
       .then(ts => { if (!cancel) setMundialTorneos(Array.isArray(ts) ? ts : []) })
@@ -62,7 +70,7 @@ export default function AdminHub() {
   }, [])
 
   const cards = [...BASE_CARDS]
-  if (mundialTorneos.length > 0) {
+  if (SHOW_MUNDIAL_CARD && mundialTorneos.length > 0) {
     // Si hay 1 solo torneo Mundial, link directo a su hub; si hay varios, al listado de torneos.
     const to = mundialTorneos.length === 1
       ? `/admin/torneo/${mundialTorneos[0].id}/mundial`
