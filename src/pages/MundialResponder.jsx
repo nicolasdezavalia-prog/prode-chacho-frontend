@@ -118,6 +118,12 @@ export default function MundialResponder() {
   // está exponiendo el detalle (estado >= grupos_jugados). ptsPorPregunta es
   // un map { pregunta_id: pts_obtenidos|null } para badge en cada card.
   const [misPuntos, setMisPuntos]           = useState({ visible: false, items: [], pts_totales: 0 })
+  // Fase 5 — flujo de cambios post-grupos. Solo se llena cuando estado='cambios_abiertos'.
+  //   misCambiosCtx: contexto de la ventana ({ ventana, habilitado, cambios_usados, cambios_restantes, costo_usd, preguntas_habilitables }).
+  //   respuestasPreVentana: copia inmutable de mundial_respuestas_usuario al inicio
+  //     de la ventana (para mostrar el diff "original → nueva" en cada card).
+  const [misCambiosCtx, setMisCambiosCtx]   = useState({ visible: false })
+  const [respuestasPreVentana, setRespuestasPreVentana] = useState({})
   const [loading, setLoading]               = useState(true)
   const [error, setError]                   = useState('')
   // Fase preprod — distinguir errores de acceso (403) del resto para mostrar
@@ -156,11 +162,35 @@ export default function MundialResponder() {
         try { mapRes[r.pregunta_id] = JSON.parse(r.respuesta_json) }
         catch { /* ignorar respuestas malformadas */ }
       }
-      setRespuestasUsr(mapRes)
-      setRespuestasOriginal(JSON.parse(JSON.stringify(mapRes)))
       setMisPuntos(misPts && typeof misPts === 'object'
         ? misPts
         : { visible: false, items: [], pts_totales: 0 })
+
+      // Fase 5 — si el torneo está en 'cambios_abiertos', cargamos el contexto
+      // y los cambios ya cargados por este user. Estos endpoints son no-ops
+      // (devuelven ctx vacío) si no aplica, así que llamarlos siempre tampoco
+      // sería incorrecto; pero evitamos round-trips innecesarios.
+      let mapMixed = mapRes
+      let ctx = { visible: false }
+      if (cfg.estado === 'cambios_abiertos') {
+        const [ctxResp, misCambResp] = await Promise.all([
+          api.getMundialMisCambiosDisponibles(torneoId).catch(() => null),
+          api.getMundialMisCambios(torneoId).catch(() => null),
+        ])
+        if (ctxResp) ctx = { visible: true, ...ctxResp }
+        // Overlay de cambios cargados sobre las respuestas pre-ventana.
+        const cargados = (misCambResp && Array.isArray(misCambResp.cambios)) ? misCambResp.cambios : []
+        if (cargados.length > 0) {
+          mapMixed = { ...mapRes }
+          for (const c of cargados) {
+            try { mapMixed[c.pregunta_id] = JSON.parse(c.respuesta_nueva_json) } catch {}
+          }
+        }
+      }
+      setMisCambiosCtx(ctx)
+      setRespuestasPreVentana(JSON.parse(JSON.stringify(mapRes)))
+      setRespuestasUsr(mapMixed)
+      setRespuestasOriginal(JSON.parse(JSON.stringify(mapMixed)))
     } catch (e) {
       // Distinguimos el 403 de acceso por mensaje del backend (que es estable).
       // No tenemos status code en el error de fetch wrapper, pero el message
@@ -179,6 +209,11 @@ export default function MundialResponder() {
   const deadline  = config?.deadline_carga ? new Date(config.deadline_carga) : null
   const deadlineVencido = deadline && !isNaN(deadline.getTime()) && new Date() > deadline
   const cargaAbierta    = estado === 'abierto' && !deadlineVencido
+
+  // Fase 5 — modo "cambios": el torneo está en 'cambios_abiertos' y el user
+  // está habilitado en la ventana. Editar preguntas con cambio_habilitado=1.
+  const modoCambios       = estado === 'cambios_abiertos'
+  const puedeCargarCambios = modoCambios && !!misCambiosCtx?.habilitado && !!misCambiosCtx?.ventana
 
   // Mapa { pregunta_id: 'completa' | 'parcial' | 'vacia' } + parseo de cfg una sola vez.
   const evaluacion = useMemo(() => {
@@ -228,7 +263,41 @@ export default function MundialResponder() {
     setError('')
     setInfo('')
     try {
-      // Solo mandar las respuestas con contenido
+      if (modoCambios) {
+        // Fase 5: en modo cambios, mandar solo preguntas dirty con cambio_habilitado=1.
+        if (!puedeCargarCambios) {
+          setError('No estás habilitado para esta ventana de cambios.')
+          return
+        }
+        const cambios = []
+        for (const p of preguntas) {
+          if (p.cambio_habilitado !== 1) continue
+          const actual  = respuestasUsr[p.id]
+          const orig    = respuestasOriginal[p.id]
+          if (JSON.stringify(actual) !== JSON.stringify(orig)) {
+            if (!actual || Object.keys(actual).length === 0) {
+              setError(`Pregunta #${p.numero}: respuesta vacía. No se puede borrar un cambio, solo modificar.`)
+              return
+            }
+            cambios.push({ pregunta_id: p.id, respuesta_json: actual })
+          }
+        }
+        if (cambios.length === 0) {
+          setError('No hay cambios nuevos para guardar.')
+          return
+        }
+        const result = await api.saveMundialMisCambios(torneoId, cambios)
+        setInfo(`Cambios guardados — creados: ${result.creados} · actualizados: ${result.actualizados} · usados: ${result.cambios_usados}/${(misCambiosCtx?.ventana?.cambios_por_usuario ?? '?')}.`)
+        setRespuestasOriginal(JSON.parse(JSON.stringify(respuestasUsr)))
+        // Refrescar el contexto para que el contador se actualice.
+        try {
+          const ctxResp = await api.getMundialMisCambiosDisponibles(torneoId)
+          setMisCambiosCtx({ visible: true, ...ctxResp })
+        } catch (_) { /* ignorar */ }
+        return
+      }
+
+      // Flujo normal (estado='abierto'): PUT /mis-respuestas.
       const respuestas = Object.entries(respuestasUsr)
         .filter(([_, r]) => r && Object.keys(r).length > 0)
         .map(([pid, r]) => ({ pregunta_id: parseInt(pid, 10), respuesta_json: r }))
@@ -238,13 +307,24 @@ export default function MundialResponder() {
       }
       const result = await api.saveMundialMisRespuestas(torneoId, respuestas)
       setInfo(`Guardado · creadas: ${result.creadas} · actualizadas: ${result.actualizadas} · total: ${result.total}`)
-      // Marcar la versión actual como "original" para resetear el dirty flag
       setRespuestasOriginal(JSON.parse(JSON.stringify(respuestasUsr)))
     } catch (e) {
       setError(e.message)
     } finally {
       setSaving(false)
     }
+  }
+
+  /**
+   * Determina si una pregunta es editable en el contexto actual.
+   *   - Flujo normal (cargaAbierta): todas editables.
+   *   - Modo cambios: solo si user habilitado Y pregunta.cambio_habilitado=1.
+   *   - Resto: read-only.
+   */
+  function esEditable(pregunta) {
+    if (cargaAbierta) return true
+    if (modoCambios && puedeCargarCambios) return pregunta.cambio_habilitado === 1
+    return false
   }
 
   if (loading) return <div className="loading">Cargando Mundial...</div>
@@ -295,8 +375,116 @@ export default function MundialResponder() {
         </div>
       </div>
 
-      {/* Banner según estado */}
-      {!cargaAbierta && (
+      {/* Sticky mini-tablero (Fase 5 UX v2) — más jerárquico.
+          Layout: dos zonas (izquierda info / derecha puntos + acciones).
+          top: 48 ≈ navbar height. z-index: 50 (< navbar 100).
+          Bleed lateral (-16) para tocar los bordes del container.
+          En mobile, las zonas wrappean naturalmente. */}
+      <div style={{
+        position: 'sticky',
+        top: 48,
+        zIndex: 50,
+        background: 'var(--color-surface, white)',
+        borderBottom: '1px solid var(--color-border)',
+        borderTop:    '1px solid var(--color-border)',
+        padding: '10px 16px',
+        margin: '0 -16px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexWrap: 'wrap',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+      }}>
+        {/* Zona izquierda: torneo + estado + cambios */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+          minWidth: 0,
+        }}>
+          <span style={{
+            fontWeight: 700, fontSize: 14,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            color: 'var(--color-text)', whiteSpace: 'nowrap',
+          }}>
+            🌍 {torneo.nombre}
+          </span>
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
+            background: 'rgba(99,102,241,0.12)', color: '#6366f1',
+            whiteSpace: 'nowrap', letterSpacing: '0.02em',
+          }}>
+            {ESTADO_LABEL[estado] || estado}
+          </span>
+          {modoCambios && (
+            puedeCargarCambios ? (
+              <span style={{
+                fontSize: 12, padding: '3px 10px', borderRadius: 99,
+                background: 'rgba(124,58,237,0.12)', color: '#7c3aed',
+                whiteSpace: 'nowrap', fontWeight: 600,
+              }}>
+                🔄 {misCambiosCtx.cambios_usados}/{misCambiosCtx.ventana?.cambios_por_usuario} usados · USD {misCambiosCtx.costo_usd}
+              </span>
+            ) : (
+              <span style={{
+                fontSize: 12, padding: '3px 10px', borderRadius: 99,
+                background: 'rgba(234,179,8,0.15)', color: '#a16207',
+                whiteSpace: 'nowrap', fontWeight: 600,
+              }}>
+                🔒 No habilitado
+              </span>
+            )
+          )}
+        </div>
+
+        {/* Zona derecha: puntos prominentes + botones */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        }}>
+          {misPuntos.visible && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'baseline', gap: 6,
+              padding: '4px 14px',
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.10), rgba(124,58,237,0.10))',
+              border: '1px solid rgba(59,130,246,0.30)',
+              borderRadius: 10,
+              boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.04)',
+            }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🏆</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+              }}>
+                Tus puntos
+              </span>
+              <span style={{
+                fontSize: 24, fontWeight: 800, lineHeight: 1,
+                color: 'var(--color-text)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {misPuntos.pts_totales}
+              </span>
+            </div>
+          )}
+          <Link
+            to={`/mundial/${torneoId}/ranking`}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 12, padding: '5px 12px' }}
+          >
+            Ranking
+          </Link>
+          <Link
+            to={`/mundial/${torneoId}/respuestas`}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 12, padding: '5px 12px' }}
+          >
+            Respuestas
+          </Link>
+        </div>
+      </div>
+
+      {/* Banner según estado — Fase 5 sobreescribe el mensaje genérico cuando
+          el torneo está en 'cambios_abiertos'. */}
+      {!cargaAbierta && !modoCambios && (
         <div style={{
           padding: '12px 16px',
           background: deadlineVencido ? 'rgba(220,38,38,0.08)' : 'rgba(234,179,8,0.12)',
@@ -319,6 +507,44 @@ export default function MundialResponder() {
         </div>
       )}
 
+      {/* Fase 5 — banner ventana de cambios */}
+      {modoCambios && (
+        puedeCargarCambios ? (
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(124,58,237,0.08)',
+            color: 'var(--color-text)',
+            borderRadius: 8, marginBottom: 16, fontSize: 14, lineHeight: 1.5,
+            border: '1px solid rgba(124,58,237,0.25)',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              🔄 Ventana de cambios abierta — {misCambiosCtx.ventana?.nombre}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+              Usaste <strong>{misCambiosCtx.cambios_usados}</strong> de{' '}
+              <strong>{misCambiosCtx.ventana?.cambios_por_usuario}</strong> cambios.
+              Costo: USD <strong>{misCambiosCtx.costo_usd}</strong> por cambio.
+              Solo se pueden editar preguntas marcadas como cambiables.
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(234,179,8,0.12)',
+            color: '#a16207',
+            borderRadius: 8, marginBottom: 16, fontSize: 14, lineHeight: 1.5,
+            border: '1px solid rgba(234,179,8,0.25)',
+          }}>
+            🔒 <strong>No estás habilitado para esta ventana de cambios.</strong>
+            <div style={{ fontSize: 13, marginTop: 4 }}>
+              {misCambiosCtx?.ventana
+                ? 'Pedile al admin que te habilite si querés cargar cambios.'
+                : 'No hay ventana de cambios abierta en este momento.'}
+            </div>
+          </div>
+        )
+      )}
+
       {/* Mensajes */}
       {error && <div className="error-msg">{error}</div>}
       {info && (
@@ -332,8 +558,8 @@ export default function MundialResponder() {
         </div>
       )}
 
-      {/* Contador + dirty flag */}
-      {preguntas.length > 0 && (
+      {/* Contador + dirty flag — solo en flujo normal (no en modoCambios) */}
+      {preguntas.length > 0 && !modoCambios && (
         <div style={{
           fontSize: 13, color: 'var(--color-muted)', marginBottom: 12,
           display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center',
@@ -350,7 +576,18 @@ export default function MundialResponder() {
         </div>
       )}
 
-      {/* Banner amarillo: hay preguntas sin completar. NO bloquea el guardado. */}
+      {/* En modoCambios, mostrar dirty flag específico */}
+      {modoCambios && puedeCargarCambios && isDirty && (
+        <div style={{
+          fontSize: 13, color: '#a16207', marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          ⚠ Tenés cambios sin guardar
+        </div>
+      )}
+
+      {/* Banner amarillo: hay preguntas sin completar. NO bloquea el guardado.
+          Solo en flujo normal — en modoCambios no aplica el concepto. */}
       {cargaAbierta && preguntas.length > 0 && incompletas > 0 && (
         <div style={{
           padding: '10px 14px',
@@ -440,6 +677,22 @@ export default function MundialResponder() {
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, flex: 1 }}>
                   {p.enunciado}
                 </h3>
+                {/* Fase 5 — badge cambiable/no en modo cambios. */}
+                {modoCambios && (
+                  p.cambio_habilitado === 1 ? (
+                    <span title="Esta pregunta es cambiable" style={{
+                      fontSize: 11, fontWeight: 600, color: 'var(--color-primary)',
+                      background: 'rgba(59,130,246,0.10)', padding: '2px 8px', borderRadius: 99,
+                      whiteSpace: 'nowrap',
+                    }}>🔄 cambiable</span>
+                  ) : (
+                    <span title="Esta pregunta NO se puede cambiar" style={{
+                      fontSize: 11, fontWeight: 600, color: 'var(--color-muted)',
+                      background: 'rgba(0,0,0,0.04)', padding: '2px 8px', borderRadius: 99,
+                      whiteSpace: 'nowrap',
+                    }}>🔒 fija</span>
+                  )
+                )}
                 {/* Fase 3 — badge de pts si misPuntos.visible. null = pendiente. */}
                 {misPuntos.visible && (() => {
                   const pts = ptsPorPregunta[p.id]
@@ -481,15 +734,35 @@ export default function MundialResponder() {
                 equiposCatalogo={equiposCatalogo}
                 valor={respuestasUsr[p.id]}
                 onChange={nueva => handleChange(p.id, nueva)}
-                disabled={!cargaAbierta}
+                disabled={!esEditable(p)}
               />
+              {/* Fase 5 — diff "Original → Nueva" cuando hubo edición en
+                  modo cambios. Solo se muestra si realmente difiere de la
+                  respuesta pre-ventana. */}
+              {modoCambios && p.cambio_habilitado === 1 && (() => {
+                const pre  = respuestasPreVentana[p.id]
+                const curr = respuestasUsr[p.id]
+                if (JSON.stringify(pre || {}) === JSON.stringify(curr || {})) return null
+                return (
+                  <div style={{
+                    marginTop: 8, padding: '6px 10px',
+                    background: 'rgba(59,130,246,0.05)',
+                    border: '1px dashed rgba(59,130,246,0.30)',
+                    borderRadius: 6, fontSize: 12, color: 'var(--color-muted)',
+                  }}>
+                    <strong>Original:</strong> {compactJsonResp(pre)} →{' '}
+                    <strong style={{ color: 'var(--color-primary)' }}>Nueva:</strong>{' '}
+                    {compactJsonResp(curr)}
+                  </div>
+                )
+              })()}
             </div>
           )
         })
       )}
 
-      {/* Botón guardar (sticky al pie) */}
-      {cargaAbierta && preguntas.length > 0 && (
+      {/* Botón guardar (sticky al pie). En modo cambios: "Guardar cambios". */}
+      {(cargaAbierta || (modoCambios && puedeCargarCambios)) && preguntas.length > 0 && (
         <div style={{
           position: 'sticky', bottom: 0,
           padding: '12px 0', marginTop: 16,
@@ -503,10 +776,21 @@ export default function MundialResponder() {
             className="btn btn-primary"
             style={{ minWidth: 200 }}
           >
-            {saving ? 'Guardando...' : '💾 Guardar mi planilla'}
+            {saving
+              ? 'Guardando...'
+              : modoCambios ? '🔄 Guardar cambios' : '💾 Guardar mi planilla'}
           </button>
         </div>
       )}
     </div>
   )
+}
+
+// Helper local para mostrar el diff compacto sin colisionar con la página
+// de respuestas-publicas (que tiene su propio compactJson).
+function compactJsonResp(obj) {
+  if (!obj || typeof obj !== 'object') return '∅'
+  const entries = Object.entries(obj)
+  if (entries.length === 0) return '∅'
+  return entries.map(([k, v]) => `${k}=${Array.isArray(v) ? `[${v.join(',')}]` : v}`).join(' ')
 }
