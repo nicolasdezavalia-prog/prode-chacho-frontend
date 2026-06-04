@@ -236,6 +236,18 @@ export const api = {
   updateMundialConfig: (torneoId, data) => request('PUT', `/mundial/${torneoId}/config`, data),
   getMundialEquiposCatalogo: (torneoId) => request('GET', `/mundial/${torneoId}/equipos`),
   getMundialPremios: (torneoId) => request('GET', `/mundial/${torneoId}/premios`),
+  // Fase Premios — modelo fijo (+ Fase 6.1 comida_rol):
+  // - saveMundialPremiosBulk: UPSERT bulk.
+  //   premios = [{ posicion, usd, comida_rol? }].
+  //   usd acepta negativos. Rechaza si estado='finalizado'.
+  //   comida_rol opcional: null | 'gratis' | 'paga' | 'organiza'.
+  // - getMundialPremiosCalculados: cruza mundial_premios con ranking actual.
+  //   Devuelve { premios, total_neto, configurado, estimado, estado }.
+  //   Cada premio incluye comida_rol además de usd + usuario.
+  saveMundialPremiosBulk: (torneoId, premios) =>
+    request('PUT', `/mundial/${torneoId}/premios/bulk`, { premios }),
+  getMundialPremiosCalculados: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/premios-calculados`),
 
   // Mundial — Fase 2.1 (catálogo de equipos: CRUD + alta masiva).
   // Endpoints admin: requieren rol admin/superadmin + permiso 'gestionar_mundial'.

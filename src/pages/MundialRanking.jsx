@@ -1,14 +1,29 @@
 /**
- * MundialRanking — Fase 3
+ * MundialRanking — Fase 3 + Fase Premios + Fase 6.1 (comida configurable)
  *
  * Página pública /mundial/:torneoId/ranking. Tabla con posición / usuario /
- * puntos / aciertos. Si el backend devuelve `visible: false`, mostramos un
- * mensaje contextual (no la tabla) según el `motivo`.
+ * puntos / aciertos / premio / comida.
  *
- * Sin filtros, sin paginación, sin detalle por usuario — MVP.
+ * Fase Premios cross:
+ *   - Fetcha `/premios-calculados` en paralelo.
+ *   - Cruza cada fila por posición con el premio configurado.
+ *   - Si no hay premio para esa posición, muestra "—".
+ *   - Si premios-calculados.estimado === true, nota al pie/encabezado.
+ *
+ * Comida (Fase 6.1):
+ *   - SIN lógica hardcodeada (no más "top 5 gratis / último organiza" en cliente).
+ *   - Cada posición trae `comida_rol` desde `mundial_premios`, configurado
+ *     por el admin (Tab Premios).
+ *   - Valores: 'gratis' | 'paga' | 'organiza' | null.
+ *   - La columna Comida solo se muestra si AL MENOS UNA fila configurada
+ *     tiene `comida_rol` truthy. Si el admin no la usa, desaparece.
+ *
+ * ROADMAP (no implementado todavía):
+ *   - "El que no va paga como si hubiera ido" — requiere data de asistencia.
+ *   - Integración con módulo de Comidas / Economía para registrar deudas.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
@@ -24,6 +39,7 @@ export default function MundialRanking() {
   const { user }     = useAuth()
   const [torneo, setTorneo]   = useState(null)
   const [data, setData]       = useState(null)
+  const [premiosCalc, setPremiosCalc] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
 
@@ -32,14 +48,17 @@ export default function MundialRanking() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [torneos, rk] = await Promise.all([
+      const [torneos, rk, premios] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialRanking(torneoId),
+        // Premios: fallback null si el endpoint no responde (no crítico).
+        api.getMundialPremiosCalculados(torneoId).catch(() => null),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
       setTorneo(t)
       setData(rk)
+      setPremiosCalc(premios)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -47,14 +66,55 @@ export default function MundialRanking() {
     }
   }
 
+  // Maps por posición para cruce O(1) por fila.
+  const premioPorPosicion = useMemo(() => {
+    const m = new Map()
+    for (const p of (premiosCalc?.premios || [])) {
+      m.set(p.posicion, p.usd)
+    }
+    return m
+  }, [premiosCalc])
+
+  // Map { posicion: comida_rol } — fuente única: config del admin.
+  const comidaPorPosicion = useMemo(() => {
+    const m = new Map()
+    for (const p of (premiosCalc?.premios || [])) {
+      if (p.comida_rol) m.set(p.posicion, p.comida_rol)
+    }
+    return m
+  }, [premiosCalc])
+
   if (loading) return <div className="loading">Cargando ranking...</div>
   if (error)   return <div className="error-msg" style={{ margin: 24 }}>{error}</div>
 
-  const visible = data?.visible === true
-  const ranking = Array.isArray(data?.ranking) ? data.ranking : []
+  const visible    = data?.visible === true
+  const ranking    = Array.isArray(data?.ranking) ? data.ranking : []
+  const hayPremios = !!premiosCalc?.configurado
+  const estimado   = !!premiosCalc?.estimado
+  // Mostrar columna Comida solo si HAY al menos una fila con comida_rol cargada.
+  const hayComida  = comidaPorPosicion.size > 0
+
+  // Badge configurable: traducción de comida_rol a label + colores.
+  function comidaBadge(rol) {
+    switch (rol) {
+      case 'gratis':   return { label: 'Come gratis', fg: 'var(--color-success)', bg: 'rgba(22,163,74,0.10)' }
+      case 'paga':     return { label: 'Paga',        fg: '#a16207',              bg: 'rgba(234,179,8,0.12)' }
+      case 'organiza': return { label: 'Organiza',    fg: '#7c3aed',              bg: 'rgba(124,58,237,0.10)' }
+      default:         return null
+    }
+  }
+
+  function fmtUsd(usd) {
+    if (!Number.isInteger(usd)) return null
+    return `${usd >= 0 ? '+' : ''}${usd} USD`
+  }
+  function colorUsd(usd) {
+    if (!Number.isInteger(usd)) return 'var(--color-muted)'
+    return usd > 0 ? 'var(--color-success)' : usd < 0 ? 'var(--color-danger)' : 'var(--color-muted)'
+  }
 
   return (
-    <div style={{ maxWidth: 760, margin: '24px auto', padding: '0 16px' }}>
+    <div style={{ maxWidth: 840, margin: '24px auto', padding: '0 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
         <MundialIcon width={60} height={42} />
         <div style={{ flex: 1 }}>
@@ -74,6 +134,18 @@ export default function MundialRanking() {
           ← Mis respuestas
         </Link>
       </div>
+
+      {/* Nota de premios estimados — visible si hay premios cargados y estimado=true */}
+      {visible && hayPremios && estimado && (
+        <div style={{
+          padding: '8px 12px', marginBottom: 12,
+          background: 'rgba(234,179,8,0.10)', color: '#a16207',
+          borderRadius: 6, fontSize: 12, lineHeight: 1.45,
+          border: '1px solid rgba(234,179,8,0.25)',
+        }}>
+          ⚠ Premios estimados hasta que el Mundial finalice. Sujetos a desempate si corresponde.
+        </div>
+      )}
 
       {!visible && (
         <div style={{
@@ -104,11 +176,17 @@ export default function MundialRanking() {
                 <th style={th}>Usuario</th>
                 <th style={{ ...th, textAlign: 'right' }}>Puntos</th>
                 <th style={{ ...th, textAlign: 'right' }}>Aciertos</th>
+                {hayPremios && <th style={{ ...th, textAlign: 'right' }}>Premio/Castigo</th>}
+                {hayComida && <th style={{ ...th, textAlign: 'center' }}>Comida</th>}
               </tr>
             </thead>
             <tbody>
               {ranking.map(r => {
-                const esYo = user && r.user_id === user.id
+                const esYo  = user && r.user_id === user.id
+                const usd   = premioPorPosicion.get(r.posicion)
+                const usdLabel = fmtUsd(usd)
+                const rol   = comidaPorPosicion.get(r.posicion) || null
+                const badge = comidaBadge(rol)
                 return (
                   <tr
                     key={r.user_id}
@@ -130,11 +208,49 @@ export default function MundialRanking() {
                     <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
                       {r.aciertos}
                     </td>
+                    {hayPremios && (
+                      <td style={{
+                        ...td, textAlign: 'right', fontWeight: 600,
+                        color: colorUsd(usd),
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        {usdLabel || <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>—</span>}
+                      </td>
+                    )}
+                    {hayComida && (
+                      <td style={{ ...td, textAlign: 'center' }}>
+                        {badge ? (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            padding: '3px 8px', borderRadius: 99,
+                            color: badge.fg, background: badge.bg,
+                            textTransform: 'uppercase', letterSpacing: '0.03em',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {badge.label}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--color-muted)' }}>—</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 )
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Aclaración de las reglas de comida (informativo, sin deudas) */}
+      {visible && hayComida && (
+        <div style={{
+          marginTop: 12, fontSize: 11, color: 'var(--color-muted)',
+          lineHeight: 1.5,
+        }}>
+          🍝 <strong>Comida post Mundial:</strong> el rol de cada posición lo configura el admin
+          en la tab Premios. Aclaración: el que no asiste paga como si hubiera ido
+          (regla informativa — todavía no registramos asistencia ni deudas).
         </div>
       )}
     </div>

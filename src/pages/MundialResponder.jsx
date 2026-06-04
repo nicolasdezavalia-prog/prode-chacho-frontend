@@ -124,6 +124,10 @@ export default function MundialResponder() {
   //     de la ventana (para mostrar el diff "original → nueva" en cada card).
   const [misCambiosCtx, setMisCambiosCtx]   = useState({ visible: false })
   const [respuestasPreVentana, setRespuestasPreVentana] = useState({})
+  // Fase Premios — calculados (lista de posiciones con monto USD + usuario del ranking).
+  // Lo cargamos siempre — backend devuelve `configurado: false` si admin no cargó tabla.
+  const [premiosCalc, setPremiosCalc]       = useState(null)
+  const [premiosAbierto, setPremiosAbierto] = useState(false) // colapsable, cerrado por default
   const [loading, setLoading]               = useState(true)
   const [error, setError]                   = useState('')
   // Fase preprod — distinguir errores de acceso (403) del resto para mostrar
@@ -139,7 +143,7 @@ export default function MundialResponder() {
     setError('')
     setAccesoDenegado(false)
     try {
-      const [torneosAll, cfg, preg, equipos, misRes, misPts] = await Promise.all([
+      const [torneosAll, cfg, preg, equipos, misRes, misPts, premios] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialConfig(torneoId),
         api.getMundialPreguntasActivas(torneoId),
@@ -148,6 +152,8 @@ export default function MundialResponder() {
         // Mis puntos: en estado < grupos_jugados el backend devuelve visible:false.
         // El .catch ofrece fallback amigable si el endpoint falla por cualquier motivo.
         api.getMundialMisPuntos(torneoId).catch(() => ({ visible: false, items: [], pts_totales: 0 })),
+        // Fase Premios — premios calculados (cruce con ranking). null si falla.
+        api.getMundialPremiosCalculados(torneoId).catch(() => null),
       ])
       const t = (torneosAll || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
@@ -165,6 +171,7 @@ export default function MundialResponder() {
       setMisPuntos(misPts && typeof misPts === 'object'
         ? misPts
         : { visible: false, items: [], pts_totales: 0 })
+      setPremiosCalc(premios && typeof premios === 'object' ? premios : null)
 
       // Fase 5 — si el torneo está en 'cambios_abiertos', cargamos el contexto
       // y los cambios ya cargados por este user. Estos endpoints son no-ops
@@ -637,6 +644,17 @@ export default function MundialResponder() {
         </div>
       )}
 
+      {/* Fase Premios — bloque colapsable. Cerrado por default.
+          Solo se muestra si el admin configuró al menos 1 premio. */}
+      {premiosCalc && premiosCalc.configurado && (
+        <BloquePremios
+          calc={premiosCalc}
+          userId={user?.id}
+          abierto={premiosAbierto}
+          onToggle={() => setPremiosAbierto(o => !o)}
+        />
+      )}
+
       {/* Lista de preguntas */}
       {preguntas.length === 0 ? (
         <div style={{
@@ -794,3 +812,189 @@ function compactJsonResp(obj) {
   if (entries.length === 0) return '∅'
   return entries.map(([k, v]) => `${k}=${Array.isArray(v) ? `[${v.join(',')}]` : v}`).join(' ')
 }
+
+// ── Fase Premios — bloque colapsable para el user ────────────────────────
+// Muestra:
+//   - su posición actual + premio/castigo estimado si esa posición tiene fila;
+//   - tabla compacta de premios por posición con highlight de la del user;
+//   - aclaración "Estimado hasta que el Mundial finalice" si aplica.
+// SIN pozo (el modelo es fijo por posición, no aplica el concepto).
+function BloquePremios({ calc, userId, abierto, onToggle }) {
+  // Mi premio (si mi posición está en la tabla)
+  const miFila   = (calc.premios || []).find(p => p.usuario?.user_id === userId)
+  const miPos    = miFila?.posicion ?? null
+  const miMonto  = miFila?.usd ?? null
+  const miRol    = miFila?.comida_rol || null
+
+  // Fase 6.1: solo mostrar la columna/aclaración de Comida si HAY al menos una
+  // fila con comida_rol cargada por el admin. Si no usó la feature, desaparece.
+  const hayComida = (calc.premios || []).some(p => !!p.comida_rol)
+
+  function fmtUsd(usd) {
+    if (!Number.isInteger(usd)) return '—'
+    return `${usd >= 0 ? '+' : ''}${usd} USD`
+  }
+  function colorUsd(usd) {
+    if (!Number.isInteger(usd)) return 'var(--color-muted)'
+    return usd > 0 ? 'var(--color-success)' : usd < 0 ? 'var(--color-danger)' : 'var(--color-muted)'
+  }
+  // Badge traducido de comida_rol — mismo set de colores que MundialRanking.
+  function comidaBadge(rol) {
+    switch (rol) {
+      case 'gratis':   return { label: 'Come gratis', fg: 'var(--color-success)', bg: 'rgba(22,163,74,0.10)' }
+      case 'paga':     return { label: 'Paga',        fg: '#a16207',              bg: 'rgba(234,179,8,0.12)' }
+      case 'organiza': return { label: 'Organiza',    fg: '#7c3aed',              bg: 'rgba(124,58,237,0.10)' }
+      default:         return null
+    }
+  }
+
+  return (
+    <div style={{
+      marginBottom: 16,
+      border: '1px solid var(--color-border)',
+      borderRadius: 8,
+      background: 'var(--color-surface, white)',
+      overflow: 'hidden',
+    }}>
+      {/* Header clickeable */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%', background: 'none', border: 'none',
+          padding: '10px 14px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 10,
+          textAlign: 'left',
+          color: 'var(--color-text)', fontSize: 14,
+        }}
+      >
+        <span style={{ fontSize: 16 }}>🏆</span>
+        <span style={{ fontWeight: 600 }}>Premios</span>
+        {miFila ? (
+          <>
+            <span style={{
+              fontSize: 12, padding: '2px 8px', borderRadius: 99,
+              background: miMonto > 0 ? 'rgba(22,163,74,0.10)'
+                         : miMonto < 0 ? 'rgba(220,38,38,0.10)'
+                         : 'rgba(0,0,0,0.05)',
+              color: colorUsd(miMonto), fontWeight: 600,
+            }}>
+              Tu posición {miPos}° · {fmtUsd(miMonto)}
+            </span>
+            {/* Fase 6.1: chip de comida si existe rol configurado para mi posición */}
+            {(() => {
+              const b = comidaBadge(miRol)
+              if (!b) return null
+              return (
+                <span style={{
+                  fontSize: 10, padding: '2px 8px', borderRadius: 99,
+                  background: b.bg, color: b.fg, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.03em',
+                }}>
+                  🍝 {b.label}
+                </span>
+              )
+            })()}
+          </>
+        ) : (
+          <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+            Tu posición no tiene premio configurado
+          </span>
+        )}
+        <span style={{ flex: 1 }} />
+        {calc.estimado && (
+          <span style={{
+            fontSize: 10, padding: '2px 6px', borderRadius: 4,
+            background: 'rgba(234,179,8,0.15)', color: '#a16207',
+            fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+          }}>
+            Estimado
+          </span>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+          {abierto ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {/* Detalle desplegable */}
+      {abierto && (
+        <div style={{
+          borderTop: '1px solid var(--color-border)',
+          padding: '10px 14px',
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: 'var(--color-surface2)' }}>
+                <th style={{ ...bpTh, width: 60 }}>Pos.</th>
+                <th style={bpTh}>Usuario</th>
+                <th style={{ ...bpTh, textAlign: 'right', width: 90 }}>USD</th>
+                {hayComida && <th style={{ ...bpTh, textAlign: 'center', width: 110 }}>Comida</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {(calc.premios || []).map(p => {
+                const esYo = p.usuario?.user_id === userId
+                const b    = comidaBadge(p.comida_rol)
+                return (
+                  <tr key={p.posicion} style={{
+                    borderTop: '1px solid rgba(0,0,0,0.04)',
+                    background: esYo ? 'rgba(59,130,246,0.06)' : 'transparent',
+                    fontWeight: esYo ? 600 : 400,
+                  }}>
+                    <td style={{ ...bpTd, fontWeight: 700, textAlign: 'center' }}>{p.posicion}°</td>
+                    <td style={bpTd}>
+                      {p.usuario
+                        ? <>
+                            {p.usuario.nombre}
+                            {esYo && <span style={{ fontSize: 11, color: 'var(--color-primary)', marginLeft: 6 }}>(vos)</span>}
+                          </>
+                        : <span style={{ color: 'var(--color-muted)', fontStyle: 'italic' }}>(libre)</span>}
+                    </td>
+                    <td style={{
+                      ...bpTd, textAlign: 'right', fontWeight: 700,
+                      color: colorUsd(p.usd),
+                    }}>
+                      {fmtUsd(p.usd)}
+                    </td>
+                    {hayComida && (
+                      <td style={{ ...bpTd, textAlign: 'center' }}>
+                        {b ? (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            padding: '2px 6px', borderRadius: 99,
+                            color: b.fg, background: b.bg,
+                            textTransform: 'uppercase', letterSpacing: '0.03em',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {b.label}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--color-muted)' }}>—</span>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {calc.estimado && (
+            <div style={{
+              marginTop: 8, fontSize: 11, color: 'var(--color-muted)',
+              fontStyle: 'italic', lineHeight: 1.4,
+            }}>
+              ℹ Estimado hasta que el Mundial finalice. Las posiciones se actualizan según el ranking actual.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const bpTh = {
+  padding: '6px 10px', textAlign: 'left',
+  fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
+  textTransform: 'uppercase', letterSpacing: '0.04em',
+}
+const bpTd = { padding: '6px 10px' }
