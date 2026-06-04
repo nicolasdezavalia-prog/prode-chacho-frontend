@@ -33,6 +33,13 @@ export const api = {
   login: (email, password) => request('POST', '/auth/login', { email, password }),
   register: (nombre, email, password, role) => request('POST', '/auth/register', { nombre, email, password, role }),
   me: () => request('GET', '/auth/me'),
+  // Self-service del usuario logueado (Fase cuenta):
+  // - cambiarMiPassword: { current_password, new_password }. 401 si current incorrecta.
+  // - cambiarMiEmail:    { new_email, current_password }. Devuelve { token, user } nuevos.
+  cambiarMiPassword: (current_password, new_password) =>
+    request('PATCH', '/auth/me/password', { current_password, new_password }),
+  cambiarMiEmail: (new_email, current_password) =>
+    request('PATCH', '/auth/me/email', { new_email, current_password }),
 
   // Torneos
   getTorneos: () => request('GET', '/torneos'),

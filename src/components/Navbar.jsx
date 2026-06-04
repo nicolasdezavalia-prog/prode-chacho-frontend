@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../App.jsx'
 import { api } from '../api/index.js'
+import AccountMenu from './AccountMenu.jsx'
 
 function DropdownMenu({ label, items }) {
   const [open, setOpen] = useState(false)
@@ -170,10 +171,7 @@ export default function Navbar() {
       </div>
 
       <div className="navbar-user">
-        <span>{user?.nombre}</span>
-        <span className="badge badge-borrador" style={{ fontSize: 10, ...(isSuperAdmin ? { background: 'rgba(124,58,237,0.15)', color: '#7c3aed' } : {}) }}>
-          {isSuperAdmin ? 'SUPER' : isAdmin ? 'ADMIN' : 'JUGADOR'}
-        </span>
+        {/* Shortcuts admin a la izquierda del dropdown — sin cambios */}
         {isAdmin && (
           <Link to="/admin/usuarios" className="btn btn-secondary btn-sm" title="Gestión de usuarios">
             👥
@@ -184,7 +182,9 @@ export default function Navbar() {
             🔑
           </Link>
         )}
-        <button className="btn btn-secondary btn-sm" onClick={handleLogout}>Salir</button>
+        {/* Dropdown de cuenta: reemplaza el bloque nombre+badge inerte y el botón Salir.
+            Salir vive ahora dentro del dropdown. */}
+        <AccountMenu onLogout={handleLogout} />
       </div>
     </nav>
   )
