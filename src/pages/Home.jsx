@@ -652,7 +652,9 @@ export default function Home() {
     try {
       setLoading(true)
       const ts = await api.getTorneos()
-      const activo = ts.find(t => t.activo === 1) || ts[0]
+      // Home es Prode Chacho tradicional — ignorar Mundial (vive en /mundial).
+      const tradicionales = (ts || []).filter(t => t.tipo !== 'mundial_preguntas')
+      const activo = tradicionales.find(t => t.activo === 1) || tradicionales[0]
       if (!activo) return
 
       setTorneoActivo(activo)

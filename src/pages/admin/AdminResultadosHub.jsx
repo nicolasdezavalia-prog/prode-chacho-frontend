@@ -23,9 +23,12 @@ export default function AdminResultadosHub() {
   const load = async () => {
     try {
       const torneos = await api.getTorneos()
-      // Cargar fechas de todos los torneos en paralelo
+      // Resultados/fechas son del Prode tradicional — Mundial no tiene fechas
+      // (devolvería 404 o vacío). Filtrar para no generar requests inútiles.
+      const tradi = (torneos || []).filter(t => t.tipo !== 'mundial_preguntas')
+      // Cargar fechas de todos los torneos tradicionales en paralelo
       const resultados = await Promise.all(
-        torneos.map(t =>
+        tradi.map(t =>
           api.getFechas(t.id)
             .then(fs => fs.map(f => ({ ...f, torneo_nombre: t.nombre, torneo_id: t.id })))
             .catch(() => [])

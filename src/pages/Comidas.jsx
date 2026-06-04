@@ -24,8 +24,10 @@ export default function Comidas() {
   useEffect(() => {
     api.getTorneos()
       .then(ts => {
-        setTorneos(ts)
-        const activo = ts.find(t => t.activo) || ts[0] || null
+        // Comidas vive en el contexto Prode Chacho tradicional — ignorar Mundial.
+        const tradicionales = (ts || []).filter(t => t.tipo !== 'mundial_preguntas')
+        setTorneos(tradicionales)
+        const activo = tradicionales.find(t => t.activo) || tradicionales[0] || null
         setTorneoActivo(activo)
       })
       .catch(err => setError(err.message))

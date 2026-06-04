@@ -9,7 +9,11 @@ export default function AdminComidasHub() {
 
   useEffect(() => {
     api.getTorneos()
-      .then(setTorneos)
+      .then(ts => {
+        // Mundial no usa comidas — filtramos para no confundir al admin.
+        const tradi = (ts || []).filter(t => t.tipo !== 'mundial_preguntas')
+        setTorneos(tradi)
+      })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
   }, [])

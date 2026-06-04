@@ -33,8 +33,10 @@ export default function AdminDeudores() {
   const loadTorneos = async () => {
     try {
       const ts = await api.getTorneos()
-      setTorneos(ts)
-      const activo = ts.find(t => t.activo === 1) || ts[0]
+      // Deudores son del Prode tradicional — Mundial no usa este flujo.
+      const tradi = (ts || []).filter(t => t.tipo !== 'mundial_preguntas')
+      setTorneos(tradi)
+      const activo = tradi.find(t => t.activo === 1) || tradi[0]
       if (activo) setTorneoId(String(activo.id))
     } catch (e) { setError(e.message) }
   }

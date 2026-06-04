@@ -132,9 +132,11 @@ export default function AdminFecha() {
   const loadTorneos = async () => {
     try {
       const ts = await api.getTorneos()
-      setTorneos(ts)
-      if (ts.length > 0 && !form.torneo_id) {
-        setForm(f => ({ ...f, torneo_id: ts[0].id }))
+      // Fechas son del Prode tradicional — Mundial no usa fechas, filtrar.
+      const tradi = (ts || []).filter(t => t.tipo !== 'mundial_preguntas')
+      setTorneos(tradi)
+      if (tradi.length > 0 && !form.torneo_id) {
+        setForm(f => ({ ...f, torneo_id: tradi[0].id }))
       }
     } catch (err) { console.error(err) }
   }
