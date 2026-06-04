@@ -6,6 +6,7 @@ import AdminMundialEquipos from './AdminMundialEquipos.jsx'
 import AdminMundialPreguntas from './AdminMundialPreguntas.jsx'
 import AdminMundialResultados from './AdminMundialResultados.jsx'
 import AdminMundialCambios from './AdminMundialCambios.jsx'
+import AdminMundialPremios from './AdminMundialPremios.jsx'
 
 /**
  * Hub admin del módulo Mundial — Fase 1.
@@ -306,7 +307,11 @@ export default function AdminMundialHub() {
           active={activeTab === 'equipos'}
           onClick={() => setActiveTab('equipos')}
         />
-        <Tab label="🏆 Premios"    disabled tip="Disponible en Fase 2" />
+        <Tab
+          label="🏆 Premios"
+          active={activeTab === 'premios'}
+          onClick={() => setActiveTab('premios')}
+        />
         <Tab
           label="📋 Resultados"
           active={activeTab === 'resultados'}
@@ -467,6 +472,15 @@ export default function AdminMundialHub() {
       {/* Tab Cambios — Fase 5 */}
       {activeTab === 'cambios' && (
         <AdminMundialCambios
+          torneoId={torneoId}
+          estado={config.estado}
+          onChanged={load}
+        />
+      )}
+
+      {/* Tab Premios — Fase 6 (modelo fijo por posición) */}
+      {activeTab === 'premios' && (
+        <AdminMundialPremios
           torneoId={torneoId}
           estado={config.estado}
           onChanged={load}
