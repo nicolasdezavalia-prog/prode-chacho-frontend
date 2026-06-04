@@ -101,14 +101,15 @@ export default function Navbar() {
     if (last) miGdtPath = `/gdt/mi-equipo?liga_id=${encodeURIComponent(last)}`
   } catch (_) { /* localStorage no disponible: usar path simple */ }
 
-  // Navbar contextual (Fase preprod): solo mostramos links de un "juego"
-  // si el user tiene acceso. Los endpoints ya están filtrados por backend
-  // (torneo_jugadores), así que confiamos en lo que devuelven.
-  //   - tradicionales[]: torneos NO Mundial accesibles al user.
-  //   - mundiales[]:     torneos Mundial accesibles al user.
-  // Regla: admin/superadmin SIEMPRE ve los links tradicionales (para
-  // administrar aunque no juegue). Los links Mundial requieren al menos
-  // un Mundial accesible (no tiene sentido linkear a algo inexistente).
+  // Navbar contextual por ruta (Fase UX juegos):
+  //   - En /mundial...:  links Mundial.
+  //   - En /admin...:    solo Juegos + Admin (sin ruido de los juegos).
+  //   - En /juegos:      solo Juegos.
+  //   - En Prode tradicional (/, /fecha, /tabla, /estadisticas, /comidas, /gdt/*):
+  //                      links tradicional.
+  //   - Otro:            solo Juegos.
+  // Admin/superadmin SIEMPRE tiene link Admin extra.
+  // Los datos de torneos siguen filtrados por backend (torneo_jugadores).
   const [tradicionales, setTradicionales] = useState(null)
   const [mundiales, setMundiales]         = useState(null)
 
@@ -133,22 +134,39 @@ export default function Navbar() {
   const mundialUnicoId   = (verMundial && mundiales.length === 1) ? mundiales[0].id : null
   const miMundialPath    = mundialUnicoId ? `/mundial/${mundialUnicoId}` : '/mundial'
 
+  // Detectar contexto desde la ruta actual.
+  const contexto = detectarContexto(location.pathname)
+
   return (
     <nav className="navbar">
-      <Link to="/" className="navbar-brand">⚽ Prode Chacho</Link>
+      {/* Brand → /juegos: el selector es el "home" de la plataforma. */}
+      <Link to="/juegos" className="navbar-brand">⚽ Prode Chacho</Link>
 
       <div className="navbar-links">
-        {verTradicional && <NavLink to="/" label="Inicio" exact />}
+        {/* Juegos siempre visible: escape hatch al selector */}
         <NavLink to="/juegos" label="Juegos" />
-        {verTradicional && <NavLink to={miGdtPath} label="Mi GDT" />}
-        {verTradicional && <NavLink to="/estadisticas" label="Estadísticas" />}
-        {verTradicional && <NavLink to="/comidas" label="Comidas" />}
-        {/* Mundial: "Mi Mundial" siempre; Ranking/Respuestas solo cuando hay
-            exactamente 1 Mundial (sino el destino directo no tiene sentido). */}
-        {verMundial      && <NavLink to={miMundialPath} label="Mi Mundial" exact={!!mundialUnicoId} />}
-        {mundialUnicoId  && <NavLink to={`/mundial/${mundialUnicoId}/ranking`}   label="Ranking" />}
-        {mundialUnicoId  && <NavLink to={`/mundial/${mundialUnicoId}/respuestas`} label="Respuestas" />}
-        {isAdmin         && <NavLink to="/admin" label="Admin" />}
+
+        {/* Contexto Mundial: Mi Mundial + Ranking + Respuestas (si aplica) */}
+        {contexto === 'mundial' && verMundial && (
+          <>
+            <NavLink to={miMundialPath} label="Mi Mundial" exact={!!mundialUnicoId} />
+            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/ranking`}   label="Ranking" />}
+            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/respuestas`} label="Respuestas" />}
+          </>
+        )}
+
+        {/* Contexto Prode tradicional: Inicio + Mi GDT + Estadísticas + Comidas */}
+        {contexto === 'tradicional' && verTradicional && (
+          <>
+            <NavLink to="/" label="Inicio" exact />
+            <NavLink to={miGdtPath} label="Mi GDT" />
+            <NavLink to="/estadisticas" label="Estadísticas" />
+            <NavLink to="/comidas" label="Comidas" />
+          </>
+        )}
+
+        {/* Admin link siempre visible para admins (en cualquier contexto) */}
+        {isAdmin && <NavLink to="/admin" label="Admin" />}
       </div>
 
       <div className="navbar-user">
@@ -170,6 +188,33 @@ export default function Navbar() {
       </div>
     </nav>
   )
+}
+
+/**
+ * Detecta el contexto/juego activo según la ruta. Determina qué links
+ * de la navbar se muestran (Fase UX juegos).
+ *
+ * Contextos:
+ *   - 'mundial':    /mundial...
+ *   - 'admin':      /admin...
+ *   - 'selector':   /juegos
+ *   - 'tradicional': '/', /fecha, /tabla, /estadisticas, /comidas, /gdt/*
+ *   - 'otro':       cualquier otra cosa (login, reset-password, etc).
+ */
+function detectarContexto(pathname) {
+  if (pathname.startsWith('/mundial'))      return 'mundial'
+  if (pathname.startsWith('/admin'))        return 'admin'
+  if (pathname === '/juegos')               return 'selector'
+  if (pathname === '/prode')                return 'selector'
+  if (pathname === '/')                     return 'tradicional'
+  if (
+    pathname.startsWith('/fecha') ||
+    pathname.startsWith('/tabla') ||
+    pathname.startsWith('/estadisticas') ||
+    pathname.startsWith('/comidas') ||
+    pathname.startsWith('/gdt')
+  ) return 'tradicional'
+  return 'otro'
 }
 
 function NavLink({ to, label, exact }) {
