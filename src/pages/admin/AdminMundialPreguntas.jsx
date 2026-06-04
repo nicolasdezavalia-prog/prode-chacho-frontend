@@ -30,6 +30,10 @@ import ImportarPreguntasMundial from './ImportarPreguntasMundial.jsx'
 
 const ESTADOS_FULL_EDIT  = new Set(['configuracion'])
 const ESTADOS_PATCH_EDIT = new Set(['configuracion', 'abierto'])
+// Fase 5: en 'grupos_jugados' el admin todavía puede togglear cambio_habilitado
+// (solo ese campo). El resto (enunciado, config_json, eliminar, etc) sigue
+// bloqueado. Backend valida lo mismo en PATCH /preguntas/:id.
+const ESTADOS_TOGGLE_CAMBIO = new Set(['configuracion', 'abierto', 'grupos_jugados'])
 
 const TIPOS_DISPONIBLES = Object.keys(TIPO_LABEL)
 
@@ -77,8 +81,10 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
   const [showImporter, setShowImporter]       = useState(false)
   const [seedingPreguntas, setSeedingPreguntas] = useState(false)
 
-  const fullEdit  = ESTADOS_FULL_EDIT.has(estado)
-  const patchEdit = ESTADOS_PATCH_EDIT.has(estado)
+  const fullEdit         = ESTADOS_FULL_EDIT.has(estado)
+  const patchEdit        = ESTADOS_PATCH_EDIT.has(estado)
+  // Solo este flag necesita extenderse a 'grupos_jugados' para el toggle Cambio.
+  const toggleCambioEdit = ESTADOS_TOGGLE_CAMBIO.has(estado)
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
@@ -202,8 +208,8 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
 
   return (
     <div>
-      {/* Banner si estado bloqueado */}
-      {!patchEdit && (
+      {/* Banner si estado bloqueado completamente */}
+      {!patchEdit && !toggleCambioEdit && (
         <div style={{
           padding: '10px 14px',
           background: 'rgba(0,0,0,0.04)',
@@ -212,11 +218,13 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
           marginBottom: 12,
           fontSize: 13,
         }}>
-          ℹ️ Las preguntas solo se editan en estado <strong>Configuración</strong> (todo) o
-          <strong> Abierto</strong> (solo enunciado, aclaración, activa).
+          ℹ️ Las preguntas solo se editan en estado <strong>Configuración</strong> (todo),
+          <strong> Abierto</strong> (enunciado, aclaración, activa) o
+          <strong> Grupos jugados</strong> (solo el toggle Cambio).
           Estado actual: <strong>{estado}</strong>. Acciones deshabilitadas.
         </div>
       )}
+      {/* Banner para 'abierto': PATCH parcial */}
       {patchEdit && !fullEdit && (
         <div style={{
           padding: '10px 14px',
@@ -226,8 +234,24 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
           marginBottom: 12,
           fontSize: 13,
         }}>
-          ⚠️ Estado <strong>{estado}</strong>: solo se permite editar enunciado, aclaración y activa.
+          ⚠️ Estado <strong>{estado}</strong>: solo se permite editar enunciado, aclaración, activa y el toggle Cambio.
           Tipo, número, config y borrado quedan bloqueados.
+        </div>
+      )}
+      {/* Banner Fase 5 — grupos_jugados: solo toggle Cambio */}
+      {!patchEdit && toggleCambioEdit && (
+        <div style={{
+          padding: '10px 14px',
+          background: 'rgba(124,58,237,0.10)',
+          color: 'var(--color-text)',
+          borderRadius: 6,
+          marginBottom: 12,
+          fontSize: 13,
+          border: '1px solid rgba(124,58,237,0.25)',
+        }}>
+          🔄 Estado <strong>{estado}</strong>: solo podés definir qué preguntas son <strong>cambiables</strong> (toggle Cambio).
+          El resto (enunciado, aclaración, activa, tipo, config, borrado) queda bloqueado.
+          La carga normal de respuestas tampoco se reabre.
         </div>
       )}
 
@@ -314,13 +338,16 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
               <th style={thStyle}>Enunciado</th>
               <th style={thStyle}>Tipo</th>
               <th style={{ ...thStyle, width: 80 }}>Activa</th>
+              <th style={{ ...thStyle, width: 110 }} title="Si está marcada, la pregunta puede ser cambiada por el usuario durante una ventana de cambios post-grupos">
+                Cambio
+              </th>
               <th style={{ ...thStyle, width: 180 }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {preguntas.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 13 }}>
+                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 13 }}>
                   No hay preguntas cargadas. Usá <strong>+ Agregar pregunta</strong> para empezar.
                 </td>
               </tr>
@@ -335,6 +362,7 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
                 onSave={(patch) => handleSave(p.id, patch)}
                 fullEdit={fullEdit}
                 patchEdit={patchEdit}
+                toggleCambioEdit={toggleCambioEdit}
                 estado={estado}
                 equiposCatalogo={equiposCatalogo}
               />
@@ -347,7 +375,7 @@ export default function AdminMundialPreguntas({ torneoId, estado, onChanged }) {
 }
 
 // ── Fila de la grilla (con acordeón) ────────────────────────────────────────
-function PreguntaFila({ pregunta, isOpen, onToggle, onDelete, onSave, fullEdit, patchEdit, estado, equiposCatalogo }) {
+function PreguntaFila({ pregunta, isOpen, onToggle, onDelete, onSave, fullEdit, patchEdit, toggleCambioEdit, estado, equiposCatalogo }) {
   return (
     <>
       <tr style={{ background: pregunta.activa ? 'white' : 'rgba(0,0,0,0.02)' }}>
@@ -377,6 +405,32 @@ function PreguntaFila({ pregunta, isOpen, onToggle, onDelete, onSave, fullEdit, 
             {pregunta.activa ? 'Activa' : 'Inactiva'}
           </span>
         </td>
+        {/* Fase 5 — cambio_habilitado: toggle inline. Editable en
+            configuracion, abierto Y grupos_jugados (este último solo este
+            campo — el backend rechaza cualquier otro). */}
+        <td style={cellStyle}>
+          <label style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            cursor: toggleCambioEdit ? 'pointer' : 'not-allowed',
+            opacity: toggleCambioEdit ? 1 : 0.55,
+          }} title={!toggleCambioEdit
+            ? `Bloqueado en estado '${estado}'`
+            : 'Marca para permitir cambiar esta respuesta en ventanas post-grupos'}>
+            <input
+              type="checkbox"
+              checked={pregunta.cambio_habilitado === 1}
+              disabled={!toggleCambioEdit}
+              onChange={e => onSave({ cambio_habilitado: e.target.checked })}
+              style={{ cursor: toggleCambioEdit ? 'pointer' : 'not-allowed' }}
+            />
+            <span style={{
+              fontSize: 11, fontWeight: 600,
+              color: pregunta.cambio_habilitado === 1 ? 'var(--color-primary)' : 'var(--color-muted)',
+            }}>
+              {pregunta.cambio_habilitado === 1 ? '🔄 sí' : 'no'}
+            </span>
+          </label>
+        </td>
         <td style={{ ...cellStyle, whiteSpace: 'nowrap' }}>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
@@ -402,7 +456,7 @@ function PreguntaFila({ pregunta, isOpen, onToggle, onDelete, onSave, fullEdit, 
       </tr>
       {isOpen && (
         <tr>
-          <td colSpan={5} style={{ padding: '16px 20px', background: 'rgba(59,130,246,0.03)', borderBottom: '1px solid var(--color-border)' }}>
+          <td colSpan={6} style={{ padding: '16px 20px', background: 'rgba(59,130,246,0.03)', borderBottom: '1px solid var(--color-border)' }}>
             <PreguntaForm
               modo="editar"
               pregunta={pregunta}

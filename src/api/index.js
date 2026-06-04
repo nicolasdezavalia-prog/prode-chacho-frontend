@@ -309,4 +309,32 @@ export const api = {
   // Si no visible, devuelve { visible: false, motivo, mensaje }.
   getMundialRespuestasPublicas: (torneoId) =>
     request('GET', `/mundial/${torneoId}/respuestas-publicas`),
+
+  // ── Fase 5 — Cambios post-grupos ──────────────────────────────────────
+  // Admin (ventanas):
+  getMundialVentanas: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/ventanas-cambios`),
+  createMundialVentana: (torneoId, body) =>
+    request('POST', `/mundial/${torneoId}/ventanas-cambios`, body || {}),
+  updateMundialVentana: (torneoId, ventanaId, body) =>
+    request('PATCH', `/mundial/${torneoId}/ventanas-cambios/${ventanaId}`, body),
+  publicarMundialVentana: (torneoId, ventanaId) =>
+    request('POST', `/mundial/${torneoId}/ventanas-cambios/${ventanaId}/publicar`),
+  // Admin (habilitados):
+  getMundialVentanaHabilitados: (torneoId, ventanaId) =>
+    request('GET', `/mundial/${torneoId}/ventanas-cambios/${ventanaId}/habilitados`),
+  habilitarMundialUser: (torneoId, ventanaId, user_id) =>
+    request('POST', `/mundial/${torneoId}/ventanas-cambios/${ventanaId}/habilitados`, { user_id }),
+  deshabilitarMundialUser: (torneoId, ventanaId, userId) =>
+    request('DELETE', `/mundial/${torneoId}/ventanas-cambios/${ventanaId}/habilitados/${userId}`),
+  // Admin (historial):
+  getMundialVentanaCambios: (torneoId, ventanaId) =>
+    request('GET', `/mundial/${torneoId}/ventanas-cambios/${ventanaId}/cambios`),
+  // User:
+  getMundialMisCambiosDisponibles: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/mis-cambios-disponibles`),
+  getMundialMisCambios: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/mis-cambios`),
+  saveMundialMisCambios: (torneoId, cambios) =>
+    request('PUT', `/mundial/${torneoId}/mis-cambios`, { cambios }),
 };
