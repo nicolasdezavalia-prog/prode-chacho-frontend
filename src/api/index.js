@@ -249,6 +249,26 @@ export const api = {
   getMundialPremiosCalculados: (torneoId) =>
     request('GET', `/mundial/${torneoId}/premios-calculados`),
 
+  // Mundial — Datos útiles Fase 1 (MVP manual):
+  // - getMundialDatosUtiles: lectura pública para participantes.
+  //   params opcionales: { tipo, incluir_inactivos }.
+  //   incluir_inactivos solo surte efecto si el caller es admin.
+  // - create/update/delete: admin + gestionar_mundial.
+  // Sin Fase 2 todavía: pregunta_id viaja en el shape pero el FE no lo usa.
+  getMundialDatosUtiles: (torneoId, params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.tipo)               qs.set('tipo', params.tipo)
+    if (params.incluir_inactivos)  qs.set('incluir_inactivos', '1')
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return request('GET', `/mundial/${torneoId}/datos-utiles${suffix}`)
+  },
+  createMundialDatoUtil: (torneoId, payload) =>
+    request('POST', `/mundial/${torneoId}/datos-utiles`, payload),
+  updateMundialDatoUtil: (torneoId, id, payload) =>
+    request('PUT', `/mundial/${torneoId}/datos-utiles/${id}`, payload),
+  deleteMundialDatoUtil: (torneoId, id) =>
+    request('DELETE', `/mundial/${torneoId}/datos-utiles/${id}`),
+
   // Mundial — Fase 2.1 (catálogo de equipos: CRUD + alta masiva).
   // Endpoints admin: requieren rol admin/superadmin + permiso 'gestionar_mundial'.
   // Editable solo en estados 'configuracion' o 'abierto' (el backend devuelve 409 si no).

@@ -7,6 +7,7 @@ import AdminMundialPreguntas from './AdminMundialPreguntas.jsx'
 import AdminMundialResultados from './AdminMundialResultados.jsx'
 import AdminMundialCambios from './AdminMundialCambios.jsx'
 import AdminMundialPremios from './AdminMundialPremios.jsx'
+import AdminMundialDatosUtiles from './AdminMundialDatosUtiles.jsx'
 
 /**
  * Hub admin del módulo Mundial — Fase 1.
@@ -322,6 +323,11 @@ export default function AdminMundialHub() {
           active={activeTab === 'cambios'}
           onClick={() => setActiveTab('cambios')}
         />
+        <Tab
+          label="📊 Datos útiles"
+          active={activeTab === 'datos_utiles'}
+          onClick={() => setActiveTab('datos_utiles')}
+        />
       </div>
 
       {error && <div className="error-msg">{error}</div>}
@@ -483,6 +489,14 @@ export default function AdminMundialHub() {
         <AdminMundialPremios
           torneoId={torneoId}
           estado={config.estado}
+          onChanged={load}
+        />
+      )}
+
+      {/* Tab Datos útiles — Fase 1 (MVP manual) */}
+      {activeTab === 'datos_utiles' && (
+        <AdminMundialDatosUtiles
+          torneoId={torneoId}
           onChanged={load}
         />
       )}

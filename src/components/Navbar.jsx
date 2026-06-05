@@ -147,12 +147,13 @@ export default function Navbar() {
         {/* Juegos siempre visible: escape hatch al selector */}
         <NavLink to="/juegos" label="Juegos" />
 
-        {/* Contexto Mundial: Mi Mundial + Ranking + Respuestas (si aplica) */}
+        {/* Contexto Mundial: Mi Mundial + Ranking + Respuestas + Datos útiles (si aplica) */}
         {contexto === 'mundial' && verMundial && (
           <>
             <NavLink to={miMundialPath} label="Mi Mundial" exact={!!mundialUnicoId} />
-            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/ranking`}   label="Ranking" />}
-            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/respuestas`} label="Respuestas" />}
+            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/ranking`}     label="Ranking" />}
+            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/respuestas`}  label="Respuestas" />}
+            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/datos`}       label="Datos útiles" />}
           </>
         )}
 
