@@ -475,8 +475,18 @@ export default function MundialRespuestasPublicas() {
         </Link>
       </div>
 
-      {/* Bloqueo (estado abierto + deadline ok) */}
-      {!visible && (
+      {/* Bloqueo + (si admin) tabla de seguimiento operativo.
+          La presencia de `data.seguimiento` es la señal canónica: si el
+          backend lo manda, es porque el requester es admin/superadmin
+          (lookup en DB, no JWT). No reimplementamos la decisión acá. */}
+      {!visible && Array.isArray(data?.seguimiento) && (
+        <SeguimientoAdminTable
+          seguimiento={data.seguimiento}
+          total={data.total_preguntas || 0}
+          mensaje={data.mensaje}
+        />
+      )}
+      {!visible && !Array.isArray(data?.seguimiento) && (
         <div style={{
           padding: '16px 18px', textAlign: 'center',
           background: 'rgba(234,179,8,0.12)', color: '#a16207',
@@ -594,4 +604,169 @@ export default function MundialRespuestasPublicas() {
       )}
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SeguimientoAdminTable — Mini-fase "seguimiento admin carga abierta"
+//
+// Tabla operativa para admin/superadmin mientras la carga sigue abierta.
+// NO muestra respuestas — solo conteo + estado + última actualización por
+// participante. Backend valida el rol y filtra `respuesta_json` antes de
+// llegar acá: el frontend solo decide cómo mostrar el payload.
+// ─────────────────────────────────────────────────────────────────────────
+function SeguimientoAdminTable({ seguimiento, total, mensaje }) {
+  return (
+    <div>
+      {/* Banner contextual: deja claro por qué estoy viendo esto. */}
+      <div style={{
+        padding: '10px 14px', marginBottom: 12,
+        background: 'rgba(99,102,241,0.08)', color: '#4338ca',
+        borderRadius: 8, fontSize: 13, lineHeight: 1.5,
+        border: '1px solid rgba(99,102,241,0.25)',
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+      }}>
+        <span style={{ fontSize: 18, lineHeight: 1 }}>🛠️</span>
+        <div style={{ flex: 1 }}>
+          <strong>Vista admin · carga en curso.</strong>{' '}
+          Seguimiento por participante. Las respuestas se mantienen ocultas
+          hasta que cierre la carga.
+          {mensaje && (
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
+              {mensaje}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: 'var(--color-surface2, #f1f3f5)' }}>
+              <th style={segTh}>Participante</th>
+              <th style={{ ...segTh, textAlign: 'right' }}>Respondidas</th>
+              <th style={{ ...segTh, textAlign: 'right' }}>Faltan</th>
+              <th style={segTh}>% completado</th>
+              <th style={{ ...segTh, textAlign: 'center' }}>Estado</th>
+              <th style={{ ...segTh, textAlign: 'right' }}>Última actualización</th>
+            </tr>
+          </thead>
+          <tbody>
+            {seguimiento.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{
+                  padding: '20px', textAlign: 'center',
+                  color: 'var(--color-muted)', fontSize: 13,
+                }}>
+                  Sin participantes asignados al torneo todavía.
+                </td>
+              </tr>
+            )}
+            {seguimiento.map(s => (
+              <tr key={s.user_id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                <td style={segTd}>
+                  {s.nombre || `Usuario ${s.user_id}`}
+                </td>
+                <td style={{ ...segTd, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <strong>{s.respondidas}</strong>
+                  <span style={{ color: 'var(--color-muted)' }}>/{total}</span>
+                </td>
+                <td style={{ ...segTd, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: s.faltan === 0 ? 'var(--color-success)' : 'var(--color-text)' }}>
+                  {s.faltan}
+                </td>
+                <td style={segTd}>
+                  <ProgresoBarra pct={s.porcentaje} estado={s.estado} />
+                </td>
+                <td style={{ ...segTd, textAlign: 'center' }}>
+                  <BadgeEstadoSeg estado={s.estado} />
+                </td>
+                <td style={{ ...segTd, textAlign: 'right', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  {fmtUltimaAct(s.ultima_actualizacion)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// Barra de progreso simple: ancho proporcional al %.
+// Color del relleno: completo verde, sin_empezar gris, resto azul.
+function ProgresoBarra({ pct, estado }) {
+  const clamped = Math.max(0, Math.min(100, Number.isInteger(pct) ? pct : 0))
+  const color = estado === 'completo'    ? 'var(--color-success)'
+              : estado === 'sin_empezar' ? '#9ca3af'
+              : 'var(--color-primary)'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{
+        flex: 1, minWidth: 60, maxWidth: 160, height: 6,
+        background: 'rgba(0,0,0,0.06)',
+        borderRadius: 99, overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${clamped}%`, height: '100%',
+          background: color,
+          transition: 'width 0.2s ease',
+        }} />
+      </div>
+      <span style={{
+        fontSize: 12, color: 'var(--color-muted)',
+        fontVariantNumeric: 'tabular-nums', minWidth: 36, textAlign: 'right',
+      }}>
+        {clamped}%
+      </span>
+    </div>
+  )
+}
+
+// Badge por estado. Mismo set de colores que la matriz corregida.
+function BadgeEstadoSeg({ estado }) {
+  const cfg = (
+    estado === 'completo'    ? { label: 'Completo',    fg: 'var(--color-success)', bg: 'rgba(22,163,74,0.12)' } :
+    estado === 'incompleto'  ? { label: 'Incompleto',  fg: 'var(--color-primary)', bg: 'rgba(59,130,246,0.12)' } :
+    estado === 'sin_empezar' ? { label: 'Sin empezar', fg: '#b91c1c',              bg: 'rgba(220,38,38,0.08)' } :
+                               { label: estado || '?', fg: 'var(--color-muted)',   bg: 'rgba(0,0,0,0.04)' }
+  )
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700,
+      padding: '3px 8px', borderRadius: 4,
+      color: cfg.fg, background: cfg.bg,
+      textTransform: 'uppercase', letterSpacing: '0.04em',
+      whiteSpace: 'nowrap',
+    }}>
+      {cfg.label}
+    </span>
+  )
+}
+
+// Formato legible para datetime SQLite ('YYYY-MM-DD HH:MM:SS' en UTC).
+// Devuelve 'DD/MM HH:mm' en horario local, o '—' si null/inválido.
+function fmtUltimaAct(s) {
+  if (!s) return '—'
+  // SQLite datetime('now') retorna UTC. Forzamos la 'Z' para que el motor
+  // de fechas del browser convierta correctamente a horario local del user.
+  const iso = s.includes('T') ? s : s.replace(' ', 'T') + 'Z'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return s
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm} ${hh}:${mi}`
+}
+
+const segTh = {
+  padding: '10px 12px', textAlign: 'left',
+  fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
+  textTransform: 'uppercase', letterSpacing: '0.05em',
+  borderBottom: '2px solid var(--color-border)',
+  whiteSpace: 'nowrap',
+}
+const segTd = {
+  padding: '10px 12px',
+  fontSize: 13,
+  verticalAlign: 'middle',
 }
