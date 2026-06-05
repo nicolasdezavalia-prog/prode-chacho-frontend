@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../api/index.js'
 import EquipoAutocomplete from '../../components/EquipoAutocomplete.jsx'
+import AdminMundialTarjetasMatriz from './AdminMundialTarjetasMatriz.jsx'
 
 const TIPOS_ORDEN = [
   'goleadores',
@@ -50,6 +51,8 @@ const FORM_INICIAL = {
 }
 
 export default function AdminMundialDatosUtiles({ torneoId }) {
+  // Sub-tabs: 'items' (Fase 1, items manuales) | 'tarjetas' (Fase 2, matriz).
+  const [subTab, setSubTab]     = useState('items')
   const [items, setItems]       = useState([])
   const [equipos, setEquipos]   = useState([])
   const [filtroTipo, setFiltro] = useState('')   // '' = todos
@@ -190,6 +193,28 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
 
   return (
     <div>
+      {/* Sub-tabs: Items manuales (Fase 1) vs Tarjetas estructuradas (Fase 2) */}
+      <div style={{
+        display: 'flex', gap: 4, marginBottom: 12,
+        borderBottom: '1px solid var(--color-border)',
+      }}>
+        <SubTab
+          label="Items manuales"
+          active={subTab === 'items'}
+          onClick={() => setSubTab('items')}
+        />
+        <SubTab
+          label="🟨🟥 Tarjetas"
+          active={subTab === 'tarjetas'}
+          onClick={() => setSubTab('tarjetas')}
+        />
+      </div>
+
+      {subTab === 'tarjetas' && (
+        <AdminMundialTarjetasMatriz torneoId={torneoId} />
+      )}
+
+      {subTab === 'items' && (<>
       {error && <div className="error-msg" style={{ marginBottom: 12 }}>{error}</div>}
       {info && (
         <div style={{
@@ -345,11 +370,33 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
           </table>
         </div>
       )}
+      </>)}
     </div>
   )
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
+
+function SubTab({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: '8px 14px',
+        background: 'none',
+        border: 'none',
+        borderBottom: active ? '2px solid var(--color-primary)' : '2px solid transparent',
+        color: active ? 'var(--color-primary)' : 'var(--color-muted)',
+        fontWeight: active ? 600 : 500,
+        fontSize: 13, cursor: 'pointer',
+        marginBottom: -1,
+      }}
+    >
+      {label}
+    </button>
+  )
+}
 
 function FiltroChip({ label, activo, onClick, count }) {
   return (

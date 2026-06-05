@@ -269,6 +269,22 @@ export const api = {
   deleteMundialDatoUtil: (torneoId, id) =>
     request('DELETE', `/mundial/${torneoId}/datos-utiles/${id}`),
 
+  // Mundial — Datos útiles Fase 2 (Tarjetas estructuradas):
+  // - getMundialTarjetasPartido: público para participantes. Devuelve
+  //   { celdas, max_partido_num, totales_por_equipo, top_amarillas, top_rojas }.
+  //   Acepta { limit } opcional (default 5, máx 50).
+  // - saveMundialTarjetasPartidoBulk: UPSERT bulk admin. celdas =
+  //   [{ equipo_codigo, partido_num, amarillas, rojas, observacion? }].
+  //   Responde el mismo shape que GET ya recalculado.
+  getMundialTarjetasPartido: (torneoId, params = {}) => {
+    const qs = new URLSearchParams()
+    if (Number.isInteger(params.limit)) qs.set('limit', String(params.limit))
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return request('GET', `/mundial/${torneoId}/tarjetas-partido${suffix}`)
+  },
+  saveMundialTarjetasPartidoBulk: (torneoId, celdas) =>
+    request('PUT', `/mundial/${torneoId}/tarjetas-partido/bulk`, { celdas }),
+
   // Mundial — Fase 2.1 (catálogo de equipos: CRUD + alta masiva).
   // Endpoints admin: requieren rol admin/superadmin + permiso 'gestionar_mundial'.
   // Editable solo en estados 'configuracion' o 'abierto' (el backend devuelve 409 si no).

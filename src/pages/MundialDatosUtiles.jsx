@@ -63,27 +63,34 @@ const TIPO_META = {
 
 export default function MundialDatosUtiles() {
   const { torneoId } = useParams()
-  const [torneo, setTorneo]   = useState(null)
-  const [datos, setDatos]     = useState([])
-  const [equipos, setEquipos] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
+  const [torneo, setTorneo]     = useState(null)
+  const [datos, setDatos]       = useState([])
+  const [equipos, setEquipos]   = useState([])
+  // Fase 2: tarjetas estructuradas. Si llega { top_amarillas, top_rojas }
+  // con elementos, reemplazan la sección manual del mismo tipo.
+  const [tarjetas, setTarjetas] = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState('')
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [torneos, list, cat] = await Promise.all([
+      const [torneos, list, cat, tj] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialDatosUtiles(torneoId),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
+        // Tarjetas: si el endpoint falla por cualquier razón, no rompe la
+        // página (cae al fallback de items manuales transparentemente).
+        api.getMundialTarjetasPartido(torneoId).catch(() => null),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
       setTorneo(t)
       setDatos(Array.isArray(list) ? list : [])
       setEquipos(Array.isArray(cat) ? cat : [])
+      setTarjetas(tj)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -129,7 +136,16 @@ export default function MundialDatosUtiles() {
   if (loading) return <div className="loading">Cargando datos útiles...</div>
   if (error)   return <div className="error-msg" style={{ margin: 24 }}>{error}</div>
 
-  const hayAlgo = datos.length > 0
+  // Fase 2: tops calculados desde matriz. Si tienen elementos, ocultan los
+  // items manuales del mismo tipo (auto-deprecación transparente).
+  const topAmarillas = Array.isArray(tarjetas?.top_amarillas) ? tarjetas.top_amarillas : []
+  const topRojas     = Array.isArray(tarjetas?.top_rojas)     ? tarjetas.top_rojas     : []
+  const hayTopAmarillas = topAmarillas.length > 0
+  const hayTopRojas     = topRojas.length > 0
+
+  // hayAlgo incluye tops estructurados para que la página NO muestre el
+  // empty si lo único cargado son tarjetas estructuradas.
+  const hayAlgo = datos.length > 0 || hayTopAmarillas || hayTopRojas
 
   return (
     <div style={{ maxWidth: 880, margin: '24px auto', padding: '0 16px' }}>
@@ -160,8 +176,32 @@ export default function MundialDatosUtiles() {
         </div>
       )}
 
-      {/* Secciones por tipo en orden fijo */}
+      {/* Secciones por tipo en orden fijo. Para amarillas_equipo y
+          rojas_equipo, si hay tarjetas estructuradas (Fase 2), se renderiza
+          el top calculado en vez de los items manuales del mismo tipo. */}
       {TIPOS_ORDEN.map(tipo => {
+        if (tipo === 'amarillas_equipo' && hayTopAmarillas) {
+          return (
+            <TopTarjetasSection
+              key="top_amarillas"
+              emoji="🟨"
+              label="Top tarjetas amarillas"
+              sufijo="amarillas"
+              items={topAmarillas}
+            />
+          )
+        }
+        if (tipo === 'rojas_equipo' && hayTopRojas) {
+          return (
+            <TopTarjetasSection
+              key="top_rojas"
+              emoji="🟥"
+              label="Top tarjetas rojas"
+              sufijo="rojas"
+              items={topRojas}
+            />
+          )
+        }
         const items = porTipo.get(tipo) || []
         if (items.length === 0) return null
         const meta = TIPO_META[tipo] || { label: tipo, emoji: '•' }
@@ -261,4 +301,72 @@ const tdValor = {
   whiteSpace: 'nowrap',
   verticalAlign: 'top',
   minWidth: 80,
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TopTarjetasSection — render del top calculado desde la matriz Fase 2.
+//
+// items vienen ordenados desde el backend con posición ya asignada (dense
+// rank: empates comparten posición; corte por posición, no por count).
+// Cada item: { equipo_codigo, nombre, emoji, grupo, total, posicion }.
+// ─────────────────────────────────────────────────────────────────────────
+function TopTarjetasSection({ emoji, label, sufijo, items }) {
+  return (
+    <section style={{ marginBottom: 20 }}>
+      <h2 style={{
+        fontSize: 14, fontWeight: 700,
+        color: 'var(--color-text)',
+        textTransform: 'uppercase', letterSpacing: '0.05em',
+        margin: '0 0 8px 0',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 18 }}>{emoji}</span>
+        {label}
+        <span style={{
+          fontSize: 11, color: 'var(--color-muted)',
+          fontWeight: 400, textTransform: 'none',
+        }}>
+          ({items.length})
+        </span>
+      </h2>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <tbody>
+            {items.map((it, idx) => (
+              <tr key={`${it.equipo_codigo}-${idx}`} style={{
+                borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.05)',
+              }}>
+                <td style={{ ...tdMain, width: 40, textAlign: 'right',
+                              fontWeight: 700, color: 'var(--color-muted)',
+                              fontVariantNumeric: 'tabular-nums' }}>
+                  {it.posicion}°
+                </td>
+                <td style={tdMain}>
+                  <div style={{ fontWeight: 600 }}>
+                    {it.emoji ? `${it.emoji} ` : ''}{it.nombre}
+                  </div>
+                  {it.grupo && (
+                    <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>
+                      Grupo {it.grupo}
+                    </div>
+                  )}
+                </td>
+                <td style={tdValor}>
+                  <span style={{
+                    fontSize: 18, fontWeight: 700,
+                    fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                  }}>
+                    {it.total}
+                  </span>
+                  <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
+                    {sufijo}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
 }
