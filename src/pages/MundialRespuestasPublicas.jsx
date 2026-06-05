@@ -72,12 +72,17 @@ const RESPUESTAS_PUBLICAS_CSS = `
 .rp-matrix thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
-  background: var(--color-surface2, #f8f9fa);
+  /* z-index alto para garantizar que el header sticky quede por ENCIMA de
+     cualquier celda del cuerpo al scrollear verticalmente. Combinado con
+     box-shadow inset para que el borde inferior siga nítido aunque el
+     contenido pase por debajo. */
+  z-index: 5;
+  background: var(--color-surface2, #f1f3f5);
   font-weight: 600;
   font-size: 12px;
   white-space: nowrap;
   border-bottom: 2px solid var(--color-border);
+  box-shadow: inset 0 -2px 0 var(--color-border);
   color: var(--color-text);
   text-align: center;
   /* Altura mínima fija para que el header de 2 líneas (nombre + pts) no
@@ -116,8 +121,10 @@ const RESPUESTAS_PUBLICAS_CSS = `
   position: sticky !important;
   top: 0;
   left: 0;
-  z-index: 3 !important;
-  background: var(--color-surface2, #f8f9fa) !important;
+  /* La esquina debe quedar por encima del thead (z-index 5) y de la
+     primera columna sticky (z-index 1). */
+  z-index: 6 !important;
+  background: var(--color-surface2, #f1f3f5) !important;
   border-right: 1px solid var(--color-border);
   font-size: 11px;
   text-transform: uppercase;
@@ -202,12 +209,15 @@ const RESPUESTAS_PUBLICAS_CSS = `
 }
 .rp-chip--ok  { background: rgba(22,163,74,0.10);  color: var(--color-success); border-color: rgba(22,163,74,0.25); }
 .rp-chip--bad { background: rgba(220,38,38,0.08);  color: var(--color-danger);  border-color: rgba(220,38,38,0.22); }
+/* IMPORTANTE: estos backgrounds deben ser OPACOS. Si se usa rgba con alpha
+   bajo, el header sticky deja pasar las celdas que scrollean por debajo y
+   el texto del nombre se mezcla. Mantener colores planos azulados. */
 .rp-head--self {
-  background: rgba(59,130,246,0.14) !important;
+  background: #dbe7ff !important;
   color: var(--color-text);
 }
 .rp-cell--self {
-  background: rgba(59,130,246,0.05) !important;
+  background: #f3f7ff !important;
 }
 .rp-vos {
   display: inline-block;
