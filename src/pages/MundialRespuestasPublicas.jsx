@@ -1,22 +1,27 @@
 /**
- * MundialRespuestasPublicas — Fase 3.4
+ * MundialRespuestasPublicas — Fase 3.4 + Mini-fase "respuestas corregidas"
  *
  * Vista social tipo matriz comparativa: una fila por pregunta, una columna
- * por participante, celda con la respuesta. Pensada para comparar de un
- * vistazo qué eligió cada uno.
+ * por participante, celda con la respuesta + estado de corrección.
  *
  * UX:
  *   - Card con scroll interno (horizontal + vertical) para no romper en mobile.
- *   - Header de participantes sticky top, columna de preguntas sticky left,
- *     celda esquina sticky a ambos. Funciona dentro del scroll de la card.
+ *   - Header de participantes sticky top — ahora con 2 líneas (nombre + pts).
+ *   - Columna de preguntas sticky left, esquina sticky a ambos.
  *   - Columna del usuario actual resaltada (fondo azul suave + badge "vos").
  *   - Equipos: 🇦🇷 Argentina (emoji + nombre). Si no hay emoji → solo nombre.
  *     Si no se encuentra en catálogo → código como fallback.
- *   - Multi-equipo: lista coma-separada.
+ *   - Multi-equipo con resultado cargado: chips por equipo verde/rojo.
+ *   - Multi-equipo pendiente: lista coma-separada (fallback).
  *   - Sin respuesta: "—" gris.
  *
- * Solo lee endpoints existentes — sin cambios en backend, scoring, ranking,
- * carga, ni resultados.
+ * Datos del backend (mini-fase respuestas corregidas):
+ *   - participantes[]: nombre + puntos_totales (cruzado con ranking real).
+ *   - tiene_resultado por pregunta.
+ *   - por celda: puntos_obtenidos, estado, detalle_items (solo multi_equipo).
+ *
+ * Reglas de scoring NO se calculan en el frontend — vienen del backend para
+ * evitar duplicación con `mundial-scoring.js`.
  */
 
 import { useEffect, useState, useMemo } from 'react'
@@ -26,22 +31,9 @@ import { useAuth } from '../App.jsx'
 import MundialIcon from '../components/MundialIcon.jsx'
 
 /**
- * CSS scoped a esta página. Prefijo `rp-` para evitar colisiones.
- *
- * Sticky:
- *   - Para que `position: sticky` funcione en thead Y en la primera columna
- *     simultáneamente, el contenedor scrollable debe tener overflow en ambos
- *     ejes. Por eso la card tiene `max-height: 80vh` + `overflow: auto`.
- *   - thead th: sticky top.
- *   - tbody tr > :first-child: sticky left.
- *   - thead th:first-child (corner): sticky top+left con z-index mayor.
- *   - z-index: corner(3) > thead(2) > primera col(1) > celdas regulares.
- */
-/**
  * Versiones cortas para preguntas largas (Fase 3.4c). Display-only; el
  * enunciado real en el backend no se toca. Si una pregunta no está acá,
- * se muestra el enunciado completo. Generic fallback: line-clamp 2 líneas
- * con title attribute como tooltip de respaldo.
+ * se muestra el enunciado completo.
  */
 const ENUNCIADOS_CORTOS = {
   32: 'Eliminados en 16°',
@@ -88,6 +80,25 @@ const RESPUESTAS_PUBLICAS_CSS = `
   border-bottom: 2px solid var(--color-border);
   color: var(--color-text);
   text-align: center;
+  /* Altura mínima fija para que el header de 2 líneas (nombre + pts) no
+     dependa del contenido y nunca "salte" al scrollear. */
+  min-height: 44px;
+  padding: 6px 12px;
+}
+/* Header con 2 líneas: nombre arriba, pts abajo. */
+.rp-head-name {
+  display: block;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.rp-head-pts {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+  margin-top: 2px;
 }
 /* Columna "Pregunta" (sticky left) — ancho controlado y left-align. */
 .rp-matrix tbody th {
@@ -127,9 +138,6 @@ const RESPUESTAS_PUBLICAS_CSS = `
 }
 .rp-q-text {
   vertical-align: middle;
-  /* Line-clamp 2 líneas como fallback genérico para preguntas largas
-     que no tienen versión corta hardcoded. El title attribute provee el
-     enunciado completo en hover. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -141,11 +149,59 @@ const RESPUESTAS_PUBLICAS_CSS = `
 }
 .rp-cell-content {
   display: inline-block;
-  max-width: 180px;
+  max-width: 200px;
   word-break: normal;
   overflow-wrap: break-word;
   text-align: center;
 }
+/* Fila inferior de cada celda: badge estado + pts. */
+.rp-cell-status {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.rp-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.rp-badge--correcto   { background: rgba(22,163,74,0.12);  color: var(--color-success); }
+.rp-badge--incorrecto { background: rgba(220,38,38,0.10);  color: var(--color-danger); }
+.rp-badge--parcial    { background: rgba(59,130,246,0.12); color: var(--color-primary); }
+.rp-badge--pendiente  { background: rgba(234,179,8,0.15);  color: #a16207; }
+.rp-pts {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.rp-pts--pos { color: var(--color-success); }
+.rp-pts--neg { color: var(--color-danger); }
+.rp-pts--muted { color: var(--color-muted); font-weight: 400; }
+/* Multi-equipo: chips por equipo. */
+.rp-multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  max-width: 200px;
+}
+.rp-chip {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.rp-chip--ok  { background: rgba(22,163,74,0.10);  color: var(--color-success); border-color: rgba(22,163,74,0.25); }
+.rp-chip--bad { background: rgba(220,38,38,0.08);  color: var(--color-danger);  border-color: rgba(220,38,38,0.22); }
 .rp-head--self {
   background: rgba(59,130,246,0.14) !important;
   color: var(--color-text);
@@ -171,11 +227,21 @@ const RESPUESTAS_PUBLICAS_CSS = `
 @media (max-width: 560px) {
   .rp-scroll { max-height: 70vh; }
   .rp-matrix th, .rp-matrix td { padding: 6px 8px; font-size: 12px; }
+  .rp-matrix thead th { min-height: 40px; padding: 5px 8px; }
   .rp-matrix tbody th { min-width: 160px; max-width: 200px; }
   .rp-cell-content { max-width: 140px; }
+  .rp-multi { max-width: 140px; }
   .rp-q-num { padding: 1px 6px; margin-right: 4px; }
 }
 `
+
+// Labels para cada estado del backend.
+const ESTADO_LABELS = {
+  correcto:   'Correcto',
+  incorrecto: 'Incorrecto',
+  parcial:    'Parcial',
+  pendiente:  'Pendiente',
+}
 
 export default function MundialRespuestasPublicas() {
   const { torneoId } = useParams()
@@ -216,10 +282,8 @@ export default function MundialRespuestasPublicas() {
   }, [equipos])
 
   /**
-   * Formato pedido (Fase 3.4):
-   *   - emoji + nombre  → '🇦🇷 Argentina'
-   *   - sin emoji       → 'Argentina'
-   *   - no en catálogo  → código crudo (fallback)
+   * Equipo formateado: emoji + nombre, o nombre, o código crudo (fallback).
+   * Solo devuelve string — usado tanto para fmtRespuesta como para los chips.
    */
   function fmtEquipo(codigo) {
     if (!codigo || typeof codigo !== 'string') return null
@@ -251,6 +315,8 @@ export default function MundialRespuestasPublicas() {
       case 'numero_por_banda':
         return Number.isInteger(r.numero) ? String(r.numero) : missingNode()
       case 'multi_equipo': {
+        // Fallback (sin detalle_items): lista coma-separada. Solo se ve cuando
+        // el resultado aún no está cargado (estado = pendiente).
         const arr = Array.isArray(r.equipos) ? r.equipos : []
         if (arr.length === 0) return missingNode()
         return arr.map(fmtEquipo).filter(Boolean).join(', ')
@@ -266,32 +332,86 @@ export default function MundialRespuestasPublicas() {
   }
 
   /**
-   * IMPORTANTE: todos los hooks deben ir antes de cualquier early return
-   * (loading/error). React falla con "Rendered more hooks than during the
-   * previous render" si el orden de hooks varía entre renders.
-   * Por eso `preguntas`, `participantes` y `respuestasIndex` se calculan
-   * acá con defaults seguros (data puede ser null mientras loading=true).
+   * Renderiza chips por equipo cuando el backend mandó detalle_items para una
+   * celda multi_equipo. Cada item: { codigo, correcto }.
+   */
+  function renderChipsMulti(detalleItems) {
+    if (!Array.isArray(detalleItems) || detalleItems.length === 0) return missingNode()
+    return (
+      <span className="rp-multi">
+        {detalleItems.map((it, i) => (
+          <span
+            key={`${it.codigo}-${i}`}
+            className={`rp-chip ${it.correcto ? 'rp-chip--ok' : 'rp-chip--bad'}`}
+          >
+            {fmtEquipo(it.codigo) || it.codigo}
+          </span>
+        ))}
+      </span>
+    )
+  }
+
+  /**
+   * Badge + pts debajo de cada celda. Cero lógica de scoring local — todo
+   * viene del backend (estado + puntos_obtenidos).
+   */
+  function renderEstado(cell) {
+    if (!cell || !cell.estado) return null
+    const estado = cell.estado
+    const pts    = cell.puntos_obtenidos
+    let ptsLabel, ptsClass
+    if (estado === 'pendiente' || pts === null) {
+      ptsLabel = 'pendiente'
+      ptsClass = 'rp-pts--muted'
+    } else if (pts > 0) {
+      ptsLabel = `+${pts} pts`
+      ptsClass = 'rp-pts--pos'
+    } else if (pts < 0) {
+      ptsLabel = `${pts} pts`
+      ptsClass = 'rp-pts--neg'
+    } else {
+      ptsLabel = '0 pts'
+      ptsClass = 'rp-pts--muted'
+    }
+    return (
+      <span className="rp-cell-status">
+        <span className={`rp-badge rp-badge--${estado}`}>
+          {ESTADO_LABELS[estado] || estado}
+        </span>
+        <span className={`rp-pts ${ptsClass}`}>{ptsLabel}</span>
+      </span>
+    )
+  }
+
+  /**
+   * IMPORTANTE: todos los hooks deben ir antes de cualquier early return.
    */
 
   const preguntas = Array.isArray(data?.preguntas) ? data.preguntas : []
 
   /**
-   * Unión de participantes a través de todas las preguntas. Algunos pueden
-   * haber respondido solo algunas, así que tomamos la unión y los ordenamos
-   * alfabéticamente. La columna del user actual se promueve a la primera
-   * posición (después de "Pregunta") para que sea más fácil de comparar.
+   * Participantes: viene del backend con puntos_totales (cruzado con ranking).
+   * Promover al user actual a la primera posición para comparar fácil.
+   * Fallback (compat): si el backend no manda `participantes`, derivar de las
+   * respuestas como antes — sin pts.
    */
   const participantes = useMemo(() => {
-    const map = new Map() // user_id → nombre
-    for (const p of preguntas) {
-      for (const r of (p.respuestas || [])) {
-        if (!map.has(r.user_id)) {
-          map.set(r.user_id, r.nombre || `Usuario ${r.user_id}`)
+    let base = Array.isArray(data?.participantes) ? data.participantes : null
+    if (!base) {
+      // Fallback compat con shape anterior — no debería pasar en backend nuevo.
+      const map = new Map()
+      for (const p of preguntas) {
+        for (const r of (p.respuestas || [])) {
+          if (!map.has(r.user_id)) {
+            map.set(r.user_id, { user_id: r.user_id, nombre: r.nombre || `Usuario ${r.user_id}`, puntos_totales: null })
+          }
         }
       }
+      base = [...map.values()]
     }
-    const arr = [...map.entries()].map(([user_id, nombre]) => ({ user_id, nombre }))
-    arr.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }))
+    const arr = base.slice().sort((a, b) =>
+      (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+    )
     // Promover al user actual a la primera posición si está en la lista.
     if (user && arr.some(p => p.user_id === user.id)) {
       const yo = arr.find(p => p.user_id === user.id)
@@ -299,14 +419,17 @@ export default function MundialRespuestasPublicas() {
       return [yo, ...resto]
     }
     return arr
-  }, [preguntas, user])
+  }, [data, preguntas, user])
 
-  // Index { pregunta_id → { user_id → respuesta_json } } para lookup O(1) por celda.
-  const respuestasIndex = useMemo(() => {
+  /**
+   * Index { pregunta_id → { user_id → cellObj } } para lookup O(1) por celda.
+   * Cada cellObj incluye respuesta_json + estado + puntos_obtenidos + detalle_items.
+   */
+  const celdaIndex = useMemo(() => {
     const m = new Map()
     for (const p of preguntas) {
       const inner = new Map()
-      for (const r of (p.respuestas || [])) inner.set(r.user_id, r.respuesta_json)
+      for (const r of (p.respuestas || [])) inner.set(r.user_id, r)
       m.set(p.id, inner)
     }
     return m
@@ -385,13 +508,19 @@ export default function MundialRespuestasPublicas() {
                 <th className="rp-corner">Pregunta</th>
                 {participantes.map(part => {
                   const esYo = user && part.user_id === user.id
+                  const pts  = Number.isInteger(part.puntos_totales) ? part.puntos_totales : null
                   return (
                     <th
                       key={part.user_id}
                       className={esYo ? 'rp-head--self' : undefined}
                     >
-                      {part.nombre}
-                      {esYo && <span className="rp-vos">vos</span>}
+                      <span className="rp-head-name">
+                        {part.nombre}
+                        {esYo && <span className="rp-vos">vos</span>}
+                      </span>
+                      <span className="rp-head-pts">
+                        {pts !== null ? `${pts} pts` : '—'}
+                      </span>
                     </th>
                   )
                 })}
@@ -414,15 +543,35 @@ export default function MundialRespuestasPublicas() {
                   </th>
                   {participantes.map(part => {
                     const esYo = user && part.user_id === user.id
-                    const respJson = respuestasIndex.get(p.id)?.get(part.user_id)
+                    const cell = celdaIndex.get(p.id)?.get(part.user_id)
+                    // Usuario sin respuesta para esta pregunta → "—" muted.
+                    if (!cell) {
+                      return (
+                        <td
+                          key={part.user_id}
+                          className={esYo ? 'rp-cell--self' : undefined}
+                        >
+                          <div className="rp-cell-content">{missingNode()}</div>
+                        </td>
+                      )
+                    }
+                    // Decisión de render del cuerpo de la celda:
+                    // - multi_equipo con detalle_items → chips por equipo (color del backend).
+                    // - resto → fmtRespuesta texto plano.
+                    const usarChips = p.tipo_pregunta === 'multi_equipo'
+                      && Array.isArray(cell.detalle_items)
+                      && cell.detalle_items.length > 0
                     return (
                       <td
                         key={part.user_id}
                         className={esYo ? 'rp-cell--self' : undefined}
                       >
                         <div className="rp-cell-content">
-                          {fmtRespuesta(p.tipo_pregunta, respJson)}
+                          {usarChips
+                            ? renderChipsMulti(cell.detalle_items)
+                            : fmtRespuesta(p.tipo_pregunta, cell.respuesta_json)}
                         </div>
+                        {renderEstado(cell)}
                       </td>
                     )
                   })}
