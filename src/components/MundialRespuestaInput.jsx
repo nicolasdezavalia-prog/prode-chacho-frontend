@@ -17,7 +17,7 @@
  *   disabled        — bool. Bloquea inputs (modo lectura).
  */
 
-import { useState } from 'react'
+import EquipoAutocomplete from './EquipoAutocomplete.jsx'
 
 const selectStyle = {
   width: '100%',
@@ -124,24 +124,20 @@ function InputOpcionUnica({ cfg, respuesta, onChange, disabled }) {
   )
 }
 
-// ── equipo_categoria: dropdown contra catálogo, devuelve { equipo: 'ARG' } ──
+// ── equipo_categoria: autocomplete contra catálogo, devuelve { equipo: 'ARG' } ─
+// Reemplazo del <select> nativo (Fase UX equipos mobile-friendly).
+// El código sigue siendo el value interno; el display muestra solo
+// "🇦🇷 Argentina (Grupo J)" para que la lista sea legible en mobile.
 function InputEquipoCategoria({ respuesta, onChange, disabled, equiposCatalogo }) {
   return (
-    <select
-      value={respuesta.equipo || ''}
-      onChange={e => onChange({ equipo: e.target.value })}
-      disabled={disabled || equiposCatalogo.length === 0}
-      style={selectStyle}
-    >
-      <option value="">
-        {equiposCatalogo.length === 0 ? '— Sin equipos en catálogo —' : '— Elegí un equipo —'}
-      </option>
-      {equiposCatalogo.map(eq => (
-        <option key={eq.codigo} value={eq.codigo}>
-          {eq.codigo} — {eq.nombre}{eq.grupo ? ` (Grupo ${eq.grupo})` : ''}
-        </option>
-      ))}
-    </select>
+    <EquipoAutocomplete
+      equipos={equiposCatalogo}
+      valor={respuesta.equipo || ''}
+      onChange={codigo => onChange({ equipo: codigo })}
+      disabled={disabled}
+      placeholder="Buscá un equipo (ej: argentina, ARG)…"
+      autoLimpiar={false}
+    />
   )
 }
 
@@ -199,21 +195,22 @@ function InputNumero({ respuesta, onChange, disabled, placeholder }) {
 function InputNumeroExacto(p)   { return <InputNumero {...p} placeholder="Número exacto" /> }
 function InputNumeroPorBanda(p) { return <InputNumero {...p} placeholder="Tu número" /> }
 
-// ── multi_equipo: chips + dropdown contra catálogo, hasta n_equipos ────────
+// ── multi_equipo: chips + EquipoAutocomplete con auto-add hasta n_equipos ──
+// Reemplazo del <select> + botón "+ Agregar" (Fase UX equipos mobile-friendly).
+// El autocomplete agrega el equipo en cuanto el user lo selecciona y
+// re-foca para seguir tipeando. Sin botón Agregar.
 function InputMultiEquipo({ cfg, respuesta, onChange, disabled, equiposCatalogo }) {
   const n = cfg.n_equipos || 0
   const equiposActuales = Array.isArray(respuesta.equipos) ? respuesta.equipos : []
-  const [seleccionado, setSeleccionado] = useState('')
 
-  const enUso = new Set(equiposActuales)
-  const disponibles = equiposCatalogo.filter(eq => !enUso.has(eq.codigo))
   const completo = equiposActuales.length >= n
-  const getInfo = (codigo) => equiposCatalogo.find(e => e.codigo === codigo)
+  const getInfo  = (codigo) => equiposCatalogo.find(e => e.codigo === codigo)
 
-  const agregar = () => {
-    if (!seleccionado || completo) return
-    onChange({ equipos: [...equiposActuales, seleccionado] })
-    setSeleccionado('')
+  const agregar = (codigo) => {
+    // Defensa extra: el autocomplete ya filtra excluidos y el padre ya
+    // limita por `disabled`, pero por las dudas validamos acá.
+    if (!codigo || completo || equiposActuales.includes(codigo)) return
+    onChange({ equipos: [...equiposActuales, codigo] })
   }
   const quitar = (codigo) => {
     onChange({ equipos: equiposActuales.filter(c => c !== codigo) })
@@ -228,7 +225,7 @@ function InputMultiEquipo({ cfg, respuesta, onChange, disabled, equiposCatalogo 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10, minHeight: 28 }}>
         {equiposActuales.length === 0 && (
           <span style={{ fontSize: 12, color: 'var(--color-muted)', fontStyle: 'italic' }}>
-            Sin equipos. Elegí desde el dropdown.
+            Sin equipos. Buscá y elegí abajo.
           </span>
         )}
         {equiposActuales.map(codigo => {
@@ -256,34 +253,14 @@ function InputMultiEquipo({ cfg, respuesta, onChange, disabled, equiposCatalogo 
         })}
       </div>
       {!completo && !disabled && (
-        <div style={{ display: 'flex', gap: 6 }}>
-          <select
-            value={seleccionado}
-            onChange={e => setSeleccionado(e.target.value)}
-            disabled={disponibles.length === 0}
-            style={{ ...selectStyle, flex: 1, maxWidth: 380 }}
-          >
-            <option value="">
-              {disponibles.length === 0
-                ? '— No quedan equipos disponibles —'
-                : '— Elegí un equipo —'}
-            </option>
-            {disponibles.map(eq => (
-              <option key={eq.codigo} value={eq.codigo}>
-                {eq.codigo} — {eq.nombre}{eq.grupo ? ` (Grupo ${eq.grupo})` : ''}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={agregar}
-            disabled={!seleccionado}
-            className="btn btn-primary btn-sm"
-            style={{ fontSize: 11 }}
-          >
-            + Agregar
-          </button>
-        </div>
+        <EquipoAutocomplete
+          equipos={equiposCatalogo}
+          valor=""                       /* siempre vacío: en multi el chip arriba lleva el estado */
+          excluir={equiposActuales}      /* evita duplicados del que ya está como chip */
+          onChange={agregar}             /* auto-agrega y vuelve a abrir */
+          autoLimpiar={true}
+          placeholder="Buscá un equipo para agregar…"
+        />
       )}
     </div>
   )
