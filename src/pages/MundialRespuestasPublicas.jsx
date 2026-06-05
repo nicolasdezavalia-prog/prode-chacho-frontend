@@ -607,17 +607,19 @@ export default function MundialRespuestasPublicas() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SeguimientoAdminTable — Mini-fase "seguimiento admin carga abierta"
+// SeguimientoAdminTable — Mini-fase "seguimiento carga abierta"
 //
-// Tabla operativa para admin/superadmin mientras la carga sigue abierta.
-// NO muestra respuestas — solo conteo + estado + última actualización por
-// participante. Backend valida el rol y filtra `respuesta_json` antes de
-// llegar acá: el frontend solo decide cómo mostrar el payload.
+// Tabla de avance por participante mientras la carga sigue abierta. La
+// expone el backend a cualquier user con acceso al torneo (admin o
+// participante de torneo_jugadores). NO se incluye `respuesta_json` ni
+// nada que revele qué eligió cada uno — solo conteo + estado + última
+// actualización. El gate de acceso lo hace `getTorneoMundialConAcceso`
+// en el endpoint; el frontend solo decide cómo mostrar el payload.
 // ─────────────────────────────────────────────────────────────────────────
 function SeguimientoAdminTable({ seguimiento, total, mensaje }) {
   return (
     <div>
-      {/* Banner contextual: deja claro por qué estoy viendo esto. */}
+      {/* Banner contextual: deja claro qué estoy mirando y qué NO se ve. */}
       <div style={{
         padding: '10px 14px', marginBottom: 12,
         background: 'rgba(99,102,241,0.08)', color: '#4338ca',
@@ -625,11 +627,10 @@ function SeguimientoAdminTable({ seguimiento, total, mensaje }) {
         border: '1px solid rgba(99,102,241,0.25)',
         display: 'flex', alignItems: 'flex-start', gap: 10,
       }}>
-        <span style={{ fontSize: 18, lineHeight: 1 }}>🛠️</span>
+        <span style={{ fontSize: 18, lineHeight: 1 }}>⏳</span>
         <div style={{ flex: 1 }}>
-          <strong>Vista admin · carga en curso.</strong>{' '}
-          Seguimiento por participante. Las respuestas se mantienen ocultas
-          hasta que cierre la carga.
+          <strong>Carga en curso · seguimiento de participantes.</strong>{' '}
+          Las respuestas se mantienen ocultas hasta que cierre la carga.
           {mensaje && (
             <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
               {mensaje}
