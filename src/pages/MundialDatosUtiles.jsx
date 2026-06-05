@@ -12,12 +12,26 @@
  *   - tabla de grupos;
  *   - otro.
  *
- * SIN scoring, SIN ranking, SIN "lo pusieron" (Fase 2). Solo lectura.
+ * Solo lectura. Cero scoring, cero ranking, cero cruce con respuestas.
  *
  * Orden de secciones (fijo): goleadores → amarillas_equipo → rojas_equipo
  *   → clasificados → eliminados → tabla_grupos → otro.
  *
  * Tipos sin datos cargados: la sección NO se renderiza para no ensuciar.
+ *
+ * ROADMAP (no implementar acá):
+ *   Fase 2 — Tarjetas estructuradas: matriz Equipo × Partido para amarillas
+ *     y rojas. Sistema calcula totales y top 5. Reemplaza la carga manual de
+ *     'amarillas_equipo' y 'rojas_equipo'.
+ *   Fase 3 — Tabla de grupos calculada: admin carga resultados de partidos
+ *     de grupo; sistema calcula PJ/Pts/GF/GC/DG/posición. Reemplaza la carga
+ *     manual de 'tabla_grupos'.
+ *   Fase 4 — "Lo pusieron": cruce contra mundial_respuestas_usuario usando
+ *     pregunta_id (ya nullable en el schema). Goleadores → quién eligió ese
+ *     jugador, tarjetas/clasificados/eliminados → quién eligió ese equipo.
+ *     Gate temporal: no exponer antes del cierre de carga.
+ *   Al implementar Fase 2/3, los tipos manuales correspondientes quedan
+ *   deprecados desde el admin (sin necesidad de tocar el CHECK del schema).
  */
 
 import { useEffect, useState, useMemo } from 'react'
