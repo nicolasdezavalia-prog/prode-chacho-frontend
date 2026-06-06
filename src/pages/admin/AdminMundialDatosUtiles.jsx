@@ -37,6 +37,17 @@ const TIPO_LABEL = {
   otro:             'Otro',
 }
 
+// Tipos deprecados en la sub-tab "Items manuales" (Fase 2 — Tarjetas).
+// La carga real de amarillas/rojas pasa a la sub-tab Tarjetas (matriz).
+// Estos tipos quedan ocultos del filtro, del select de tipo y de la lista
+// para no promover la doble carga. NO se borra data existente: si hay
+// items legacy con estos tipos, simplemente no se muestran en admin.
+// La vista user (`MundialDatosUtiles.jsx`) mantiene fallback transparente
+// a items manuales cuando no hay matriz cargada.
+// Backend CHECK del schema intacto — no requiere migración.
+const TIPOS_DEPRECADOS_ITEMS_MANUALES = new Set(['amarillas_equipo', 'rojas_equipo'])
+const TIPOS_ITEMS_VISIBLES = TIPOS_ORDEN.filter(t => !TIPOS_DEPRECADOS_ITEMS_MANUALES.has(t))
+
 const FORM_INICIAL = {
   tipo:          'goleadores',
   titulo:        '',
@@ -85,9 +96,12 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
     return m
   }, [equipos])
 
+  // Items visibles en admin: oculta los tipos deprecados (amarillas/rojas).
+  // Los items legacy con esos tipos siguen en DB pero no se exponen acá.
   const filtrados = useMemo(() => {
-    if (!filtroTipo) return items
-    return items.filter(x => x.tipo === filtroTipo)
+    const visibles = items.filter(x => !TIPOS_DEPRECADOS_ITEMS_MANUALES.has(x.tipo))
+    if (!filtroTipo) return visibles
+    return visibles.filter(x => x.tipo === filtroTipo)
   }, [items, filtroTipo])
 
   // ── Form helpers ─────────────────────────────────────────────────────────
@@ -225,9 +239,16 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
       )}
 
       {/* Filtros por tipo + Acciones */}
+      {/* Chips solo de tipos visibles (no muestra amarillas_equipo/rojas_equipo).
+          "Todos" cuenta solo items visibles para que el número coincida con la lista. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 12 }}>
-        <FiltroChip label="Todos" activo={filtroTipo === ''} onClick={() => setFiltro('')} count={items.length} />
-        {TIPOS_ORDEN.map(t => {
+        <FiltroChip
+          label="Todos"
+          activo={filtroTipo === ''}
+          onClick={() => setFiltro('')}
+          count={items.filter(x => !TIPOS_DEPRECADOS_ITEMS_MANUALES.has(x.tipo)).length}
+        />
+        {TIPOS_ITEMS_VISIBLES.map(t => {
           const count = items.filter(x => x.tipo === t).length
           return (
             <FiltroChip
@@ -445,7 +466,9 @@ function DatoForm({ form, setForm, equipos, esNuevo, saving, onSave, onCancel })
             disabled={saving}
             style={inp}
           >
-            {TIPOS_ORDEN.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
+            {/* Solo tipos visibles. amarillas_equipo / rojas_equipo se cargan
+                desde la sub-tab Tarjetas (matriz), no acá. */}
+            {TIPOS_ITEMS_VISIBLES.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
           </select>
         </Label>
         <Label text="Título *">

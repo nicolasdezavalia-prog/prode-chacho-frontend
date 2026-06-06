@@ -38,9 +38,22 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
   const [celdas, setCeldas]         = useState(new Map())
   // Set de keys 'equipo_codigo|partido_num' modificadas desde el último load.
   const [dirty, setDirty]           = useState(new Set())
-  const [numPartidos, setNumPartidos] = useState(PARTIDOS_DEFAULT)
-  // Piso mínimo: max_partido_num cargado. No permitimos achicar abajo de eso.
-  const [maxLoadedPartido, setMaxLoaded] = useState(0)
+  // ── Estado de columnas (refactor 2026-06-04) ─────────────────────────────
+  // Separamos "piso calculado desde backend" de "expansión temporal del admin".
+  // Esto hace imposible que la UI muestre más columnas que las autorizadas
+  // por el backend (`max_partido_num`) salvo que el admin haya tocado
+  // explícitamente "+ Partido" en esta sesión.
+  //
+  //   maxRealCargado: viene de data.max_partido_num. Backend ya lo calcula
+  //                   ignorando celdas 0/0 sin observación.
+  //   extraPartidos:  contador de columnas extra que el admin sumó con
+  //                   "+ Partido". Se RESETEA a 0 en cada load/save.
+  //
+  // partidosVisibles (derivado) = max(PARTIDOS_DEFAULT, maxRealCargado) + extraPartidos.
+  // Por construcción nunca cae por debajo de PARTIDOS_DEFAULT (8) ni del
+  // máximo real cargado, y nunca crece por preservación de prev.
+  const [maxRealCargado, setMaxRealCargado] = useState(0)
+  const [extraPartidos, setExtraPartidos]   = useState(0)
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
@@ -59,13 +72,15 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
     }
     setCeldas(map)
     setDirty(new Set())
-    const maxN = data?.max_partido_num || 0
-    setMaxLoaded(maxN)
-    // Default visible: el mayor de PARTIDOS_DEFAULT y maxN.
-    // En el primer load lo seteamos; en reloads conservamos lo que el admin
-    // ya estaba viendo (no shrinkear involuntariamente).
-    setNumPartidos(prev => Math.max(prev || 0, PARTIDOS_DEFAULT, maxN))
-    return { map, maxN }
+    // Source of truth: backend. max_partido_num viene calculado ignorando
+    // celdas 0/0 sin observación (ver routes/mundial.js → celdaTieneDataReal).
+    // Number() defensivo por si el backend lo manda como string en algún caso.
+    const maxReal = Number(data?.max_partido_num) || 0
+    setMaxRealCargado(maxReal)
+    // Reset cualquier expansión temporal — si admin había hecho + Partido
+    // pero no guardó valores reales, esas columnas desaparecen al recargar.
+    setExtraPartidos(0)
+    return { map, maxReal }
   }
 
   async function load() {
@@ -91,9 +106,12 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
     if (!c) return 0
     return Number.isInteger(c[campo]) ? c[campo] : 0
   }
+  // Floor calculado desde backend + extras del admin. Source of truth única.
+  const floorPartidos      = Math.max(PARTIDOS_DEFAULT, maxRealCargado)
+  const partidosVisibles   = floorPartidos + extraPartidos
   function totalEquipo(codigo, campo) {
     let s = 0
-    for (let p = 1; p <= numPartidos; p++) s += getValor(codigo, p, campo)
+    for (let p = 1; p <= partidosVisibles; p++) s += getValor(codigo, p, campo)
     return s
   }
 
@@ -119,12 +137,14 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
   }
 
   function agregarPartido() {
-    setNumPartidos(n => n + 1)
+    // Suma una columna extra. Floor (8 ó max real cargado) queda intacto.
+    setExtraPartidos(n => n + 1)
   }
   function quitarPartido() {
-    // No permitimos achicar por debajo de PARTIDOS_DEFAULT ni de
-    // max_partido_num cargado (evita esconder data).
-    setNumPartidos(n => Math.max(n - 1, PARTIDOS_DEFAULT, maxLoadedPartido))
+    // Solo achica las columnas EXTRA que el admin agregó. No se puede ir
+    // por debajo del floor (PARTIDOS_DEFAULT ó max real cargado) — eso
+    // escondería datos reales.
+    setExtraPartidos(n => Math.max(0, n - 1))
   }
 
   async function guardar() {
@@ -157,8 +177,8 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
 
   // ── Render ──────────────────────────────────────────────────────────────
   const partidos = useMemo(
-    () => Array.from({ length: numPartidos }, (_, i) => i + 1),
-    [numPartidos]
+    () => Array.from({ length: partidosVisibles }, (_, i) => i + 1),
+    [partidosVisibles]
   )
 
   if (loading) return <div className="loading">Cargando matriz de tarjetas...</div>
@@ -179,16 +199,16 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
         marginBottom: 10,
       }}>
         <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-          Partidos visibles: <strong>{numPartidos}</strong>
+          Partidos visibles: <strong>{partidosVisibles}</strong>
         </span>
         <button
           className="btn btn-secondary btn-sm"
           onClick={quitarPartido}
-          disabled={saving || numPartidos <= Math.max(PARTIDOS_DEFAULT, maxLoadedPartido)}
+          disabled={saving || extraPartidos === 0}
           title={
-            numPartidos <= Math.max(PARTIDOS_DEFAULT, maxLoadedPartido)
-              ? `Mínimo ${Math.max(PARTIDOS_DEFAULT, maxLoadedPartido)} (para no esconder datos)`
-              : 'Quitar la última columna'
+            extraPartidos === 0
+              ? `Mínimo ${floorPartidos} (para no esconder datos reales)`
+              : 'Quitar la última columna agregada'
           }
         >
           − Partido
