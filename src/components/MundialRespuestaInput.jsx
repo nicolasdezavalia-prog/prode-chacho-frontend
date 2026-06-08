@@ -141,32 +141,140 @@ function InputEquipoCategoria({ respuesta, onChange, disabled, equiposCatalogo }
   )
 }
 
-// ── instancia_eliminacion: contexto del equipo + dropdown de instancias ────
+// ── instancia_eliminacion: badge de equipo + grilla de pills (UX 2026-06-04) ─
+// Reemplazo del <select> nativo. Shape de respuesta intacta: { instancia: 'Semis' }.
+// Los users que ya respondieron mantienen su selección visible (el pill
+// correspondiente aparece pre-marcado). NO se requiere recargar nada en DB.
+//
+// Diseño:
+//   - Hero: badge circular con el código del equipo (color por confederación)
+//     + nombre + grupo. Reemplaza la línea "Equipo: ARG — Argentina".
+//   - Sin emoji bandera (rendering inconsistente entre Win/Linux/macOS — ver
+//     fix de EquipoAutocomplete). El código en el badge es estable.
+//   - Pills: una por instancia, con el label arriba y +N pts abajo desde
+//     cfg.pts_por_instancia. Sin línea separada de scoring densa.
+//   - Pill seleccionada: borde azul + fondo azul claro + check.
+//
+// pts_por_instancia es opcional — si no viene, el pill solo muestra el label.
+const CONFED_COLOR = {
+  UEFA:     '#534AB7',
+  CONMEBOL: '#3B6D11',
+  CONCACAF: '#185FA5',
+  AFC:      '#993C1D',
+  CAF:      '#854F0B',
+  OFC:      '#0F6E56',
+}
+
 function InputInstanciaEliminacion({ cfg, respuesta, onChange, disabled, equiposCatalogo }) {
-  const eqInfo = equiposCatalogo.find(e => e.codigo === cfg.equipo)
+  const eqInfo     = equiposCatalogo.find(e => e.codigo === cfg.equipo)
   const instancias = Array.isArray(cfg.instancias) ? cfg.instancias : []
+  const ptsPorInst = (cfg.pts_por_instancia && typeof cfg.pts_por_instancia === 'object')
+    ? cfg.pts_por_instancia
+    : {}
+  const seleccionada = respuesta.instancia || ''
+
+  const codigo       = eqInfo?.codigo || cfg.equipo || '?'
+  const nombre       = eqInfo?.nombre || cfg.equipo || 'Equipo'
+  const grupo        = eqInfo?.grupo  || null
+  const confederacion = eqInfo?.confederacion
+  const badgeBg      = CONFED_COLOR[confederacion] || '#444441'
+
   return (
     <div>
-      <div style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 8 }}>
-        Equipo:{' '}
-        <strong>
-          {eqInfo ? (
-            <>
-              {eqInfo.emoji ? `${eqInfo.emoji} ` : ''}
-              {eqInfo.codigo} — {eqInfo.nombre}
-            </>
-          ) : (cfg.equipo || '?')}
-        </strong>
+      {/* Hero del equipo */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14,
+      }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: '50%',
+          background: badgeBg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'white', fontWeight: 700, fontSize: 13,
+          letterSpacing: '0.04em',
+          flexShrink: 0,
+        }}>
+          {codigo}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.2 }}>
+            {nombre}
+          </span>
+          {grupo && (
+            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+              Grupo {grupo}{confederacion ? ` · ${confederacion}` : ''}
+            </span>
+          )}
+        </div>
       </div>
-      <select
-        value={respuesta.instancia || ''}
-        onChange={e => onChange({ instancia: e.target.value })}
-        disabled={disabled || instancias.length === 0}
-        style={selectStyle}
-      >
-        <option value="">— Elegí la instancia —</option>
-        {instancias.map(i => <option key={i} value={i}>{i}</option>)}
-      </select>
+
+      {/* Grilla de pills por instancia */}
+      {instancias.length === 0 ? (
+        <div style={{ fontSize: 13, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+          La pregunta no tiene instancias configuradas.
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+          gap: 6,
+        }}>
+          {instancias.map(inst => {
+            const pts = Number.isInteger(ptsPorInst[inst]) ? ptsPorInst[inst] : null
+            const isSelected = inst === seleccionada
+            return (
+              <button
+                key={inst}
+                type="button"
+                onClick={() => !disabled && onChange({ instancia: inst })}
+                disabled={disabled}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2,
+                  padding: '10px 8px',
+                  minHeight: 56,
+                  borderRadius: 8,
+                  cursor: disabled ? 'default' : 'pointer',
+                  background: isSelected ? '#E6F1FB' : 'white',
+                  border: isSelected
+                    ? '2px solid #185FA5'
+                    : '1px solid var(--color-border)',
+                  transition: 'border-color 0.1s, background 0.1s',
+                  opacity: disabled && !isSelected ? 0.6 : 1,
+                }}
+              >
+                {isSelected && (
+                  <span style={{
+                    position: 'absolute', top: 4, right: 6,
+                    fontSize: 14, color: '#185FA5', fontWeight: 700,
+                    lineHeight: 1,
+                  }}>
+                    ✓
+                  </span>
+                )}
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: isSelected ? 700 : 500,
+                  color: isSelected ? '#0C447C' : 'var(--color-text)',
+                }}>
+                  {inst}
+                </span>
+                {pts !== null && (
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: isSelected ? 600 : 400,
+                    color: isSelected ? '#185FA5' : 'var(--color-muted)',
+                  }}>
+                    +{pts} pts
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
