@@ -61,7 +61,18 @@ function filaDesdePartido(p) {
   return f
 }
 
-export default function AdminMundialFixture({ torneoId }) {
+/**
+ * modo:
+ *   'full'       (default) — tab Fixture del AdminMundialHub: alta de partidos,
+ *                seed desde catálogo, edición y borrado de pendientes.
+ *   'resultados' — vista "Cargar resultados" (AdminResultadosHub): muestra SOLO
+ *                los partidos YA cargados en el Fixture, para completar goles/
+ *                tarjetas/estado. Sin alta, sin seed, sin borrar. Mismo guardado
+ *                bulk (upsert sobre filas existentes — no puede crear partidos
+ *                porque ronda/orden están bloqueados en filas existentes).
+ */
+export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
+  const soloResultados = modo === 'resultados'
   const [filas, setFilas]         = useState([])
   const [meta, setMeta]           = useState(null)
   const [equipos, setEquipos]     = useState([])
@@ -250,14 +261,16 @@ export default function AdminMundialFixture({ torneoId }) {
           fuente de tarjetas: <strong>{meta?.fuente_tarjetas === 'fixture' ? '📅 fixture' : 'matriz (legacy)'}</strong>
         </span>
         <span style={{ flex: 1 }} />
-        {!hayPartidosGrupos && (
+        {!hayPartidosGrupos && !soloResultados && (
           <button type="button" className="btn btn-secondary btn-sm" onClick={seed} disabled={seeding}>
             {seeding ? 'Generando...' : '⚙️ Generar fixture de grupos'}
           </button>
         )}
-        <button type="button" className="btn btn-secondary btn-sm" onClick={agregarFila}>
-          ➕ Agregar partido
-        </button>
+        {!soloResultados && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={agregarFila}>
+            ➕ Agregar partido
+          </button>
+        )}
         <button
           type="button" className="btn btn-primary btn-sm"
           onClick={guardar} disabled={saving || dirty.size === 0}
@@ -309,7 +322,9 @@ export default function AdminMundialFixture({ torneoId }) {
       {visibles.length === 0 ? (
         <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 14 }}>
           {filas.length === 0
-            ? 'Sin partidos cargados. Generá el fixture de grupos desde el catálogo o agregá partidos a mano.'
+            ? (soloResultados
+              ? 'Sin partidos cargados en el Fixture. Cargalos primero desde Admin → Mundial → 📅 Fixture.'
+              : 'Sin partidos cargados. Generá el fixture de grupos desde el catálogo o agregá partidos a mano.')
             : 'Ningún partido coincide con los filtros.'}
         </div>
       ) : (
@@ -432,7 +447,7 @@ export default function AdminMundialFixture({ torneoId }) {
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       {uxErr && <span title={uxErr} style={{ marginRight: 4 }}>⚠️</span>}
-                      {(f.estado === 'pendiente' || !f.existente) && (
+                      {(f.estado === 'pendiente' || !f.existente) && !soloResultados && (
                         <button type="button" onClick={() => borrar(f)}
                           title={f.existente ? 'Borrar partido pendiente' : 'Descartar fila nueva'}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--color-muted)' }}>

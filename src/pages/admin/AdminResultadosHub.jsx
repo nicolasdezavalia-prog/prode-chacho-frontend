@@ -13,6 +13,11 @@ function formatDeadline(dl) {
 
 export default function AdminResultadosHub() {
   const [fechas, setFechas] = useState([])   // [{ ...fecha, torneo_nombre }]
+  // Mundial en el hub de resultados: torneos mundial con el resumen de su
+  // fixture ({ ...torneo, partidos, finalizados }). La carga de resultados de
+  // partidos vive en /admin/mundial/:id/resultados-partidos (solo partidos ya
+  // cargados en el Fixture — sin alta ni seed desde ahí).
+  const [mundiales, setMundiales] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -45,6 +50,21 @@ export default function AdminResultadosHub() {
           return (b.anio - a.anio) || (b.mes - a.mes)
         })
       setFechas(enDisputa)
+
+      // Mundial: torneos accesibles + resumen del fixture (si algo falla,
+      // el hub tradicional sigue funcionando igual que siempre).
+      const ts = await api.getMundialTorneos().catch(() => [])
+      const conFixture = await Promise.all(
+        (ts || []).map(async t => {
+          const fx = await api.getMundialPartidos(t.id).catch(() => null)
+          return {
+            ...t,
+            partidos: fx?.meta?.total ?? 0,
+            finalizados: fx?.meta?.finalizados ?? 0,
+          }
+        })
+      )
+      setMundiales(conFixture)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -73,7 +93,16 @@ export default function AdminResultadosHub() {
         </div>
       </div>
 
-      {fechas.length === 0 && (
+      {/* Mundial — carga de resultados de partidos (solo los del Fixture) */}
+      {mundiales.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          {mundiales.map(t => (
+            <MundialCard key={t.id} torneo={t} />
+          ))}
+        </div>
+      )}
+
+      {fechas.length === 0 && mundiales.length === 0 && (
         <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--color-muted)', fontSize: 13 }}>
           No hay fechas abiertas o cerradas en este momento.
         </div>
@@ -83,6 +112,52 @@ export default function AdminResultadosHub() {
         {fechas.map(f => (
           <FechaCard key={f.id} fecha={f} />
         ))}
+      </div>
+    </div>
+  )
+}
+
+// Card del Mundial en el hub de resultados. El botón principal lleva a la
+// vista de carga de resultados de partidos (grilla del Fixture en modo
+// 'resultados': SOLO partidos ya cargados; alta/seed/borrado quedan en
+// Admin Mundial → 📅 Fixture). Nada acá toca scoring/ranking.
+function MundialCard({ torneo: t }) {
+  const pendientes = Math.max(0, (t.partidos || 0) - (t.finalizados || 0))
+  return (
+    <div className="card" style={{ padding: '16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 99,
+            background: 'rgba(99,102,241,0.12)', color: '#4f46e5', whiteSpace: 'nowrap',
+          }}>
+            Mundial
+          </span>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>🏆 {t.nombre}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>
+              {t.partidos > 0
+                ? <>{t.partidos} partidos en el fixture · <strong>{t.finalizados}</strong> finalizados · {pendientes} pendientes</>
+                : 'Sin partidos en el fixture todavía'}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link
+            to={`/admin/mundial/${t.id}/resultados-partidos`}
+            className="btn btn-primary btn-sm"
+            style={{ fontSize: 12 }}
+          >
+            ⚽ Cargar resultados de partidos
+          </Link>
+          <Link
+            to={`/admin/torneo/${t.id}/mundial`}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 12 }}
+          >
+            🏆 Admin Mundial
+          </Link>
+        </div>
       </div>
     </div>
   )

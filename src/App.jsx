@@ -45,6 +45,7 @@ import MundialRespuestasPublicas from './pages/MundialRespuestasPublicas.jsx'
 import MundialDatosUtiles from './pages/MundialDatosUtiles.jsx'
 import ProdeTradicionalLista from './pages/ProdeTradicionalLista.jsx'
 import AdminMundialHub from './pages/admin/AdminMundialHub.jsx'
+import AdminMundialResultadosPartidos from './pages/admin/AdminMundialResultadosPartidos.jsx'
 import Navbar from './components/Navbar.jsx'
 import { api } from './api/index.js'
 
@@ -155,6 +156,7 @@ export default function App() {
             <Route path="/admin/torneo/:torneoId/comidas-historico" element={<PermisoRoute permiso="gestionar_comidas"><AdminComidasHistorico /></PermisoRoute>} />
             <Route path="/admin/resultados" element={<PrivateRoute adminOnly><AdminResultadosHub /></PrivateRoute>} />
             <Route path="/admin/torneo/:torneoId/mundial" element={<PrivateRoute adminOnly><AdminMundialHub /></PrivateRoute>} />
+            <Route path="/admin/mundial/:torneoId/resultados-partidos" element={<PrivateRoute adminOnly><AdminMundialResultadosPartidos /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
