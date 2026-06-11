@@ -376,6 +376,9 @@ export const api = {
     request('DELETE', `/mundial/${torneoId}/partidos/${partidoId}`),
   seedMundialPartidos2026: (torneoId) =>
     request('POST', `/mundial/${torneoId}/partidos/seed-mundial-2026`),
+  // Sprint Final C3 — stats derivadas del fixture, on-the-fly, read-only.
+  getMundialStatsCalculadas: (torneoId, limit) =>
+    request('GET', `/mundial/${torneoId}/stats-calculadas${limit ? `?limit=${limit}` : ''}`),
   deleteMundialResultado: (torneoId, preguntaId) =>
     request('DELETE', `/mundial/${torneoId}/resultados/${preguntaId}`),
   getMundialRanking: (torneoId) =>

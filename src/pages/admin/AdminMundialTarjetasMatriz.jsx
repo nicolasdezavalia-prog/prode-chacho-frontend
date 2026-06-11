@@ -54,6 +54,12 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
   // máximo real cargado, y nunca crece por preservación de prev.
   const [maxRealCargado, setMaxRealCargado] = useState(0)
   const [extraPartidos, setExtraPartidos]   = useState(0)
+  // Sprint Final C4: el backend decide la fuente activa de tarjetas.
+  // 'matriz' → este componente funciona exactamente como siempre (editable).
+  // 'fixture' → la matriz pasa a VISTA DERIVADA read-only: las tarjetas se
+  //   editan en el tab Fixture. Los datos legacy de la matriz NO se tocan.
+  const [fuente, setFuente]         = useState('matriz')
+  const [derivada, setDerivada]     = useState(null)
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
@@ -93,6 +99,17 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
       const catList = Array.isArray(cat) ? cat.filter(e => e.activo !== 0) : []
       setEquipos(catList)
       ingestData(data, catList)
+      // C4: fuente activa decidida por el BACKEND (campo aditivo del GET).
+      const f = data?.fuente_tarjetas === 'fixture' ? 'fixture' : 'matriz'
+      setFuente(f)
+      if (f === 'fixture') {
+        // Vista derivada: matriz equipo × partido reconstruida desde los
+        // partidos FINALIZADOS del fixture. Solo lectura.
+        const fx = await api.getMundialPartidos(torneoId).catch(() => null)
+        setDerivada(construirDerivada(fx?.partidos || [], catList))
+      } else {
+        setDerivada(null)
+      }
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -187,6 +204,44 @@ export default function AdminMundialTarjetasMatriz({ torneoId }) {
     return (
       <div style={emptyBox}>
         Cargá equipos primero en la tab <strong>🌐 Equipos</strong>.
+      </div>
+    )
+  }
+
+  // ── C4: modo derivado read-only (fuente = fixture) ─────────────────────
+  // Sin doble carga: las tarjetas se editan en el tab Fixture. Esta vista
+  // muestra la matriz reconstruida desde los partidos finalizados. Los datos
+  // legacy de mundial_tarjetas_partido quedan intactos en la DB (el backend
+  // además rechaza el PUT con 409 si se intentara por fuera de la UI).
+  if (fuente === 'fixture') {
+    return (
+      <div>
+        <div style={{
+          padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13,
+          background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)',
+          color: '#1d4ed8', lineHeight: 1.5,
+        }}>
+          📅 <strong>Derivado del fixture</strong> — las tarjetas se editan en el tab{' '}
+          <strong>Fixture</strong>, junto con los goles de cada partido. Esta matriz es de
+          solo lectura y se recalcula sola con cada partido finalizado.
+        </div>
+        {error && <div className="error-msg" style={{ marginBottom: 10 }}>{error}</div>}
+        {!derivada || derivada.equipos.length === 0 ? (
+          <div style={emptyBox}>
+            Todavía no hay partidos finalizados con tarjetas cargadas en el fixture.
+          </div>
+        ) : (
+          <>
+            <MatrizDerivada emoji="🟨" titulo="Amarillas (derivado del fixture)" campo="am" derivada={derivada} />
+            <MatrizDerivada emoji="🟥" titulo="Rojas (derivado del fixture)" campo="ro" derivada={derivada} />
+            {derivada.pendientes > 0 && (
+              <div style={{ fontSize: 12, color: '#a16207', marginTop: 8 }}>
+                ⚠️ {derivada.pendientes} partido(s) finalizado(s) tienen tarjetas sin cargar
+                (vacío ≠ 0): completalas en el tab Fixture.
+              </div>
+            )}
+          </>
+        )}
       </div>
     )
   }
@@ -339,6 +394,91 @@ function Matriz({ emoji, titulo, equipos, partidos, campo, getValor, totalEquipo
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ── C4: vista derivada del fixture (read-only) ─────────────────────────────
+
+// Orden canónico de rondas (espejo de backend/logic/mundial-validar-partido).
+const RONDAS_ORDEN_DERIVADA = ['grupos', '16vos', '8vos', '4tos', 'semis', 'tercer_puesto', 'final']
+
+/**
+ * Reconstruye la matriz equipo × partido desde los partidos FINALIZADOS:
+ * para cada equipo, sus partidos ordenados por (ronda, orden) → P1..Pn,
+ * con amarillas/rojas de su lado (null = sin cargar). Devuelve:
+ * { equipos: [{ codigo, nombre, emoji, celdas: [{am, ro, rival, ronda}] }], maxP, pendientes }
+ */
+function construirDerivada(partidos, catalogo) {
+  const idx = new Map(RONDAS_ORDEN_DERIVADA.map((r, i) => [r, i]))
+  const fin = partidos
+    .filter(p => p.estado === 'finalizado')
+    .sort((a, b) => {
+      const ra = idx.get(a.ronda) ?? 99, rb = idx.get(b.ronda) ?? 99
+      if (ra !== rb) return ra - rb
+      return (a.orden || 0) - (b.orden || 0)
+    })
+  const porEquipo = new Map()
+  let pendientes = 0
+  for (const p of fin) {
+    if (p.amarillas_local === null || p.amarillas_visitante === null ||
+        p.rojas_local === null || p.rojas_visitante === null) pendientes++
+    const add = (codigo, am, ro, rival) => {
+      if (!porEquipo.has(codigo)) porEquipo.set(codigo, [])
+      porEquipo.get(codigo).push({ am, ro, rival, ronda: p.ronda })
+    }
+    add(p.equipo_local, p.amarillas_local, p.rojas_local, p.equipo_visitante)
+    add(p.equipo_visitante, p.amarillas_visitante, p.rojas_visitante, p.equipo_local)
+  }
+  const catBy = new Map(catalogo.map(e => [e.codigo, e]))
+  const equipos = [...porEquipo.entries()].map(([codigo, celdas]) => ({
+    codigo,
+    nombre: catBy.get(codigo)?.nombre || codigo,
+    emoji:  catBy.get(codigo)?.emoji || null,
+    celdas,
+  })).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }))
+  const maxP = equipos.reduce((m, e) => Math.max(m, e.celdas.length), 0)
+  return { equipos, maxP, pendientes }
+}
+
+function MatrizDerivada({ emoji, titulo, campo, derivada }) {
+  const cols = Array.from({ length: derivada.maxP }, (_, i) => i + 1)
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px 0' }}>
+        {emoji} {titulo}
+      </h3>
+      <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 8, background: 'white' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+          <thead>
+            <tr>
+              <th style={{ ...thMatriz, textAlign: 'left' }}>Equipo</th>
+              {cols.map(n => <th key={n} style={thMatriz}>P{n}</th>)}
+              <th style={thMatriz}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {derivada.equipos.map(eq => {
+              const total = eq.celdas.reduce((s, c) => s + (c[campo] ?? 0), 0)
+              return (
+                <tr key={eq.codigo} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                  <td style={tdEquipo}>{eq.emoji ? `${eq.emoji} ` : ''}{eq.nombre}</td>
+                  {cols.map(n => {
+                    const c = eq.celdas[n - 1]
+                    return (
+                      <td key={n} style={{ ...tdInput, color: c && c[campo] === null ? '#a16207' : undefined }}
+                          title={c ? `vs ${c.rival} (${c.ronda})${c[campo] === null ? ' — sin cargar' : ''}` : undefined}>
+                        {c ? (c[campo] === null ? '–' : c[campo]) : ''}
+                      </td>
+                    )
+                  })}
+                  <td style={{ ...tdTotal, fontWeight: 700 }}>{total}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
