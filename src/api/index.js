@@ -379,6 +379,18 @@ export const api = {
   // Sprint Final C3 — stats derivadas del fixture, on-the-fly, read-only.
   getMundialStatsCalculadas: (torneoId, limit) =>
     request('GET', `/mundial/${torneoId}/stats-calculadas${limit ? `?limit=${limit}` : ''}`),
+  // Sprint Final C5 — goleadores (top mantenido por admin; GET público).
+  getMundialGoleadores: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/goleadores`),
+  saveMundialGoleadoresBulk: (torneoId, goleadores) =>
+    request('PUT', `/mundial/${torneoId}/goleadores/bulk`, { goleadores }),
+  deleteMundialGoleador: (torneoId, id) =>
+    request('DELETE', `/mundial/${torneoId}/goleadores/${id}`),
+  // Sprint Final C6 — premios individuales (GET público, PUT admin).
+  getMundialPremiosIndividuales: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/premios-individuales`),
+  saveMundialPremiosIndividualesBulk: (torneoId, premios) =>
+    request('PUT', `/mundial/${torneoId}/premios-individuales/bulk`, { premios }),
   deleteMundialResultado: (torneoId, preguntaId) =>
     request('DELETE', `/mundial/${torneoId}/resultados/${preguntaId}`),
   getMundialRanking: (torneoId) =>

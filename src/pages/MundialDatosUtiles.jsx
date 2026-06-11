@@ -72,6 +72,9 @@ export default function MundialDatosUtiles() {
   // Sprint Final C4: stats calculadas del fixture. null = endpoint no
   // disponible (fallback total a manual/matriz, comportamiento pre-C4).
   const [stats, setStats]       = useState(null)
+  // Sprint Final C5/C6: goleadores y premios individuales estructurados.
+  const [goleadores, setGoleadores] = useState([])
+  const [premiosInd, setPremiosInd] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
 
@@ -80,7 +83,7 @@ export default function MundialDatosUtiles() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [torneos, list, cat, tj, st] = await Promise.all([
+      const [torneos, list, cat, tj, st, gol, pri] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialDatosUtiles(torneoId),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
@@ -88,6 +91,8 @@ export default function MundialDatosUtiles() {
         // página (cae al fallback de items manuales transparentemente).
         api.getMundialTarjetasPartido(torneoId).catch(() => null),
         api.getMundialStatsCalculadas(torneoId).catch(() => null),
+        api.getMundialGoleadores(torneoId).catch(() => null),
+        api.getMundialPremiosIndividuales(torneoId).catch(() => null),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
@@ -96,6 +101,8 @@ export default function MundialDatosUtiles() {
       setEquipos(Array.isArray(cat) ? cat : [])
       setTarjetas(tj)
       setStats(st)
+      setGoleadores(Array.isArray(gol?.goleadores) ? gol.goleadores : [])
+      setPremiosInd(Array.isArray(pri?.premios) ? pri.premios : [])
     } catch (e) {
       setError(e.message)
     } finally {
@@ -160,17 +167,23 @@ export default function MundialDatosUtiles() {
   const hayTopRojas     = topRojas.length > 0
 
   // Secciones manuales reemplazadas por calculadas (no se borran: se ocultan
-  // solo cuando la versión calculada tiene datos).
+  // solo cuando la versión calculada/estructurada tiene datos).
   const ocultarManual = new Set()
   if (statsActivas) {
     ocultarManual.add('tabla_grupos')
     if ((stats.clasificados || []).length > 0) ocultarManual.add('clasificados')
     if ((stats.eliminados || []).length > 0)   ocultarManual.add('eliminados')
   }
+  // C5: goleadores estructurados reemplazan los items manuales tipo 'goleadores'.
+  const hayGoleadoresEstructurados = goleadores.length > 0
+  if (hayGoleadoresEstructurados) ocultarManual.add('goleadores')
+  // C6: premios con jugador otorgado (sin jugador no se muestran al usuario).
+  const premiosOtorgados = premiosInd.filter(p => p.jugador)
 
   // hayAlgo incluye tops estructurados y dashboard para que la página NO
   // muestre el empty si hay algo calculado.
-  const hayAlgo = datos.length > 0 || hayTopAmarillas || hayTopRojas || statsActivas
+  const hayAlgo = datos.length > 0 || hayTopAmarillas || hayTopRojas || statsActivas ||
+    hayGoleadoresEstructurados || premiosOtorgados.length > 0
 
   return (
     <div style={{ maxWidth: 880, margin: '24px auto', padding: '0 16px' }}>
@@ -204,6 +217,92 @@ export default function MundialDatosUtiles() {
         }}>
           Todavía no hay datos útiles cargados.
         </div>
+      )}
+
+      {/* Sprint Final C5 — Top goleadores estructurado (reemplaza items
+          manuales tipo 'goleadores'; estos no se borran, quedan de fallback). */}
+      {hayGoleadoresEstructurados && (
+        <section style={{ marginBottom: 20 }}>
+          <HeaderSeccion emoji="🥇" label="Top goleadores" extra={`(${goleadores.length})`} />
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody>
+                {goleadores.map((g, idx) => (
+                  <tr key={g.id} style={{
+                    borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.05)',
+                    opacity: g.activo === 1 ? 1 : 0.6,
+                  }}>
+                    <td style={{ ...tdMain, width: 40, textAlign: 'right', fontWeight: 700, color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                      {g.posicion}°
+                    </td>
+                    <td style={tdMain}>
+                      <div style={{ fontWeight: 600 }}>
+                        {g.jugador}
+                        {g.activo !== 1 && (
+                          <span style={{
+                            marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '1px 7px',
+                            borderRadius: 99, background: 'rgba(220,38,38,0.10)', color: '#b91c1c',
+                            textTransform: 'uppercase',
+                          }}>
+                            eliminado
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>
+                        {g.equipo_emoji ? `${g.equipo_emoji} ` : ''}{g.equipo_nombre}
+                        {g.equipo_grupo && <span> · Grupo {g.equipo_grupo}</span>}
+                      </div>
+                      {g.notas && (
+                        <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2, fontStyle: 'italic' }}>
+                          {g.notas}
+                        </div>
+                      )}
+                    </td>
+                    <td style={tdValor}>
+                      <span style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        {g.goles}
+                      </span>
+                      <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>goles</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Sprint Final C6 — Premios individuales otorgados */}
+      {premiosOtorgados.length > 0 && (
+        <section style={{ marginBottom: 20 }}>
+          <HeaderSeccion emoji="🏅" label="Premios individuales" extra={`(${premiosOtorgados.length})`} />
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody>
+                {premiosOtorgados.map((p, idx) => (
+                  <tr key={p.id} style={{ borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.05)' }}>
+                    <td style={tdMain}>
+                      <div style={{ fontWeight: 600 }}>🏅 {p.titulo}</div>
+                      {p.notas && (
+                        <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2, fontStyle: 'italic' }}>
+                          {p.notas}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ ...tdValor, textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{p.jugador}</div>
+                      {p.equipo_nombre && (
+                        <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>
+                          {p.equipo_emoji ? `${p.equipo_emoji} ` : ''}{p.equipo_nombre}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       {/* Secciones por tipo en orden fijo. Para amarillas_equipo y

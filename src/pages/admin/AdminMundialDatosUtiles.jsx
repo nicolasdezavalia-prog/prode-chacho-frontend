@@ -17,6 +17,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../api/index.js'
 import EquipoAutocomplete from '../../components/EquipoAutocomplete.jsx'
 import AdminMundialTarjetasMatriz from './AdminMundialTarjetasMatriz.jsx'
+import AdminMundialGoleadores from './AdminMundialGoleadores.jsx'
+import AdminMundialPremiosIndividuales from './AdminMundialPremiosIndividuales.jsx'
 
 const TIPOS_ORDEN = [
   'goleadores',
@@ -74,21 +76,41 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
   const [error, setError]       = useState('')
   const [info, setInfo]         = useState('')
 
+  // C5: si hay goleadores ESTRUCTURADOS (mundial_goleadores), los items
+  // manuales tipo 'goleadores' pasan a legacy y se ocultan en admin (opción A
+  // confirmada 2026-06-11) — NO se borran de la DB; la vista user ya hace el
+  // mismo fallback transparente.
+  const [hayGoleadoresEstructurados, setHayGoleadoresEstructurados] = useState(false)
+
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
   async function load() {
     setLoading(true); setError(''); setInfo('')
     try {
-      const [list, cat] = await Promise.all([
+      const [list, cat, gol] = await Promise.all([
         // Admin: traemos también inactivos para poder ver/editar.
         api.getMundialDatosUtiles(torneoId, { incluir_inactivos: 1 }),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
+        api.getMundialGoleadores(torneoId).catch(() => null),
       ])
       setItems(Array.isArray(list) ? list : [])
       setEquipos(Array.isArray(cat) ? cat : [])
+      setHayGoleadoresEstructurados((gol?.goleadores || []).length > 0)
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
+
+  // Tipos ocultos en items manuales: los deprecados fijos (tarjetas Fase 2)
+  // + 'goleadores' cuando existe la versión estructurada.
+  const tiposOcultos = useMemo(() => {
+    const s = new Set(TIPOS_DEPRECADOS_ITEMS_MANUALES)
+    if (hayGoleadoresEstructurados) s.add('goleadores')
+    return s
+  }, [hayGoleadoresEstructurados])
+  const tiposVisibles = useMemo(
+    () => TIPOS_ORDEN.filter(t => !tiposOcultos.has(t)),
+    [tiposOcultos]
+  )
 
   const equipoBy = useMemo(() => {
     const m = new Map()
@@ -99,14 +121,16 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
   // Items visibles en admin: oculta los tipos deprecados (amarillas/rojas).
   // Los items legacy con esos tipos siguen en DB pero no se exponen acá.
   const filtrados = useMemo(() => {
-    const visibles = items.filter(x => !TIPOS_DEPRECADOS_ITEMS_MANUALES.has(x.tipo))
+    const visibles = items.filter(x => !tiposOcultos.has(x.tipo))
     if (!filtroTipo) return visibles
     return visibles.filter(x => x.tipo === filtroTipo)
-  }, [items, filtroTipo])
+  }, [items, filtroTipo, tiposOcultos])
 
   // ── Form helpers ─────────────────────────────────────────────────────────
   function abrirNuevo() {
-    setForm({ ...FORM_INICIAL, tipo: filtroTipo || 'goleadores' })
+    // Default: el filtro activo o el primer tipo visible (evita arrancar en
+    // 'goleadores' cuando ese tipo quedó oculto por la carga estructurada C5).
+    setForm({ ...FORM_INICIAL, tipo: filtroTipo || tiposVisibles[0] || 'otro' })
     setEditingId(0)
     setError(''); setInfo('')
   }
@@ -222,10 +246,28 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
           active={subTab === 'tarjetas'}
           onClick={() => setSubTab('tarjetas')}
         />
+        <SubTab
+          label="🥇 Goleadores"
+          active={subTab === 'goleadores'}
+          onClick={() => setSubTab('goleadores')}
+        />
+        <SubTab
+          label="🏅 Premios ind."
+          active={subTab === 'premios_individuales'}
+          onClick={() => setSubTab('premios_individuales')}
+        />
       </div>
 
       {subTab === 'tarjetas' && (
         <AdminMundialTarjetasMatriz torneoId={torneoId} />
+      )}
+
+      {/* Sprint Final C5/C6 — carga estructurada (las tablas son de C1). */}
+      {subTab === 'goleadores' && (
+        <AdminMundialGoleadores torneoId={torneoId} />
+      )}
+      {subTab === 'premios_individuales' && (
+        <AdminMundialPremiosIndividuales torneoId={torneoId} />
       )}
 
       {subTab === 'items' && (<>
@@ -238,6 +280,19 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
         }}>{info}</div>
       )}
 
+      {/* C5: aviso de auto-deprecación de items manuales de goleadores */}
+      {hayGoleadoresEstructurados && (
+        <div style={{
+          padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 12,
+          background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.20)',
+          color: '#1d4ed8', lineHeight: 1.45,
+        }}>
+          🥇 Los items manuales tipo <strong>Goleadores</strong> quedaron como legacy: la carga
+          ahora vive en el sub-tab <strong>Goleadores</strong> (estructurado). Los items viejos
+          no se borraron — solo dejaron de mostrarse acá.
+        </div>
+      )}
+
       {/* Filtros por tipo + Acciones */}
       {/* Chips solo de tipos visibles (no muestra amarillas_equipo/rojas_equipo).
           "Todos" cuenta solo items visibles para que el número coincida con la lista. */}
@@ -246,9 +301,9 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
           label="Todos"
           activo={filtroTipo === ''}
           onClick={() => setFiltro('')}
-          count={items.filter(x => !TIPOS_DEPRECADOS_ITEMS_MANUALES.has(x.tipo)).length}
+          count={items.filter(x => !tiposOcultos.has(x.tipo)).length}
         />
-        {TIPOS_ITEMS_VISIBLES.map(t => {
+        {tiposVisibles.map(t => {
           const count = items.filter(x => x.tipo === t).length
           return (
             <FiltroChip
@@ -468,7 +523,7 @@ function DatoForm({ form, setForm, equipos, esNuevo, saving, onSave, onCancel })
           >
             {/* Solo tipos visibles. amarillas_equipo / rojas_equipo se cargan
                 desde la sub-tab Tarjetas (matriz), no acá. */}
-            {TIPOS_ITEMS_VISIBLES.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
+            {tiposVisibles.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
           </select>
         </Label>
         <Label text="Título *">
