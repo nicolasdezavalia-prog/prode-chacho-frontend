@@ -77,6 +77,10 @@ export default function AdminMundialResultados({ torneoId, estado }) {
   // el paso previo obligatorio a guardar (tipos texto).
   const [preview, setPreview]               = useState(null)
   const [previewingId, setPreviewingId]     = useState(null)
+  // Sprint Final C7 — sugerencias calculadas (read-only). Map pregunta_id → sug.
+  // Solo PRECARGAN el editor vía "Usar como resultado": nada se guarda hasta
+  // pasar por Guardar → Preview → Confirmar (flujo existente, sin cambios).
+  const [sugerencias, setSugerencias]       = useState(new Map())
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId, estado])
 
@@ -118,10 +122,15 @@ export default function AdminMundialResultados({ torneoId, estado }) {
           respMap[p.id] = Array.isArray(respList) ? respList : []
         }))
         setRespuestasPorPregunta(respMap)
+
+        // C7: sugerencias calculadas (si falla, la pantalla sigue igual que antes).
+        const sugs = await api.getMundialResultadosSugerencias(torneoId).catch(() => null)
+        setSugerencias(new Map((sugs?.sugerencias || []).map(s => [s.pregunta_id, s])))
       } else {
         setResultados({})
         setEdicion({})
         setRespuestasPorPregunta({})
+        setSugerencias(new Map())
       }
     } catch (e) {
       setError(e.message)
@@ -299,6 +308,19 @@ export default function AdminMundialResultados({ torneoId, estado }) {
                   {p.aclaracion}
                 </div>
               )}
+              {sugerencias.has(p.id) && (
+                <BloqueSugerencia
+                  sug={sugerencias.get(p.id)}
+                  editable={editable}
+                  onUsar={(valor) => {
+                    // COPIA al editor (merge: preserva overrides_pts u otras
+                    // claves ya editadas). NO guarda: el admin después pasa
+                    // por Guardar → Preview → Confirmar.
+                    handleChange(p.id, { ...(edicion[p.id] || {}), ...valor })
+                    setInfo(`Sugerencia copiada al editor de #${p.numero}. Revisá y guardá (pasa por preview).`)
+                  }}
+                />
+              )}
               <MundialResultadoInput
                 tipo={p.tipo_pregunta}
                 configPregunta={cfg}
@@ -369,6 +391,78 @@ export default function AdminMundialResultados({ torneoId, estado }) {
             </div>
           )
         })
+      )}
+    </div>
+  )
+}
+
+// ── Sprint Final C7: bloque de sugerencia calculada ─────────────────────────
+// Solo PRESENTA el valor derivado y lo copia al editor con "Usar como
+// resultado". Nunca guarda: el ranking no se mueve hasta que el admin pasa
+// por Guardar → Preview impacto → Confirmar (flujo existente).
+const FUENTE_LABEL = {
+  fixture:              'Fixture / Stats',
+  goleadores:           'Goleadores',
+  premios_individuales: 'Premios individuales',
+}
+
+function BloqueSugerencia({ sug, editable, onUsar }) {
+  const fuenteLabel = FUENTE_LABEL[sug.fuente] || sug.fuente
+  return (
+    <div style={{
+      marginBottom: 10, padding: '8px 12px', borderRadius: 8, fontSize: 13,
+      background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>🧮 Valor calculado actual:{' '}
+          <strong>{sug.requiere_decision ? '—' : sug.valor_display}</strong>
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+          Fuente: {fuenteLabel}
+        </span>
+        {!sug.completo && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: '#a16207',
+            background: 'rgba(234,179,8,0.15)', padding: '2px 8px', borderRadius: 99,
+          }}>
+            ⚠ dato incompleto / provisorio
+          </span>
+        )}
+        <span style={{ flex: 1 }} />
+        {!sug.requiere_decision && sug.valor && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 11 }}
+            disabled={!editable}
+            title="Copia el valor al editor de resultado. NO guarda: después pasás por Guardar → Preview."
+            onClick={() => onUsar(sug.valor)}
+          >
+            Usar como resultado
+          </button>
+        )}
+      </div>
+      {sug.detalle && (
+        <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
+          {sug.detalle}
+        </div>
+      )}
+      {sug.requiere_decision && Array.isArray(sug.candidatos) && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+          {sug.candidatos.map((c, i) => (
+            <button
+              key={i}
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: 11 }}
+              disabled={!editable}
+              title="Empate en el cálculo: elegí cuál usar (no guarda; pasa por preview)"
+              onClick={() => onUsar(c.valor)}
+            >
+              Usar “{c.valor_display}”
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )

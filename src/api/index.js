@@ -386,6 +386,11 @@ export const api = {
     request('PUT', `/mundial/${torneoId}/goleadores/bulk`, { goleadores }),
   deleteMundialGoleador: (torneoId, id) =>
     request('DELETE', `/mundial/${torneoId}/goleadores/${id}`),
+  // Sprint Final C7 — sugerencias de resultado (admin, read-only, gate
+  // >= grupos_jugados). Solo precargan el editor: el guardado sigue siendo
+  // Guardar → Preview → Confirmar.
+  getMundialResultadosSugerencias: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/resultados-sugerencias`),
   // Sprint Final C6 — premios individuales (GET público, PUT admin).
   getMundialPremiosIndividuales: (torneoId) =>
     request('GET', `/mundial/${torneoId}/premios-individuales`),

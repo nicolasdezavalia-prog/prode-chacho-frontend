@@ -18,7 +18,7 @@
  * No toca scoring/ranking/respuestas/canonización. Torneo SIEMPRE por prop.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../api/index.js'
 import EquipoAutocomplete from '../../components/EquipoAutocomplete.jsx'
 
@@ -74,6 +74,13 @@ export default function AdminMundialFixture({ torneoId }) {
   const [error, setError]         = useState('')
   const [info, setInfo]           = useState('')
   const [nuevoSeq, setNuevoSeq]   = useState(1)
+  // Ajuste UX (2026-06-11): barra de scroll horizontal SUPERIOR sincronizada
+  // con la inferior — la tabla es ancha y larga, y el admin necesita llegar a
+  // las columnas de tarjetas/penales sin bajar hasta el final. Solo UX:
+  // cero cambios de lógica/datos.
+  const topScrollRef  = useRef(null)
+  const bodyScrollRef = useRef(null)
+  const [anchoTabla, setAnchoTabla] = useState(0)
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
@@ -214,6 +221,24 @@ export default function AdminMundialFixture({ torneoId }) {
   const hayPartidosGrupos = filas.some(f => f.ronda === 'grupos' && f.existente)
   const getEq = (codigo) => equipos.find(e => e.codigo === codigo)
 
+  // Medir el ancho real de la tabla para que la barra superior tenga el mismo
+  // recorrido que la inferior. Se re-mide cuando cambia lo visible.
+  useEffect(() => {
+    const el = bodyScrollRef.current
+    if (el) setAnchoTabla(el.scrollWidth)
+  }, [visibles.length, filtroRonda, filtroGrupo, loading])
+
+  function syncDesdeTop() {
+    if (topScrollRef.current && bodyScrollRef.current) {
+      bodyScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
+    }
+  }
+  function syncDesdeBody() {
+    if (topScrollRef.current && bodyScrollRef.current) {
+      topScrollRef.current.scrollLeft = bodyScrollRef.current.scrollLeft
+    }
+  }
+
   if (loading) return <div className="loading">Cargando fixture...</div>
 
   return (
@@ -288,7 +313,22 @@ export default function AdminMundialFixture({ torneoId }) {
             : 'Ningún partido coincide con los filtros.'}
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 8, background: 'white' }}>
+        <>
+          {/* Barra de scroll horizontal SUPERIOR (sincronizada con la tabla):
+              permite moverse a tarjetas/penales sin bajar al final. */}
+          <div
+            ref={topScrollRef}
+            onScroll={syncDesdeTop}
+            style={{ overflowX: 'auto', overflowY: 'hidden', marginBottom: 4, height: 14 }}
+            title="Scroll horizontal de la tabla"
+          >
+            <div style={{ width: anchoTabla || '100%', height: 1 }} />
+          </div>
+          <div
+            ref={bodyScrollRef}
+            onScroll={syncDesdeBody}
+            style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 8, background: 'white' }}
+          >
           <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 1080, width: '100%' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.03)', position: 'sticky', top: 0, zIndex: 1 }}>
@@ -405,7 +445,8 @@ export default function AdminMundialFixture({ torneoId }) {
               })}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
