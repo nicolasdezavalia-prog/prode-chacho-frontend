@@ -356,6 +356,26 @@ export const api = {
     request('GET', `/mundial/${torneoId}/preguntas/${preguntaId}/canonizacion`),
   saveMundialCanonizacion: (torneoId, preguntaId, grupos) =>
     request('PUT', `/mundial/${torneoId}/preguntas/${preguntaId}/canonizacion`, { grupos }),
+
+  // Sprint Final C1/C2 — Fixture: fuente de verdad de partidos y tarjetas
+  // (goles + amarillas/rojas en la misma fila). El scoring NUNCA lee esto.
+  // GET es público para participantes; el resto admin-only.
+  getMundialPartidos: (torneoId, params) => {
+    const q = new URLSearchParams()
+    if (params?.ronda)  q.set('ronda', params.ronda)
+    if (params?.grupo)  q.set('grupo', params.grupo)
+    if (params?.estado) q.set('estado', params.estado)
+    const qs = q.toString()
+    return request('GET', `/mundial/${torneoId}/partidos${qs ? `?${qs}` : ''}`)
+  },
+  saveMundialPartidosBulk: (torneoId, partidos) =>
+    request('PUT', `/mundial/${torneoId}/partidos/bulk`, { partidos }),
+  patchMundialPartido: (torneoId, partidoId, cambios) =>
+    request('PATCH', `/mundial/${torneoId}/partidos/${partidoId}`, cambios),
+  deleteMundialPartido: (torneoId, partidoId) =>
+    request('DELETE', `/mundial/${torneoId}/partidos/${partidoId}`),
+  seedMundialPartidos2026: (torneoId) =>
+    request('POST', `/mundial/${torneoId}/partidos/seed-mundial-2026`),
   deleteMundialResultado: (torneoId, preguntaId) =>
     request('DELETE', `/mundial/${torneoId}/resultados/${preguntaId}`),
   getMundialRanking: (torneoId) =>

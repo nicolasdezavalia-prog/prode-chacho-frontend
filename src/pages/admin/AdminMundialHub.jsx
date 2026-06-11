@@ -8,6 +8,7 @@ import AdminMundialResultados from './AdminMundialResultados.jsx'
 import AdminMundialCambios from './AdminMundialCambios.jsx'
 import AdminMundialPremios from './AdminMundialPremios.jsx'
 import AdminMundialDatosUtiles from './AdminMundialDatosUtiles.jsx'
+import AdminMundialFixture from './AdminMundialFixture.jsx'
 
 /**
  * Hub admin del módulo Mundial — Fase 1.
@@ -314,6 +315,11 @@ export default function AdminMundialHub() {
           onClick={() => setActiveTab('premios')}
         />
         <Tab
+          label="📅 Fixture"
+          active={activeTab === 'fixture'}
+          onClick={() => setActiveTab('fixture')}
+        />
+        <Tab
           label="📋 Resultados"
           active={activeTab === 'resultados'}
           onClick={() => setActiveTab('resultados')}
@@ -464,6 +470,13 @@ export default function AdminMundialHub() {
           estado={config.estado}
           onChanged={load}
         />
+      )}
+
+      {/* Tab Fixture — Sprint Final C2. Fuente de verdad de partidos y
+          tarjetas (goles + amarillas/rojas en la misma fila). Sin gate de
+          estado: el fixture es independiente de la máquina del torneo. */}
+      {activeTab === 'fixture' && (
+        <AdminMundialFixture torneoId={torneoId} />
       )}
 
       {/* Tab Resultados — Fase 3 */}
