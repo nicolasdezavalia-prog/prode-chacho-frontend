@@ -344,6 +344,18 @@ export const api = {
     request('GET', `/mundial/${torneoId}/resultados`),
   saveMundialResultado: (torneoId, preguntaId, resultado_json) =>
     request('POST', `/mundial/${torneoId}/resultados/${preguntaId}`, { resultado_json }),
+  // Fase B — dry-run de corrección: evalúa un resultado_json candidato contra
+  // las respuestas reales SIN guardar nada. Devuelve items por usuario con
+  // match (exacto/normalizado/alias/override/sin_match), pts actuales/nuevos y delta.
+  previewMundialResultado: (torneoId, preguntaId, resultado_json) =>
+    request('POST', `/mundial/${torneoId}/resultados/${preguntaId}/preview`, { resultado_json }),
+  // Fase B2 — canonización/agrupación de respuestas texto (capa visual, NO
+  // puntúa, NO define resultado, el scoring nunca la lee). Admin-only,
+  // disponible desde el cierre de carga (antes de grupos_jugados).
+  getMundialCanonizacion: (torneoId, preguntaId) =>
+    request('GET', `/mundial/${torneoId}/preguntas/${preguntaId}/canonizacion`),
+  saveMundialCanonizacion: (torneoId, preguntaId, grupos) =>
+    request('PUT', `/mundial/${torneoId}/preguntas/${preguntaId}/canonizacion`, { grupos }),
   deleteMundialResultado: (torneoId, preguntaId) =>
     request('DELETE', `/mundial/${torneoId}/resultados/${preguntaId}`),
   getMundialRanking: (torneoId) =>

@@ -412,15 +412,78 @@ function makeSetOverride(resultado, overrides, onChange) {
   }
 }
 
+// Espejo de normalizarTexto del backend — SOLO para UX (sugerencias de alias,
+// duplicados en el editor, armado de grupos de canonización). La corrección
+// real y el preview los hace SIEMPRE el backend (mundial-scoring.js).
+// No usar para puntuar. Exportada para AdminMundialResultados (Fase B2).
+export function normalizarTextoUX(s) {
+  if (typeof s !== 'string') return ''
+  const nfd = s.normalize('NFD')
+  let out = ''
+  for (let i = 0; i < nfd.length; i++) {
+    const c = nfd.charCodeAt(i)
+    if (c >= 0x0300 && c <= 0x036F) continue
+    if ([0x2E, 0x2C, 0x3B, 0x3A, 0x21, 0x3F, 0x27, 0x22, 0xB4, 0x60, 0x2018, 0x2019, 0x201C, 0x201D].includes(c)) continue
+    if ([0x2D, 0x5F, 0x2F].includes(c)) { out += ' '; continue }
+    out += nfd[i]
+  }
+  return out.replace(/\s+/g, ' ').toLowerCase().trim()
+}
+
 // ── respuesta_manual / regla_especial: texto + tabla de overrides ────────
 // Fase 3.1/3.2: el JSON crudo fue reemplazado por una tabla con las respuestas
 // reales de los usuarios. El admin asigna pts por fila (botones rápidos +
 // input numérico). Lo escrito por el user NO se modifica — solo guardamos
 // overrides_pts[user_id]. Si una fila queda en "Auto", ese user cae al
-// matching normalizado contra `texto` del resultado.
+// matching normalizado contra `texto` del resultado (Fase B: o contra `alias`).
 function InputTexto({ cfg, resultado, onChange, disabled, respuestasUsuarios }) {
   const overrides    = leerOverrides(resultado)
   const setOverride  = makeSetOverride(resultado, overrides, onChange)
+  const [aliasDraft, setAliasDraft] = useState('')
+
+  // ── Fase B: alias + texto_display ──
+  const aliasActuales = Array.isArray(resultado.alias) ? resultado.alias : []
+  const normCanonico  = normalizarTextoUX(resultado.texto || '')
+  const normAlias     = new Set(aliasActuales.map(normalizarTextoUX))
+
+  function setAlias(nuevos) {
+    const next = { ...resultado }
+    if (nuevos.length === 0) delete next.alias
+    else next.alias = nuevos
+    onChange(next)
+  }
+  function agregarAlias(raw) {
+    const v = (raw || '').trim()
+    if (!v) return
+    const n = normalizarTextoUX(v)
+    if (!n || n === normCanonico || normAlias.has(n)) { setAliasDraft(''); return } // redundante o duplicado
+    setAlias([...aliasActuales, v])
+    setAliasDraft('')
+  }
+  function quitarAlias(a) {
+    setAlias(aliasActuales.filter(x => x !== a))
+  }
+  function handleTextoDisplay(e) {
+    const v = e.target.value
+    const next = { ...resultado, texto_display: v }
+    if (v.trim() === '') delete next.texto_display
+    onChange(next)
+  }
+
+  // Sugerencias: respuestas reales que hoy NO matchean (ni canónico ni alias),
+  // agrupadas por normalizado, candidatas a alias con un click.
+  const sugerencias = []
+  if (!disabled && Array.isArray(respuestasUsuarios)) {
+    const vistas = new Set()
+    for (const r of respuestasUsuarios) {
+      let t = ''
+      try { t = (JSON.parse(r.respuesta_json) || {}).texto || '' } catch { /* ignora */ }
+      const n = normalizarTextoUX(t)
+      if (!t.trim() || !n || vistas.has(n)) continue
+      vistas.add(n)
+      if (n !== normCanonico && !normAlias.has(n)) sugerencias.push(t.trim())
+    }
+  }
 
   function handleTexto(e) {
     const v = e.target.value
@@ -460,7 +523,7 @@ function InputTexto({ cfg, resultado, onChange, disabled, respuestasUsuarios }) 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>
         <label style={{ fontSize: 12, color: 'var(--color-muted)', display: 'block', marginBottom: 4 }}>
-          Texto de la respuesta correcta (matching automático: lowercase + sin tildes)
+          Texto de la respuesta correcta (matching automático: lowercase + sin tildes + sin puntuación + espacios colapsados)
         </label>
         <textarea
           rows={2}
@@ -470,6 +533,87 @@ function InputTexto({ cfg, resultado, onChange, disabled, respuestasUsuarios }) 
           style={textareaStyle}
           placeholder="Ej: Mbappé"
         />
+      </div>
+
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--color-muted)', display: 'block', marginBottom: 4 }}>
+          Texto para mostrar (opcional — versión "linda" con tildes/comillas; si está vacío se muestra el texto de arriba)
+        </label>
+        <input
+          type="text"
+          value={resultado.texto_display || ''}
+          onChange={handleTextoDisplay}
+          disabled={disabled}
+          style={inputStyle}
+          placeholder={'Ej: Emiliano "Dibu" Martínez'}
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--color-muted)', display: 'block', marginBottom: 4 }}>
+          Alias aceptados (Fase B) — variantes que se corrigen como correctas, con los mismos puntos.
+          La respuesta original del usuario nunca se modifica: se muestra como
+          {' '}<em>original (tomado como canónica)</em>.
+        </label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6, minHeight: 24 }}>
+          {aliasActuales.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+              Sin alias definidos.
+            </span>
+          )}
+          {aliasActuales.map(a => (
+            <span key={a} style={chipStyle}>
+              {a}
+              {!disabled && (
+                <button type="button" onClick={() => quitarAlias(a)} style={chipClose} title="Quitar alias">×</button>
+              )}
+            </span>
+          ))}
+        </div>
+        {!disabled && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="text"
+              value={aliasDraft}
+              onChange={e => setAliasDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarAlias(aliasDraft) } }}
+              style={{ ...inputStyle, flex: 1, maxWidth: 320 }}
+              placeholder="Agregar alias (Enter o botón)"
+            />
+            <button
+              type="button"
+              onClick={() => agregarAlias(aliasDraft)}
+              disabled={!aliasDraft.trim()}
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: 11 }}
+            >
+              + Alias
+            </button>
+          </div>
+        )}
+        {sugerencias.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 4 }}>
+              Respuestas reales que hoy NO matchean — click para aceptarlas como alias:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {sugerencias.map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => agregarAlias(s)}
+                  style={{
+                    ...chipStyle, cursor: 'pointer',
+                    background: 'rgba(234,179,8,0.12)', border: '1px dashed #a16207', color: '#a16207',
+                  }}
+                  title="Aceptar como alias válido"
+                >
+                  + {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

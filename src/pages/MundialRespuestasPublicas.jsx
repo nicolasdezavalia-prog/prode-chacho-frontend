@@ -191,6 +191,12 @@ const RESPUESTAS_PUBLICAS_CSS = `
 .rp-pts--pos { color: var(--color-success); }
 .rp-pts--neg { color: var(--color-danger); }
 .rp-pts--muted { color: var(--color-muted); font-weight: 400; }
+/* Fase B2: "(agrupado como X)" — canonización visual, no implica puntos. */
+.rp-agrupado {
+  font-size: 11px;
+  color: var(--color-muted);
+  font-style: italic;
+}
 /* Multi-equipo: chips por equipo. */
 .rp-multi {
   display: flex;
@@ -578,6 +584,9 @@ export default function MundialRespuestasPublicas() {
                     // Decisión de render del cuerpo de la celda:
                     // - multi_equipo con detalle_items → chips por equipo (color del backend).
                     // - resto → fmtRespuesta texto plano.
+                    // Fase B2: si el backend mandó agrupado_como (canonización
+                    // admin de texto libre), se muestra la respuesta ORIGINAL
+                    // intacta + "(agrupado como X)". No implica puntos.
                     const usarChips = p.tipo_pregunta === 'multi_equipo'
                       && Array.isArray(cell.detalle_items)
                       && cell.detalle_items.length > 0
@@ -590,6 +599,11 @@ export default function MundialRespuestasPublicas() {
                           {usarChips
                             ? renderChipsMulti(cell.detalle_items)
                             : fmtRespuesta(p.tipo_pregunta, cell.respuesta_json)}
+                          {cell.agrupado_como && (
+                            <span className="rp-agrupado">
+                              {' '}(agrupado como <strong>{cell.agrupado_como}</strong>)
+                            </span>
+                          )}
                         </div>
                         {renderEstado(cell)}
                       </td>
