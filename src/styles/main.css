@@ -86,6 +86,48 @@ body {
   color: #a1a1aa;
 }
 
+/* ---- Hamburguesa (mobile) ---- */
+.navbar-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: #ffffff;
+  padding: 4px 6px;
+  line-height: 1;
+}
+
+.navbar-mobile-menu {
+  display: none;
+  flex-direction: column;
+  background: #0a0a0a;
+  border-bottom: 1px solid #222;
+  padding: 8px 0;
+  position: sticky;
+  top: 49px; /* altura del navbar */
+  z-index: 99;
+}
+
+.navbar-mobile-link {
+  display: block;
+  padding: 12px 20px;
+  color: #a1a1aa;
+  text-decoration: none;
+  font-size: 14px;
+  border-bottom: 1px solid #1a1a1a;
+  transition: color 0.15s, background 0.15s;
+}
+.navbar-mobile-link:last-child { border-bottom: none; }
+.navbar-mobile-link:hover      { color: #ffffff; background: #111; }
+.navbar-mobile-link.active     { color: #ffffff; font-weight: 600; background: rgba(59,130,246,0.08); }
+
+@media (max-width: 640px) {
+  .navbar-links          { display: none; }
+  .navbar-hamburger      { display: block; }
+  .navbar-mobile-menu    { display: flex; }
+}
+
 /* ---- Cards ---- */
 .card {
   background: var(--color-surface);

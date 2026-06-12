@@ -88,6 +88,10 @@ export default function Navbar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Cerrar menú mobile al cambiar de ruta
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -138,56 +142,73 @@ export default function Navbar() {
   // Detectar contexto desde la ruta actual.
   const contexto = detectarContexto(location.pathname)
 
+  // Links del contexto actual (reutilizados en desktop y mobile)
+  const contextLinks = []
+  contextLinks.push({ to: '/juegos', label: 'Juegos' })
+  if (contexto === 'mundial' && verMundial) {
+    contextLinks.push({ to: miMundialPath, label: 'Mi Mundial', exact: !!mundialUnicoId })
+    if (mundialUnicoId) {
+      contextLinks.push({ to: `/mundial/${mundialUnicoId}/ranking`,    label: 'Ranking' })
+      contextLinks.push({ to: `/mundial/${mundialUnicoId}/respuestas`, label: 'Respuestas' })
+      contextLinks.push({ to: `/mundial/${mundialUnicoId}/datos`,      label: 'Datos útiles' })
+    }
+  }
+  if (contexto === 'tradicional' && verTradicional) {
+    contextLinks.push({ to: '/',             label: 'Inicio',       exact: true })
+    contextLinks.push({ to: miGdtPath,       label: 'Mi GDT' })
+    contextLinks.push({ to: '/estadisticas', label: 'Estadísticas' })
+    contextLinks.push({ to: '/comidas',      label: 'Comidas' })
+  }
+  if (isAdmin) contextLinks.push({ to: '/admin', label: 'Admin' })
+
   return (
-    <nav className="navbar">
-      {/* Brand → /juegos: el selector es el "home" de la plataforma. */}
-      <Link to="/juegos" className="navbar-brand">⚽ Prode Chacho</Link>
+    <>
+      <nav className="navbar">
+        {/* Brand */}
+        <Link to="/juegos" className="navbar-brand">⚽ Prode Chacho</Link>
 
-      <div className="navbar-links">
-        {/* Juegos siempre visible: escape hatch al selector */}
-        <NavLink to="/juegos" label="Juegos" />
+        {/* Links desktop */}
+        <div className="navbar-links">
+          {contextLinks.map((l, i) => (
+            <NavLink key={i} to={l.to} label={l.label} exact={l.exact} />
+          ))}
+        </div>
 
-        {/* Contexto Mundial: Mi Mundial + Ranking + Respuestas + Datos útiles (si aplica) */}
-        {contexto === 'mundial' && verMundial && (
-          <>
-            <NavLink to={miMundialPath} label="Mi Mundial" exact={!!mundialUnicoId} />
-            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/ranking`}     label="Ranking" />}
-            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/respuestas`}  label="Respuestas" />}
-            {mundialUnicoId && <NavLink to={`/mundial/${mundialUnicoId}/datos`}       label="Datos útiles" />}
-          </>
-        )}
+        {/* Lado derecho: shortcuts admin + cuenta + hamburguesa */}
+        <div className="navbar-user">
+          {isAdmin && (
+            <Link to="/admin/usuarios" className="btn btn-secondary btn-sm" title="Gestión de usuarios">
+              👥
+            </Link>
+          )}
+          {isSuperAdmin && (
+            <Link to="/admin/permisos" className="btn btn-secondary btn-sm" title="Gestión de permisos">
+              🔑
+            </Link>
+          )}
+          <AccountMenu onLogout={handleLogout} />
 
-        {/* Contexto Prode tradicional: Inicio + Mi GDT + Estadísticas + Comidas */}
-        {contexto === 'tradicional' && verTradicional && (
-          <>
-            <NavLink to="/" label="Inicio" exact />
-            <NavLink to={miGdtPath} label="Mi GDT" />
-            <NavLink to="/estadisticas" label="Estadísticas" />
-            <NavLink to="/comidas" label="Comidas" />
-          </>
-        )}
+          {/* Hamburguesa — solo en mobile */}
+          <button
+            className="navbar-hamburger"
+            onClick={() => setMobileOpen(o => !o)}
+            aria-label="Abrir menú"
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? '✕' : '☰'}
+          </button>
+        </div>
+      </nav>
 
-        {/* Admin link siempre visible para admins (en cualquier contexto) */}
-        {isAdmin && <NavLink to="/admin" label="Admin" />}
-      </div>
-
-      <div className="navbar-user">
-        {/* Shortcuts admin a la izquierda del dropdown — sin cambios */}
-        {isAdmin && (
-          <Link to="/admin/usuarios" className="btn btn-secondary btn-sm" title="Gestión de usuarios">
-            👥
-          </Link>
-        )}
-        {isSuperAdmin && (
-          <Link to="/admin/permisos" className="btn btn-secondary btn-sm" title="Gestión de permisos">
-            🔑
-          </Link>
-        )}
-        {/* Dropdown de cuenta: reemplaza el bloque nombre+badge inerte y el botón Salir.
-            Salir vive ahora dentro del dropdown. */}
-        <AccountMenu onLogout={handleLogout} />
-      </div>
-    </nav>
+      {/* Menú mobile desplegable */}
+      {mobileOpen && (
+        <div className="navbar-mobile-menu">
+          {contextLinks.map((l, i) => (
+            <NavLinkMobile key={i} to={l.to} label={l.label} exact={l.exact} />
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -220,7 +241,6 @@ function detectarContexto(pathname) {
 
 function NavLink({ to, label, exact }) {
   const location = useLocation()
-  // Active check ignora querystring: "/gdt/mi-equipo?liga_id=3" matchea con "/gdt/mi-equipo"
   const pathname = to.split('?')[0]
   const active = exact ? location.pathname === pathname : location.pathname.startsWith(pathname)
   return (
@@ -236,6 +256,20 @@ function NavLink({ to, label, exact }) {
       }}
       onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
       onMouseLeave={e => e.currentTarget.style.color = active ? '#ffffff' : '#a1a1aa'}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function NavLinkMobile({ to, label, exact }) {
+  const location = useLocation()
+  const pathname = to.split('?')[0]
+  const active = exact ? location.pathname === pathname : location.pathname.startsWith(pathname)
+  return (
+    <Link
+      to={to}
+      className={`navbar-mobile-link${active ? ' active' : ''}`}
     >
       {label}
     </Link>
