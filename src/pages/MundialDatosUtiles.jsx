@@ -61,6 +61,13 @@ const TIPO_META = {
   otro:             { label: 'Otros datos útiles',   emoji: '📌' },
 }
 
+// Fase A — colapso de listas largas (2026-06-04).
+// Mostramos los primeros N items por default. Si la sección tiene más,
+// aparece un botón "Mostrar todos (N)". Aplica a goleadores estructurados,
+// tops de tarjetas (amarillas y rojas), e items manuales. Cada sección
+// mantiene su propio toggle independiente.
+const LIMITE_COLAPSO = 10
+
 export default function MundialDatosUtiles() {
   const { torneoId } = useParams()
   const [torneo, setTorneo]     = useState(null)
@@ -77,8 +84,24 @@ export default function MundialDatosUtiles() {
   const [premiosInd, setPremiosInd] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
+  // Fase A — toggle de colapso por sección. Default: todas colapsadas.
+  // El objeto se indexa por clave de sección (ej. 'goleadores_estruc',
+  // 'top_amarillas', 'manual_goleadores'). Each key independent.
+  const [expandido, setExpandido] = useState({})
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
+
+  // Helpers de colapso. `visibles` recorta la lista si no está expandida y
+  // la longitud supera LIMITE_COLAPSO. `toggleSeccion` invierte el flag
+  // de la clave indicada — keys vienen del callsite, no se globalizan.
+  function toggleSeccion(key) {
+    setExpandido(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+  function visibles(items, key) {
+    if (!Array.isArray(items)) return []
+    if (items.length <= LIMITE_COLAPSO || expandido[key]) return items
+    return items.slice(0, LIMITE_COLAPSO)
+  }
 
   async function load() {
     setLoading(true); setError('')
@@ -220,14 +243,16 @@ export default function MundialDatosUtiles() {
       )}
 
       {/* Sprint Final C5 — Top goleadores estructurado (reemplaza items
-          manuales tipo 'goleadores'; estos no se borran, quedan de fallback). */}
+          manuales tipo 'goleadores'; estos no se borran, quedan de fallback).
+          Fase A: la lista se colapsa a 10 por default. Botón "Mostrar todos (N)"
+          aparece si hay más de 10. El header sigue mostrando el total real. */}
       {hayGoleadoresEstructurados && (
         <section style={{ marginBottom: 20 }}>
           <HeaderSeccion emoji="🥇" label="Top goleadores" extra={`(${goleadores.length})`} />
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
-                {goleadores.map((g, idx) => (
+                {visibles(goleadores, 'goleadores_estruc').map((g, idx) => (
                   <tr key={g.id} style={{
                     borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.05)',
                     opacity: g.activo === 1 ? 1 : 0.6,
@@ -257,6 +282,8 @@ export default function MundialDatosUtiles() {
                           {g.notas}
                         </div>
                       )}
+                      {/* Fase B — chips de users que pusieron este jugador */}
+                      <LoPusieron items={g.lo_pusieron} />
                     </td>
                     <td style={tdValor}>
                       <span style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -269,6 +296,11 @@ export default function MundialDatosUtiles() {
               </tbody>
             </table>
           </div>
+          <BotonMostrarMas
+            total={goleadores.length}
+            expandido={!!expandido['goleadores_estruc']}
+            onToggle={() => toggleSeccion('goleadores_estruc')}
+          />
         </section>
       )}
 
@@ -307,7 +339,9 @@ export default function MundialDatosUtiles() {
 
       {/* Secciones por tipo en orden fijo. Para amarillas_equipo y
           rojas_equipo, si hay tarjetas estructuradas (Fase 2), se renderiza
-          el top calculado en vez de los items manuales del mismo tipo. */}
+          el top calculado en vez de los items manuales del mismo tipo.
+          Fase A: cada sección colapsa a 10 items por default + botón "Mostrar
+          todos (N)" si la lista es mayor. El header sigue mostrando total real. */}
       {TIPOS_ORDEN.map(tipo => {
         if (tipo === 'amarillas_equipo' && hayTopAmarillas) {
           return (
@@ -316,7 +350,10 @@ export default function MundialDatosUtiles() {
               emoji="🟨"
               label="Top tarjetas amarillas"
               sufijo="amarillas"
-              items={topAmarillas}
+              items={visibles(topAmarillas, 'top_amarillas')}
+              total={topAmarillas.length}
+              expandido={!!expandido['top_amarillas']}
+              onToggle={() => toggleSeccion('top_amarillas')}
             />
           )
         }
@@ -327,7 +364,10 @@ export default function MundialDatosUtiles() {
               emoji="🟥"
               label="Top tarjetas rojas"
               sufijo="rojas"
-              items={topRojas}
+              items={visibles(topRojas, 'top_rojas')}
+              total={topRojas.length}
+              expandido={!!expandido['top_rojas']}
+              onToggle={() => toggleSeccion('top_rojas')}
             />
           )
         }
@@ -338,6 +378,9 @@ export default function MundialDatosUtiles() {
         const items = porTipo.get(tipo) || []
         if (items.length === 0) return null
         const meta = TIPO_META[tipo] || { label: tipo, emoji: '•' }
+        // Clave única por tipo para el toggle de colapso (no pisa otras).
+        const colapsoKey = `manual_${tipo}`
+        const visiblesManuales = visibles(items, colapsoKey)
         return (
           <section key={tipo} style={{ marginBottom: 20 }}>
             <h2 style={{
@@ -359,7 +402,7 @@ export default function MundialDatosUtiles() {
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  {items.map((d, idx) => (
+                  {visiblesManuales.map((d, idx) => (
                     <tr key={d.id} style={{
                       borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.05)',
                     }}>
@@ -389,6 +432,9 @@ export default function MundialDatosUtiles() {
                             {d.descripcion}
                           </div>
                         )}
+                        {/* Fase B — chips lo pusieron. Backend solo lo
+                            popula para tipo='goleadores' (resto: undefined). */}
+                        <LoPusieron items={d.lo_pusieron} />
                       </td>
                       {/* Valor (num o texto). Si ambos, prioridad al num — el texto va al pie. */}
                       <td style={tdValor}>
@@ -416,6 +462,11 @@ export default function MundialDatosUtiles() {
                 </tbody>
               </table>
             </div>
+            <BotonMostrarMas
+              total={items.length}
+              expandido={!!expandido[colapsoKey]}
+              onToggle={() => toggleSeccion(colapsoKey)}
+            />
           </section>
         )
       })}
@@ -773,8 +824,13 @@ const tdG = { padding: '4px 6px', textAlign: 'center', fontVariantNumeric: 'tabu
 // items vienen ordenados desde el backend con posición ya asignada (dense
 // rank: empates comparten posición; corte por posición, no por count).
 // Cada item: { equipo_codigo, nombre, emoji, grupo, total, posicion }.
+//
+// Fase A: el padre slicea items a 10 antes de pasar y manda total real
+// (length original) + flag expandido + onToggle. El header muestra siempre
+// el total real, no la cantidad visible.
 // ─────────────────────────────────────────────────────────────────────────
-function TopTarjetasSection({ emoji, label, sufijo, items }) {
+function TopTarjetasSection({ emoji, label, sufijo, items, total, expandido, onToggle }) {
+  const totalReal = Number.isInteger(total) ? total : items.length
   return (
     <section style={{ marginBottom: 20 }}>
       <h2 style={{
@@ -790,7 +846,7 @@ function TopTarjetasSection({ emoji, label, sufijo, items }) {
           fontSize: 11, color: 'var(--color-muted)',
           fontWeight: 400, textTransform: 'none',
         }}>
-          ({items.length})
+          ({totalReal})
         </span>
       </h2>
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -814,6 +870,8 @@ function TopTarjetasSection({ emoji, label, sufijo, items }) {
                       Grupo {it.grupo}
                     </div>
                   )}
+                  {/* Fase B — chips de users que pusieron este equipo */}
+                  <LoPusieron items={it.lo_pusieron} />
                 </td>
                 <td style={tdValor}>
                   <span style={{
@@ -831,6 +889,60 @@ function TopTarjetasSection({ emoji, label, sufijo, items }) {
           </tbody>
         </table>
       </div>
+      <BotonMostrarMas total={totalReal} expandido={expandido} onToggle={onToggle} />
     </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// LoPusieron — Fase B.
+// Chips compactos con los nombres de users que predijeron este item.
+// El backend ya hizo el match (mundial-pusieron.js + endpoints), acá solo
+// renderizamos. Si `items` está vacío o no llega, no renderiza nada (sin
+// "Lo pusieron:" como label — el user pidió que solo aparezcan los nombres).
+// ─────────────────────────────────────────────────────────────────────────
+function LoPusieron({ items }) {
+  if (!Array.isArray(items) || items.length === 0) return null
+  return (
+    <div style={{
+      marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4,
+    }}>
+      {items.map(p => (
+        <span
+          key={p.user_id}
+          style={{
+            fontSize: 11, padding: '2px 8px', borderRadius: 99,
+            background: 'rgba(59,130,246,0.10)', color: 'var(--color-primary)',
+            fontWeight: 500, whiteSpace: 'nowrap',
+          }}
+        >
+          {p.nombre}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// BotonMostrarMas — Fase A.
+// Aparece debajo de una sección si su total real supera LIMITE_COLAPSO.
+// Si total <= LIMITE_COLAPSO devuelve null (no se renderiza nada).
+// Texto: "Mostrar todos (N)" cuando colapsado, "Mostrar menos" cuando expandido.
+// Defensivo: si total / expandido / onToggle no son válidos, no rompe.
+// ─────────────────────────────────────────────────────────────────────────
+function BotonMostrarMas({ total, expandido, onToggle }) {
+  if (!Number.isInteger(total) || total <= LIMITE_COLAPSO) return null
+  if (typeof onToggle !== 'function') return null
+  return (
+    <div style={{ marginTop: 8, textAlign: 'center' }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="btn btn-secondary btn-sm"
+        style={{ fontSize: 12 }}
+      >
+        {expandido ? '↑ Mostrar menos' : `↓ Mostrar todos (${total})`}
+      </button>
+    </div>
   )
 }
