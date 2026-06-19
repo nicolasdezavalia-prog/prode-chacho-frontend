@@ -70,7 +70,10 @@ export default function ComidaDetalle() {
     ])
       .then(([c, p, f]) => {
         setComida(c)
-        setParticipantes(Array.isArray(p) ? p : [])
+        // getParticipantes devuelve { jugadores, externos } (objeto), no un array.
+        // Lo aplanamos a un array plano porque el resto de esta pantalla filtra
+        // por es_jugador y evalúa puede_votar sobre la lista completa.
+        setParticipantes([ ...(p?.jugadores || []), ...(p?.externos || []) ])
         setFotos(Array.isArray(f) ? f : [])
         // Cargar config de votación y mis votos en paralelo
         return Promise.all([
