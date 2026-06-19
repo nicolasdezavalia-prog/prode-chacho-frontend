@@ -19,6 +19,7 @@ export default function AdminComidaVotacion() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [cerrando, setCerrando] = useState(false)
+  const [publicando, setPublicando] = useState(false)
 
   // Cargar nombre del torneo
   useEffect(() => {
@@ -64,6 +65,22 @@ export default function AdminComidaVotacion() {
       setError(err.message)
     } finally {
       setCerrando(false)
+    }
+  }
+
+  const handlePublicar = async (publicar) => {
+    if (!comida?.id) return
+    if (publicar && !confirm('¿Publicar resultados? Quedarán visibles para todos aunque el torneo siga activo.')) return
+    if (!publicar && !confirm('¿Despublicar resultados? Volverán a ocultarse hasta que cierre el torneo.')) return
+    setPublicando(true)
+    setError('')
+    try {
+      await api.publicarResultados(comida.id, publicar)
+      await load()  // refresca comida (resultados_publicados) y status
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setPublicando(false)
     }
   }
 
@@ -237,7 +254,7 @@ export default function AdminComidaVotacion() {
           </div>
 
           {/* Acciones */}
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {status.estado_votacion !== 'cerrada' && (
               <button
                 className="btn btn-danger btn-sm"
@@ -248,10 +265,36 @@ export default function AdminComidaVotacion() {
                 {cerrando ? 'Cerrando...' : '🔒 Cerrar votación'}
               </button>
             )}
+            {/* Publicar resultados: solo con votación cerrada. Despublicar: si ya están publicados. */}
+            {status.estado_votacion === 'cerrada' && !comida.resultados_publicados && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => handlePublicar(true)}
+                disabled={publicando}
+                style={{ fontSize: 13 }}
+              >
+                {publicando ? 'Publicando...' : '🏆 Publicar resultados'}
+              </button>
+            )}
+            {comida.resultados_publicados ? (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePublicar(false)}
+                disabled={publicando}
+                style={{ fontSize: 13 }}
+              >
+                {publicando ? 'Procesando...' : '🙈 Despublicar resultados'}
+              </button>
+            ) : null}
             <Link to="/admin/comidas" className="btn btn-secondary" style={{ fontSize: 13 }}>
               Volver
             </Link>
           </div>
+          {comida.resultados_publicados ? (
+            <div style={{ fontSize: 12, color: 'var(--color-success)', marginTop: 10 }}>
+              ✓ Resultados publicados — visibles para todos los participantes.
+            </div>
+          ) : null}
         </>
       )}
     </div>

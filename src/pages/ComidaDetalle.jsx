@@ -160,6 +160,8 @@ export default function ComidaDetalle() {
   const yaVote         = Object.keys(misVotos).length > 0
   const votacionCerrada = comida?.votacion_estado === 'cerrada'
   const torneoCerrado   = comida && !comida.torneo_activo
+  // Los resultados se ven si el torneo cerró O si el admin los publicó manualmente.
+  const mostrarResultados = torneoCerrado || !!comida?.resultados_publicados
 
   // ——— Estados de carga / error ————————
   if (loading) return <div className="loading">Cargando...</div>
@@ -417,7 +419,11 @@ export default function ComidaDetalle() {
             <span style={{ fontSize: 22 }}>🔒</span>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-danger)' }}>Votación cerrada</div>
-              <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>Los resultados se mostrarán cuando cierre el torneo.</div>
+              <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>
+                {mostrarResultados
+                  ? 'Resultados publicados — los ves más abajo.'
+                  : 'Los resultados se mostrarán cuando se publiquen o cierre el torneo.'}
+              </div>
             </div>
           </div>
         )}
@@ -449,8 +455,8 @@ export default function ComidaDetalle() {
         )}
       </div>
 
-      {/* ——— RESULTADOS (solo si torneo cerrado) ——— */}
-      {torneoCerrado && comida.items?.length > 0 && (
+      {/* ——— RESULTADOS (si torneo cerrado o resultados publicados) ——— */}
+      {mostrarResultados && comida.items?.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header" style={{ marginBottom: 16 }}>🏆 Resultados</div>
 

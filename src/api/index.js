@@ -217,6 +217,7 @@ export const api = {
   getComidaLista: (torneoId) => request('GET', `/comidas/torneo/${torneoId}/lista`),
   getComidaById: (comidaId) => request('GET', `/comidas/${comidaId}`),
   cerrarVotacion: (comidaId) => request('PUT', `/comidas/${comidaId}/votacion-cerrar`),
+  publicarResultados: (comidaId, publicar = true) => request('PUT', `/comidas/${comidaId}/resultados-publicar`, { publicar }),
 
   // Comidas — configuración de votación por torneo
   getComidaVotacionConfig: (torneoId) => request('GET', `/comidas/config/${torneoId}`),
