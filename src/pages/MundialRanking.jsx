@@ -432,41 +432,68 @@ function DetalleUserProyectado({ detalle }) {
         Detalle proyectado — {aciertosCount} acierto{aciertosCount === 1 ? '' : 's'} de {detalle.length} respondida{detalle.length === 1 ? '' : 's'}
       </div>
       <div>
-        {detalle.map(d => (
-          <div
-            key={d.numero}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '5px 0',
-              borderBottom: '1px dashed rgba(0,0,0,0.06)',
-              fontSize: 12,
-            }}
-          >
-            <span style={{
-              width: 18, textAlign: 'center',
-              color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
-              fontWeight: 700, flexShrink: 0,
-            }}>
-              {d.acerto ? '✓' : '✗'}
-            </span>
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: 'var(--color-muted)',
-              minWidth: 28, flexShrink: 0,
-            }}>
-              #{d.numero}
-            </span>
-            <span style={{ flex: 1, color: 'var(--color-text)' }}>
-              {d.enunciado}
-            </span>
-            <span style={{
-              fontWeight: 700, whiteSpace: 'nowrap',
-              color: d.acerto ? '#7c3aed' : 'var(--color-muted)',
-            }}>
-              {d.acerto ? `+${d.pts_proyectados} pts` : '0 pts'}
-            </span>
-          </div>
-        ))}
+        {detalle.map(d => {
+          const tieneChips = !!(d.respuesta_user_display || d.respuesta_actual_display)
+          return (
+            <div
+              key={d.numero}
+              style={{
+                padding: '5px 0',
+                borderBottom: '1px dashed rgba(0,0,0,0.06)',
+                fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  width: 18, textAlign: 'center',
+                  color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                  fontWeight: 700, flexShrink: 0,
+                }}>
+                  {d.acerto ? '✓' : '✗'}
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  minWidth: 28, flexShrink: 0,
+                }}>
+                  #{d.numero}
+                </span>
+                <span style={{ flex: 1, color: 'var(--color-text)' }}>
+                  {d.enunciado}
+                </span>
+                <span style={{
+                  fontWeight: 700, whiteSpace: 'nowrap',
+                  color: d.acerto ? '#7c3aed' : 'var(--color-muted)',
+                }}>
+                  {d.acerto ? `+${d.pts_proyectados} pts` : '0 pts'}
+                </span>
+              </div>
+              {tieneChips && (
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: 6,
+                  marginLeft: 56, marginTop: 4, fontSize: 11,
+                }}>
+                  {d.respuesta_user_display && (
+                    <span style={{
+                      background: 'rgba(0,0,0,0.05)', color: 'var(--color-text)',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      Vos: {d.respuesta_user_display}
+                    </span>
+                  )}
+                  {d.respuesta_actual_display && (
+                    <span style={{
+                      background: 'rgba(124, 58, 237, 0.10)', color: '#6d28d9',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      Hoy: {d.respuesta_actual_display}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
