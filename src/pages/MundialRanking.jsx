@@ -23,7 +23,7 @@
  *   - Integración con módulo de Comidas / Economía para registrar deudas.
  */
 
-import { useEffect, useState, useMemo } from 'react'
+import { Fragment, useEffect, useState, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
@@ -294,6 +294,13 @@ function RankingProyectado({ data, user }) {
   const ranking = Array.isArray(data?.ranking) ? data.ranking : []
   const proyectables = Number.isInteger(data?.preguntas_proyectables) ? data.preguntas_proyectables : 0
   const total = Number.isInteger(data?.total_preguntas) ? data.total_preguntas : 0
+  // Estado de expansión por user_id (Opción A — expand inline).
+  // Cada user puede expandirse independientemente para ver el detalle de
+  // qué preguntas acertó / falló. El detalle viene en cada fila del ranking.
+  const [expandido, setExpandido] = useState({})
+  function toggleUser(uid) {
+    setExpandido(prev => ({ ...prev, [uid]: !prev[uid] }))
+  }
   return (
     <div>
       {/* Banner contextual con caveat */}
@@ -311,6 +318,9 @@ function RankingProyectado({ data, user }) {
           Cubre <strong>{proyectables}</strong> de <strong>{total}</strong> preguntas.
           Las preguntas como campeón / subcampeón se proyectan cuando se carguen.
         </div>
+        <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontWeight: 500 }}>
+          💡 Tocá una fila para ver el detalle por pregunta de cada user.
+        </div>
         {data?.caveat && (
           <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6, fontStyle: 'italic' }}>
             {data.caveat}
@@ -327,30 +337,52 @@ function RankingProyectado({ data, user }) {
               <th style={th}>Usuario</th>
               <th style={{ ...th, textAlign: 'right' }}>Puntos proyectados</th>
               <th style={{ ...th, textAlign: 'right' }}>Aciertos</th>
+              <th style={{ ...th, width: 28 }} aria-label="Expandir"></th>
             </tr>
           </thead>
           <tbody>
             {ranking.map(r => {
               const esYo = user && r.user_id === user.id
+              const detalle = Array.isArray(r.detalle) ? r.detalle : []
+              const puedeExpandir = detalle.length > 0
+              const open = !!expandido[r.user_id]
               return (
-                <tr key={r.user_id} style={{
-                  background: esYo ? 'rgba(124,58,237,0.07)' : 'transparent',
-                  fontWeight: esYo ? 600 : 400,
-                }}>
-                  <td style={{ ...td, fontWeight: 700, color: r.posicion === 1 ? '#7c3aed' : 'var(--color-text)' }}>
-                    {r.posicion}
-                  </td>
-                  <td style={td}>
-                    {r.nombre || `Usuario ${r.user_id}`}
-                    {esYo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
-                  </td>
-                  <td style={{ ...td, textAlign: 'right' }}>
-                    <strong>{r.puntos_proyectados}</strong>
-                  </td>
-                  <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
-                    {r.aciertos_proyectados}
-                  </td>
-                </tr>
+                <Fragment key={r.user_id}>
+                  <tr
+                    style={{
+                      background: esYo ? 'rgba(124,58,237,0.07)' : 'transparent',
+                      fontWeight: esYo ? 600 : 400,
+                      cursor: puedeExpandir ? 'pointer' : 'default',
+                    }}
+                    onClick={() => puedeExpandir && toggleUser(r.user_id)}
+                  >
+                    <td style={{ ...td, fontWeight: 700, color: r.posicion === 1 ? '#7c3aed' : 'var(--color-text)' }}>
+                      {r.posicion}
+                    </td>
+                    <td style={td}>
+                      {r.nombre || `Usuario ${r.user_id}`}
+                      {esYo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
+                    </td>
+                    <td style={{ ...td, textAlign: 'right' }}>
+                      <strong>{r.puntos_proyectados}</strong>
+                    </td>
+                    <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
+                      {r.aciertos_proyectados}
+                    </td>
+                    <td style={{ ...td, textAlign: 'center', color: 'var(--color-muted)', userSelect: 'none' }}>
+                      {puedeExpandir ? (open ? '▲' : '▼') : ''}
+                    </td>
+                  </tr>
+                  {open && puedeExpandir && (
+                    <tr style={{
+                      background: esYo ? 'rgba(124,58,237,0.04)' : 'rgba(124,58,237,0.03)',
+                    }}>
+                      <td colSpan={5} style={{ padding: '8px 16px 12px 16px', borderBottom: '1px solid var(--color-border)' }}>
+                        <DetalleUserProyectado detalle={detalle} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
           </tbody>
@@ -378,4 +410,64 @@ function RankingProyectado({ data, user }) {
 const td = {
   padding: '10px 12px',
   borderBottom: '1px solid var(--color-border)',
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DetalleUserProyectado — Opción A.
+// Mini-tabla con preguntas proyectables que el user RESPONDIÓ. Ordenado:
+// aciertos primero (✓ verde, +N pts), después fallidos (✗ gris, 0 pts).
+// Las preguntas no respondidas o no proyectables NO aparecen acá — el
+// listado de "no proyectables" sigue en el <details> general al pie.
+// ─────────────────────────────────────────────────────────────────────────
+function DetalleUserProyectado({ detalle }) {
+  if (!Array.isArray(detalle) || detalle.length === 0) return null
+  const aciertosCount = detalle.filter(d => d.acerto).length
+  return (
+    <div>
+      <div style={{
+        fontSize: 10, fontWeight: 700,
+        color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em',
+        marginBottom: 6,
+      }}>
+        Detalle proyectado — {aciertosCount} acierto{aciertosCount === 1 ? '' : 's'} de {detalle.length} respondida{detalle.length === 1 ? '' : 's'}
+      </div>
+      <div>
+        {detalle.map(d => (
+          <div
+            key={d.numero}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '5px 0',
+              borderBottom: '1px dashed rgba(0,0,0,0.06)',
+              fontSize: 12,
+            }}
+          >
+            <span style={{
+              width: 18, textAlign: 'center',
+              color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+              fontWeight: 700, flexShrink: 0,
+            }}>
+              {d.acerto ? '✓' : '✗'}
+            </span>
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              color: 'var(--color-muted)',
+              minWidth: 28, flexShrink: 0,
+            }}>
+              #{d.numero}
+            </span>
+            <span style={{ flex: 1, color: 'var(--color-text)' }}>
+              {d.enunciado}
+            </span>
+            <span style={{
+              fontWeight: 700, whiteSpace: 'nowrap',
+              color: d.acerto ? '#7c3aed' : 'var(--color-muted)',
+            }}>
+              {d.acerto ? `+${d.pts_proyectados} pts` : '0 pts'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
