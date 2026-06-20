@@ -478,7 +478,7 @@ function DetalleUserProyectado({ detalle }) {
                       background: 'rgba(0,0,0,0.05)', color: 'var(--color-text)',
                       padding: '2px 8px', borderRadius: 10, fontWeight: 600,
                     }}>
-                      Vos: {d.respuesta_user_display}
+                      {d.respuesta_user_display}
                     </span>
                   )}
                   {d.respuesta_actual_display && (
