@@ -403,6 +403,17 @@ export const api = {
     request('GET', `/mundial/${torneoId}/ranking`),
   getMundialMisPuntos: (torneoId) =>
     request('GET', `/mundial/${torneoId}/mis-puntos`),
+  // Fase Proyección — ranking calculado desde fixture/tarjetas/goleadores
+  // hasta el día de hoy. Independiente del ranking oficial. Sin gate de
+  // estado del torneo. Devuelve { ranking, preguntas_proyectables,
+  // total_preguntas, no_proyectables, caveat, meta }.
+  getMundialRankingProyectado: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/ranking-proyectado`),
+  // Fase Proyección 2 — detalle por pregunta del user actual.
+  // Devuelve { items: [{ pregunta_id, numero, enunciado, proyectable,
+  // pts_proyectados, motivo? }], pts_totales_proyectados, caveat }.
+  getMundialMisPuntosProyectados: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/mis-puntos-proyectados`),
 
   // Fase 3.1 — respuestas de todos los users para UNA pregunta. Admin-only.
   // Pensado para el editor de overrides_pts de tipos texto.

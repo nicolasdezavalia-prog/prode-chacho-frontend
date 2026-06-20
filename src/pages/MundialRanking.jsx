@@ -40,6 +40,10 @@ export default function MundialRanking() {
   const [torneo, setTorneo]   = useState(null)
   const [data, setData]       = useState(null)
   const [premiosCalc, setPremiosCalc] = useState(null)
+  // Fase Proyección: ranking calculado desde fixture/tarjetas/goleadores.
+  // Se carga siempre, pero solo se renderiza si el oficial está vacío
+  // (durante grupos). Si el endpoint falla, fallback null (no rompe).
+  const [proyectado, setProyectado] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
 
@@ -48,17 +52,21 @@ export default function MundialRanking() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [torneos, rk, premios] = await Promise.all([
+      const [torneos, rk, premios, proy] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialRanking(torneoId),
         // Premios: fallback null si el endpoint no responde (no crítico).
         api.getMundialPremiosCalculados(torneoId).catch(() => null),
+        // Ranking proyectado — fallback null si el endpoint no existe en
+        // backend viejo o falla por cualquier razón. La página no rompe.
+        api.getMundialRankingProyectado(torneoId).catch(() => null),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
       setTorneo(t)
       setData(rk)
       setPremiosCalc(premios)
+      setProyectado(proy)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -147,7 +155,18 @@ export default function MundialRanking() {
         </div>
       )}
 
-      {!visible && (
+      {/* Fase Proyección: mientras el ranking oficial está vacío (durante
+          grupos), mostramos el ranking proyectado calculado desde fixture +
+          tarjetas + goleadores. Cuando empiecen a cargarse resultados
+          oficiales, este bloque se reemplaza por el oficial. */}
+      {!visible && Array.isArray(proyectado?.ranking) && proyectado.ranking.length > 0 && (
+        <RankingProyectado
+          data={proyectado}
+          user={user}
+        />
+      )}
+
+      {!visible && (!proyectado || !Array.isArray(proyectado.ranking) || proyectado.ranking.length === 0) && (
         <div style={{
           padding: '16px 18px', textAlign: 'center',
           background: 'rgba(0,0,0,0.04)', color: 'var(--color-muted)',
@@ -262,6 +281,99 @@ const th = {
   fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
   textTransform: 'uppercase', letterSpacing: '0.05em',
   borderBottom: '1px solid var(--color-border)',
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// RankingProyectado — Fase Proyección
+// Renderiza el ranking calculado desde el fixture/tarjetas/goleadores
+// hasta el día de hoy. Banner azul-violeta con disclaimer + tabla.
+// Solo se renderiza cuando el oficial aún no tiene resultados (durante
+// grupos). Cuando empiecen a cargarse oficiales, este bloque se reemplaza.
+// ─────────────────────────────────────────────────────────────────────────
+function RankingProyectado({ data, user }) {
+  const ranking = Array.isArray(data?.ranking) ? data.ranking : []
+  const proyectables = Number.isInteger(data?.preguntas_proyectables) ? data.preguntas_proyectables : 0
+  const total = Number.isInteger(data?.total_preguntas) ? data.total_preguntas : 0
+  return (
+    <div>
+      {/* Banner contextual con caveat */}
+      <div style={{
+        padding: '12px 14px', marginBottom: 12,
+        background: 'rgba(124,58,237,0.07)',
+        border: '1px solid rgba(124,58,237,0.25)',
+        borderRadius: 8, fontSize: 13, lineHeight: 1.5,
+      }}>
+        <div style={{ fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>
+          🔮 Ranking proyectado al día de hoy
+        </div>
+        <div style={{ color: 'var(--color-text)' }}>
+          Calculado desde resultados de partidos, tarjetas y goleadores cargados.
+          Cubre <strong>{proyectables}</strong> de <strong>{total}</strong> preguntas.
+          Las preguntas como campeón / subcampeón se proyectan cuando se carguen.
+        </div>
+        {data?.caveat && (
+          <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6, fontStyle: 'italic' }}>
+            {data.caveat}
+          </div>
+        )}
+      </div>
+
+      {/* Tabla */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead>
+            <tr style={{ background: 'var(--color-surface2)' }}>
+              <th style={th}>#</th>
+              <th style={th}>Usuario</th>
+              <th style={{ ...th, textAlign: 'right' }}>Puntos proyectados</th>
+              <th style={{ ...th, textAlign: 'right' }}>Aciertos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranking.map(r => {
+              const esYo = user && r.user_id === user.id
+              return (
+                <tr key={r.user_id} style={{
+                  background: esYo ? 'rgba(124,58,237,0.07)' : 'transparent',
+                  fontWeight: esYo ? 600 : 400,
+                }}>
+                  <td style={{ ...td, fontWeight: 700, color: r.posicion === 1 ? '#7c3aed' : 'var(--color-text)' }}>
+                    {r.posicion}
+                  </td>
+                  <td style={td}>
+                    {r.nombre || `Usuario ${r.user_id}`}
+                    {esYo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
+                  </td>
+                  <td style={{ ...td, textAlign: 'right' }}>
+                    <strong>{r.puntos_proyectados}</strong>
+                  </td>
+                  <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
+                    {r.aciertos_proyectados}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Detalle opcional de no proyectables (colapsable) */}
+      {Array.isArray(data?.no_proyectables) && data.no_proyectables.length > 0 && (
+        <details style={{ marginTop: 10, fontSize: 12, color: 'var(--color-muted)' }}>
+          <summary style={{ cursor: 'pointer' }}>
+            Ver {data.no_proyectables.length} pregunta{data.no_proyectables.length === 1 ? '' : 's'} aún no proyectable{data.no_proyectables.length === 1 ? '' : 's'}
+          </summary>
+          <ul style={{ margin: '6px 0 0 18px', padding: 0, lineHeight: 1.5 }}>
+            {data.no_proyectables.map(p => (
+              <li key={p.numero}>
+                <strong>#{p.numero}</strong> {p.enunciado} — <span style={{ fontStyle: 'italic' }}>{p.motivo}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
 }
 const td = {
   padding: '10px 12px',

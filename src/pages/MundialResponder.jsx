@@ -118,6 +118,10 @@ export default function MundialResponder() {
   // está exponiendo el detalle (estado >= grupos_jugados). ptsPorPregunta es
   // un map { pregunta_id: pts_obtenidos|null } para badge en cada card.
   const [misPuntos, setMisPuntos]           = useState({ visible: false, items: [], pts_totales: 0 })
+  // Fase Proyección 2 — mis pts proyectados por pregunta. Solo se renderizan
+  // cuando misPuntos.visible es false (durante grupos, sin oficial). Cuando
+  // el oficial entra, este chip se oculta y aparece el pts real.
+  const [misPuntosProy, setMisPuntosProy]   = useState({ items: [], pts_totales_proyectados: 0 })
   // Fase 5 — flujo de cambios post-grupos. Solo se llena cuando estado='cambios_abiertos'.
   //   misCambiosCtx: contexto de la ventana ({ ventana, habilitado, cambios_usados, cambios_restantes, costo_usd, preguntas_habilitables }).
   //   respuestasPreVentana: copia inmutable de mundial_respuestas_usuario al inicio
@@ -143,7 +147,7 @@ export default function MundialResponder() {
     setError('')
     setAccesoDenegado(false)
     try {
-      const [torneosAll, cfg, preg, equipos, misRes, misPts, premios] = await Promise.all([
+      const [torneosAll, cfg, preg, equipos, misRes, misPts, premios, misPtsProy] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialConfig(torneoId),
         api.getMundialPreguntasActivas(torneoId),
@@ -154,6 +158,8 @@ export default function MundialResponder() {
         api.getMundialMisPuntos(torneoId).catch(() => ({ visible: false, items: [], pts_totales: 0 })),
         // Fase Premios — premios calculados (cruce con ranking). null si falla.
         api.getMundialPremiosCalculados(torneoId).catch(() => null),
+        // Fase Proyección 2 — mis pts proyectados por pregunta. Fallback inocuo si falla.
+        api.getMundialMisPuntosProyectados(torneoId).catch(() => ({ items: [], pts_totales_proyectados: 0 })),
       ])
       const t = (torneosAll || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
@@ -171,6 +177,9 @@ export default function MundialResponder() {
       setMisPuntos(misPts && typeof misPts === 'object'
         ? misPts
         : { visible: false, items: [], pts_totales: 0 })
+      setMisPuntosProy(misPtsProy && typeof misPtsProy === 'object'
+        ? misPtsProy
+        : { items: [], pts_totales_proyectados: 0 })
       setPremiosCalc(premios && typeof premios === 'object' ? premios : null)
 
       // Fase 5 — si el torneo está en 'cambios_abiertos', cargamos el contexto
@@ -247,6 +256,20 @@ export default function MundialResponder() {
     for (const it of (misPuntos.items || [])) m[it.pregunta_id] = it.pts_obtenidos
     return m
   }, [misPuntos])
+
+  // Fase Proyección 2 — map { pregunta_id: { proyectable, pts_proyectados, motivo } }
+  // para mostrar chip "tu apuesta vale hoy: +N pts" en cada card durante grupos.
+  const proyPorPregunta = useMemo(() => {
+    const m = {}
+    for (const it of (misPuntosProy.items || [])) {
+      m[it.pregunta_id] = {
+        proyectable: !!it.proyectable,
+        pts_proyectados: it.pts_proyectados,
+        motivo: it.motivo || null,
+      }
+    }
+    return m
+  }, [misPuntosProy])
 
   const isDirty = useMemo(() => {
     return JSON.stringify(respuestasUsr) !== JSON.stringify(respuestasOriginal)
@@ -734,6 +757,32 @@ export default function MundialResponder() {
                       padding: '2px 8px', borderRadius: 99, whiteSpace: 'nowrap',
                     }}>
                       {acerto ? `+${pts} pts` : `${pts} pts`}
+                    </span>
+                  )
+                })()}
+                {/* Fase Proyección 2 — chip "tu apuesta vale hoy" cuando NO hay
+                    oficial cargado todavía. Solo se muestra para preguntas
+                    proyectables (Tier 1/3). Las no proyectables (campeón,
+                    instancia perderá X) NO muestran chip para no ensuciar
+                    visualmente con "sin proyección" en 6+ preguntas. Cuando
+                    misPuntos.visible es true, el badge oficial tiene prioridad
+                    y este se oculta. */}
+                {!misPuntos.visible && (() => {
+                  const proy = proyPorPregunta[p.id]
+                  if (!proy || !proy.proyectable) return null
+                  const pts = Number.isInteger(proy.pts_proyectados) ? proy.pts_proyectados : 0
+                  const acerto = pts > 0
+                  return (
+                    <span
+                      title="Proyección al día de hoy — sujeta a cambios"
+                      style={{
+                        fontSize: 12, fontWeight: 700,
+                        color: acerto ? '#7c3aed' : 'var(--color-muted)',
+                        background: acerto ? 'rgba(124,58,237,0.10)' : 'rgba(0,0,0,0.04)',
+                        padding: '2px 8px', borderRadius: 99, whiteSpace: 'nowrap',
+                      }}
+                    >
+                      🔮 {acerto ? `+${pts} pts hoy` : `${pts} pts hoy`}
                     </span>
                   )
                 })()}
