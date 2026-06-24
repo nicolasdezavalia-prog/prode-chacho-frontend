@@ -38,6 +38,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/index.js'
 import MundialIcon from '../components/MundialIcon.jsx'
+import MATRIZ_TERCEROS from '../data/mundial-r32-matriz.js'
 
 // Orden fijo de tipos para que el render sea determinístico independiente
 // del orden alfabético del backend (que igualmente ordena por tipo asc).
@@ -863,43 +864,24 @@ const THIRD_SLOTS_CANDIDATOS = {
   THIRD_SLOT_vs_1K: ['3D','3E','3I','3J','3L'],
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// MATRIZ_TERCEROS — Mapeo oficial FIFA: combo de 8 grupos clasificados →
-// asignación específica de cada slot.
-//
-// Key: 8 letras de grupo ordenadas alfabéticamente y separadas por "-"
-//   Ejemplo: "A-C-D-E-F-H-I-J"
-// Value: objeto con la asignación de cada slot:
-//   {
-//     THIRD_SLOT_vs_1E: '3D',
-//     THIRD_SLOT_vs_1I: '3C',
-//     THIRD_SLOT_vs_1A: '3F',
-//     THIRD_SLOT_vs_1L: '3E',
-//     THIRD_SLOT_vs_1G: '3A',
-//     THIRD_SLOT_vs_1D: '3J',
-//     THIRD_SLOT_vs_1B: '3I',
-//     THIRD_SLOT_vs_1K: '3H',
-//   }
-//
-// Hay 495 combinaciones posibles (C(12,8)). Mientras la entrada de la combo
-// actual no exista, el render hace fallback a mostrar la lista de candidatos.
-// ⚠️ FALTA CARGAR la matriz oficial FIFA. Estructura lista para datos.
-// ─────────────────────────────────────────────────────────────────────────
-const MATRIZ_TERCEROS = {
-  // Acá van las 495 entradas — pendiente de cargar la matriz oficial FIFA.
-  // Ejemplo de shape (NO usar, es ilustrativo):
-  // 'A-B-C-D-E-F-G-H': {
-  //   THIRD_SLOT_vs_1E: '3X', THIRD_SLOT_vs_1I: '3X', THIRD_SLOT_vs_1A: '3X',
-  //   THIRD_SLOT_vs_1L: '3X', THIRD_SLOT_vs_1G: '3X', THIRD_SLOT_vs_1D: '3X',
-  //   THIRD_SLOT_vs_1B: '3X', THIRD_SLOT_vs_1K: '3X',
-  // },
-}
-
 // Mismo criterio que mundial-stats.js compararTerceros: Pts → DG → GF →
-// Fair Play (amarillas + rojas*3, menor gana) → alfabético. Duplicado en
-// el FE para poder ordenar la lista en simulación sin un endpoint dedicado.
+// Fair Play (amarillas + rojas×3, menor gana) → FIFA Ranking ASC (menor
+// número = mejor) → alfabético (fallback técnico cuando FIFA Ranking no
+// está cargado; NO es criterio oficial). Duplicado en el FE para poder
+// ordenar la lista en simulación sin un endpoint dedicado.
+//
+// FIFA_RANKING_FE: mapping codigo_equipo → ranking. Vacío hasta cargar.
+// Mientras esté vacío, fallback alfabético.
+const FIFA_RANKING_FE = {
+  // 'ARG': 1, 'FRA': 2, ...
+  // Cargar ranking FIFA cercano al sorteo del Mundial 2026.
+}
 function fairPlayScoreFE(r) {
   return (r?.amarillas || 0) + (r?.rojas || 0) * 3
+}
+function fifaRankFE(r) {
+  const rk = FIFA_RANKING_FE[r?.equipo_codigo]
+  return Number.isInteger(rk) ? rk : Number.MAX_SAFE_INTEGER
 }
 function compararTercerosFE(a, b) {
   if (b.pts !== a.pts) return b.pts - a.pts
@@ -907,6 +889,8 @@ function compararTercerosFE(a, b) {
   if (b.gf !== a.gf) return b.gf - a.gf
   const fpA = fairPlayScoreFE(a), fpB = fairPlayScoreFE(b)
   if (fpA !== fpB) return fpA - fpB
+  const frA = fifaRankFE(a), frB = fifaRankFE(b)
+  if (frA !== frB) return frA - frB
   return (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
 }
 
@@ -1028,8 +1012,20 @@ function CrucesR32({ tablaGrupos, terceros }) {
           padding: '8px 12px', borderRadius: 8,
           background: 'rgba(0,0,0,0.03)',
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-            Combinación de terceros usada ({comboKey})
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
+            textTransform: 'uppercase', marginBottom: 4,
+            display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+          }}>
+            <span>Combinación de terceros usada ({comboKey})</span>
+            {/* Debug visible: asignación matriz encontrada o no */}
+            <span style={{
+              padding: '1px 6px', borderRadius: 4, fontSize: 10,
+              background: asignacion ? 'rgba(22,163,74,0.15)' : 'rgba(234,179,8,0.15)',
+              color: asignacion ? '#15803d' : '#a16207',
+            }}>
+              Matriz: {asignacion ? '✓ encontrada' : '✗ no encontrada'}
+            </span>
           </div>
           {top8.map(t => (
             <span key={t.grupo} style={{
