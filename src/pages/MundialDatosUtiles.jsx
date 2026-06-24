@@ -664,7 +664,7 @@ function DashboardCalculado({ stats }) {
       )}
 
       {/* Llaves de Round of 32 */}
-      <CrucesR32 tablaGrupos={stats.tabla_grupos || []} />
+      <CrucesR32 tablaGrupos={stats.tabla_grupos || []} terceros={stats.terceros} />
 
       {/* Tops de goles en grupos */}
       {(stats.tops?.goleadores_grupos?.length > 0 || stats.tops?.goleados_grupos?.length > 0) && (
@@ -822,36 +822,93 @@ const thG = { padding: '4px 6px', textAlign: 'center', fontWeight: 600 }
 const tdG = { padding: '4px 6px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Llaves de Round of 32 — cruces oficiales hardcoded del Mundial 2026.
-// Los slots "1A", "2B" se resuelven contra tabla_grupos (1°/2° de cada grupo).
-// Los slots multi-3° (ej. "3A/3B/3C/3D/3F") se muestran literales: la matriz
-// FIFA que asigna qué 3° va a qué cruce depende de qué 4 terceros caen, y
-// recién se conoce cuando los 12 grupos terminan. Out of scope MVP.
+// Llaves de Round of 32 — cruces oficiales del Mundial 2026.
+// - Slots "1X" / "2X": se resuelven contra tabla_grupos por posición.
+// - Slots THIRD_SLOT_*: dependen de qué 8 grupos clasificaron terceros.
+//   La matriz oficial FIFA (495 combinaciones posibles, 12 elige 8) mapea
+//   { combo de 8 grupos ordenados alfabéticamente } → asignación 3X específica
+//   para cada uno de los 8 slots. Mientras la matriz no esté cargada o la
+//   combo aún no esté definida, se muestran los candidatos posibles del slot.
 // ────────────────────────────────────────────────────────────────────────────
 const R32_CRUCES = [
   { partido: 'R32-1',  local: '2A', visitante: '2B' },
   { partido: 'R32-2',  local: '1C', visitante: '2F' },
-  { partido: 'R32-3',  local: '1E', visitante: '3A/3B/3C/3D/3F' },
+  { partido: 'R32-3',  local: '1E', visitante: 'THIRD_SLOT_vs_1E' },
   { partido: 'R32-4',  local: '1F', visitante: '2C' },
   { partido: 'R32-5',  local: '2E', visitante: '2I' },
-  { partido: 'R32-6',  local: '1I', visitante: '3C/3D/3F/3G/3H' },
-  { partido: 'R32-7',  local: '1A', visitante: '3C/3E/3F/3H/3I' },
-  { partido: 'R32-8',  local: '1L', visitante: '3E/3H/3I/3J/3K' },
-  { partido: 'R32-9',  local: '1G', visitante: '3A/3E/3H/3I/3J' },
-  { partido: 'R32-10', local: '1D', visitante: '3B/3E/3F/3I/3J' },
+  { partido: 'R32-6',  local: '1I', visitante: 'THIRD_SLOT_vs_1I' },
+  { partido: 'R32-7',  local: '1A', visitante: 'THIRD_SLOT_vs_1A' },
+  { partido: 'R32-8',  local: '1L', visitante: 'THIRD_SLOT_vs_1L' },
+  { partido: 'R32-9',  local: '1G', visitante: 'THIRD_SLOT_vs_1G' },
+  { partido: 'R32-10', local: '1D', visitante: 'THIRD_SLOT_vs_1D' },
   { partido: 'R32-11', local: '1H', visitante: '2J' },
   { partido: 'R32-12', local: '2K', visitante: '2L' },
-  { partido: 'R32-13', local: '1B', visitante: '3E/3F/3G/3I/3J' },
+  { partido: 'R32-13', local: '1B', visitante: 'THIRD_SLOT_vs_1B' },
   { partido: 'R32-14', local: '2D', visitante: '2G' },
   { partido: 'R32-15', local: '1J', visitante: '2H' },
-  { partido: 'R32-16', local: '1K', visitante: '3D/3E/3I/3J/3L' },
+  { partido: 'R32-16', local: '1K', visitante: 'THIRD_SLOT_vs_1K' },
 ]
 
-function CrucesR32({ tablaGrupos }) {
-  // Devuelve { nombre, emoji } para un slot tipo "1A"/"2B" si el grupo tiene
-  // ese equipo en esa posición. Para multi-3° o slot no resuelto: null.
-  function resolverSlot(codigo) {
-    const m = /^([12])([A-L])$/.exec(codigo)
+// Candidatos posibles de cada THIRD_SLOT — restricciones del fixture oficial.
+// Cualquier 3X que termine ocupando un slot DEBE estar en su lista. Esto
+// permite mostrar la lista cuando todavía no hay 8 terceros definitivos.
+const THIRD_SLOTS_CANDIDATOS = {
+  THIRD_SLOT_vs_1E: ['3A','3B','3C','3D','3F'],
+  THIRD_SLOT_vs_1I: ['3C','3D','3F','3G','3H'],
+  THIRD_SLOT_vs_1A: ['3C','3E','3F','3H','3I'],
+  THIRD_SLOT_vs_1L: ['3E','3H','3I','3J','3K'],
+  THIRD_SLOT_vs_1G: ['3A','3E','3H','3I','3J'],
+  THIRD_SLOT_vs_1D: ['3B','3E','3F','3I','3J'],
+  THIRD_SLOT_vs_1B: ['3E','3F','3G','3I','3J'],
+  THIRD_SLOT_vs_1K: ['3D','3E','3I','3J','3L'],
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// MATRIZ_TERCEROS — Mapeo oficial FIFA: combo de 8 grupos clasificados →
+// asignación específica de cada slot.
+//
+// Key: 8 letras de grupo ordenadas alfabéticamente y separadas por "-"
+//   Ejemplo: "A-C-D-E-F-H-I-J"
+// Value: objeto con la asignación de cada slot:
+//   {
+//     THIRD_SLOT_vs_1E: '3D',
+//     THIRD_SLOT_vs_1I: '3C',
+//     THIRD_SLOT_vs_1A: '3F',
+//     THIRD_SLOT_vs_1L: '3E',
+//     THIRD_SLOT_vs_1G: '3A',
+//     THIRD_SLOT_vs_1D: '3J',
+//     THIRD_SLOT_vs_1B: '3I',
+//     THIRD_SLOT_vs_1K: '3H',
+//   }
+//
+// Hay 495 combinaciones posibles (C(12,8)). Mientras la entrada de la combo
+// actual no exista, el render hace fallback a mostrar la lista de candidatos.
+// ⚠️ FALTA CARGAR la matriz oficial FIFA. Estructura lista para datos.
+// ─────────────────────────────────────────────────────────────────────────
+const MATRIZ_TERCEROS = {
+  // Acá van las 495 entradas — pendiente de cargar la matriz oficial FIFA.
+  // Ejemplo de shape (NO usar, es ilustrativo):
+  // 'A-B-C-D-E-F-G-H': {
+  //   THIRD_SLOT_vs_1E: '3X', THIRD_SLOT_vs_1I: '3X', THIRD_SLOT_vs_1A: '3X',
+  //   THIRD_SLOT_vs_1L: '3X', THIRD_SLOT_vs_1G: '3X', THIRD_SLOT_vs_1D: '3X',
+  //   THIRD_SLOT_vs_1B: '3X', THIRD_SLOT_vs_1K: '3X',
+  // },
+}
+
+// Dada la lista de 8 grupos cuyos terceros clasificaron (ej. ['A','C',...,'J']),
+// devuelve la asignación de cada slot SI la combo está cargada en la matriz.
+// Si no hay 8 grupos definitivos o la combo no está cargada → null (fallback).
+function resolverTercerosR32(gruposClasificados) {
+  if (!Array.isArray(gruposClasificados) || gruposClasificados.length !== 8) return null
+  const key = [...gruposClasificados].sort().join('-')
+  return MATRIZ_TERCEROS[key] || null
+}
+
+function CrucesR32({ tablaGrupos, terceros }) {
+  // Devuelve { nombre, emoji, grupo } para un código tipo "1A"/"2B"/"3D".
+  // null si el grupo o la posición no existen aún.
+  function resolverEquipo(codigo) {
+    const m = /^([123])([A-L])$/.exec(codigo)
     if (!m) return null
     const posicion = parseInt(m[1], 10)
     const grupo = m[2]
@@ -859,23 +916,66 @@ function CrucesR32({ tablaGrupos }) {
     if (!tg) return null
     const eq = (tg.equipos || []).find(e => e.posicion === posicion)
     if (!eq) return null
-    return { nombre: eq.nombre, emoji: eq.emoji || null }
+    return { nombre: eq.nombre, emoji: eq.emoji || null, grupo }
   }
-  function renderSlot(codigo) {
-    const resolved = resolverSlot(codigo)
-    // Etiqueta tipo "1°A", "2°B" para slots simples; multi-3° queda con su forma.
-    const m = /^([12])([A-L])$/.exec(codigo)
-    const etiqueta = m ? `${m[1]}°${m[2]}` : codigo
-    if (resolved) {
+
+  // ¿Tenemos los 8 mejores terceros definitivos? El backend marca estado
+  // 'clasificaria' a los 8 candidatos del top. Cuando terceros.definitivo
+  // es true Y hay exactamente 8 con estado 'clasificaria', podemos resolver.
+  const definitivo = terceros?.definitivo === true
+  const grupos8 = definitivo
+    ? (terceros?.items || []).filter(r => r.estado === 'clasificaria').map(r => r.grupo)
+    : []
+  const asignacion = grupos8.length === 8 ? resolverTercerosR32(grupos8) : null
+
+  function renderSlot(slot) {
+    // Slot simple "1A"/"2B": resolver directo contra tabla_grupos.
+    if (/^[12][A-L]$/.test(slot)) {
+      const eq = resolverEquipo(slot)
+      const etiqueta = `${slot[0]}°${slot[1]}`
+      if (eq) {
+        return (
+          <span>
+            <span style={{ color: 'var(--color-muted)', fontSize: 11, marginRight: 6, fontWeight: 600 }}>{etiqueta}</span>
+            {eq.emoji ? `${eq.emoji} ` : ''}{eq.nombre}
+          </span>
+        )
+      }
+      return <span style={{ color: 'var(--color-muted)' }}>{etiqueta}</span>
+    }
+    // Slot tipo THIRD_SLOT_vs_1X.
+    if (slot.startsWith('THIRD_SLOT_')) {
+      const codigo3 = asignacion?.[slot]  // ej. "3D"
+      if (codigo3) {
+        const eq = resolverEquipo(codigo3)
+        const etiqueta = `${codigo3[0]}°${codigo3[1]}`
+        return (
+          <span>
+            <span style={{ color: 'var(--color-muted)', fontSize: 11, marginRight: 6, fontWeight: 600 }}>{etiqueta}</span>
+            {eq ? `${eq.emoji ? eq.emoji + ' ' : ''}${eq.nombre}` : <span style={{ color: 'var(--color-muted)' }}>(sin equipo)</span>}
+          </span>
+        )
+      }
+      // Fallback: mostrar candidatos del slot.
+      const candidatos = THIRD_SLOTS_CANDIDATOS[slot] || []
       return (
-        <span>
-          <span style={{ color: 'var(--color-muted)', fontSize: 11, marginRight: 6, fontWeight: 600 }}>{etiqueta}</span>
-          {resolved.emoji ? `${resolved.emoji} ` : ''}{resolved.nombre}
+        <span style={{ color: 'var(--color-muted)', fontSize: 12 }}>
+          {candidatos.map(c => `${c[0]}°${c[1]}`).join(' / ')}
         </span>
       )
     }
-    return <span style={{ color: 'var(--color-muted)' }}>{etiqueta}</span>
+    return <span style={{ color: 'var(--color-muted)' }}>{slot}</span>
   }
+
+  const matrizCargada = Object.keys(MATRIZ_TERCEROS).length > 0
+  const nota = definitivo && grupos8.length === 8 && !asignacion
+    ? `⚠️ Los 8 terceros están definidos (${grupos8.sort().join(',')}) pero falta cargar esa combinación en la matriz oficial FIFA. Mostrando candidatos posibles.`
+    : !definitivo
+      ? 'Los slots de terceros muestran los candidatos posibles según el fixture oficial. Se resolverán cuando los 12 grupos terminen y se conozcan los 8 mejores terceros.'
+      : matrizCargada
+        ? null
+        : '⚠️ Matriz oficial FIFA no cargada todavía. Mostrando candidatos posibles para los slots de terceros.'
+
   return (
     <section style={{ marginBottom: 20 }}>
       <HeaderSeccion emoji="🏆" label="Llaves de Round of 32" extra="(cruces oficiales — equipos se resuelven a medida que terminan los grupos)" />
@@ -903,12 +1003,14 @@ function CrucesR32({ tablaGrupos }) {
           </tbody>
         </table>
       </div>
-      <div style={{
-        fontSize: 11, color: 'var(--color-muted)', marginTop: 6, lineHeight: 1.45,
-        padding: '6px 10px',
-      }}>
-        Los slots tipo <code>3A/3B/3C/...</code> se resuelven cuando los 12 grupos terminan y FIFA asigna qué tercero juega cada cruce.
-      </div>
+      {nota && (
+        <div style={{
+          fontSize: 11, color: 'var(--color-muted)', marginTop: 6, lineHeight: 1.45,
+          padding: '6px 10px',
+        }}>
+          {nota}
+        </div>
+      )}
     </section>
   )
 }
@@ -924,6 +1026,7 @@ function CrucesR32({ tablaGrupos }) {
 // (length original) + flag expandido + onToggle. El header muestra siempre
 // el total real, no la cantidad visible.
 // ─────────────────────────────────────────────────────────────────────────
+
 function TopTarjetasSection({ emoji, label, sufijo, items, total, expandido, onToggle }) {
   const totalReal = Number.isInteger(total) ? total : items.length
   return (
