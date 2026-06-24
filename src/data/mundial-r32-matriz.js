@@ -40,12 +40,22 @@
  */
 
 const MATRIZ_TERCEROS = {
-  // Ejemplo conceptual (NO USAR — placeholder ilustrativo):
-  // 'A-B-C-D-E-F-G-H': {
-  //   THIRD_SLOT_vs_1E: '3X', THIRD_SLOT_vs_1I: '3X', THIRD_SLOT_vs_1A: '3X',
-  //   THIRD_SLOT_vs_1L: '3X', THIRD_SLOT_vs_1G: '3X', THIRD_SLOT_vs_1D: '3X',
-  //   THIRD_SLOT_vs_1B: '3X', THIRD_SLOT_vs_1K: '3X',
-  // },
+  // 1ª combinación cargada manualmente para validar el flujo end-to-end.
+  // Referencia 2026-06-22. Cuando llegue el Anexo C completo, las 494
+  // restantes se cargan vía backend/scripts/cargar-matriz-r32-fifa.js.
+  // 1ª combinación cargada manualmente para validar el flujo end-to-end.
+  // Referencia 2026-06-22. Cuando llegue el Anexo C completo, las 494
+  // restantes se cargan vía backend/scripts/cargar-matriz-r32-fifa.js.
+  'A-C-D-F-G-H-J-L': {
+    THIRD_SLOT_vs_1E: '3D',
+    THIRD_SLOT_vs_1I: '3F',
+    THIRD_SLOT_vs_1A: '3C',
+    THIRD_SLOT_vs_1L: '3H',
+    THIRD_SLOT_vs_1G: '3A',
+    THIRD_SLOT_vs_1D: '3J',
+    THIRD_SLOT_vs_1B: '3G',
+    THIRD_SLOT_vs_1K: '3L',
+  },
 }
 
 export default MATRIZ_TERCEROS
