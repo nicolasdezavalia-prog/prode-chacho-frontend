@@ -663,6 +663,9 @@ function DashboardCalculado({ stats }) {
         </section>
       )}
 
+      {/* Llaves de Round of 32 */}
+      <CrucesR32 tablaGrupos={stats.tabla_grupos || []} />
+
       {/* Tops de goles en grupos */}
       {(stats.tops?.goleadores_grupos?.length > 0 || stats.tops?.goleados_grupos?.length > 0) && (
         <section style={{ marginBottom: 20 }}>
@@ -817,6 +820,98 @@ function MiniTop({ titulo, items, sufijo }) {
 
 const thG = { padding: '4px 6px', textAlign: 'center', fontWeight: 600 }
 const tdG = { padding: '4px 6px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Llaves de Round of 32 — cruces oficiales hardcoded del Mundial 2026.
+// Los slots "1A", "2B" se resuelven contra tabla_grupos (1°/2° de cada grupo).
+// Los slots multi-3° (ej. "3A/3B/3C/3D/3F") se muestran literales: la matriz
+// FIFA que asigna qué 3° va a qué cruce depende de qué 4 terceros caen, y
+// recién se conoce cuando los 12 grupos terminan. Out of scope MVP.
+// ────────────────────────────────────────────────────────────────────────────
+const R32_CRUCES = [
+  { partido: 'R32-1',  local: '2A', visitante: '2B' },
+  { partido: 'R32-2',  local: '1C', visitante: '2F' },
+  { partido: 'R32-3',  local: '1E', visitante: '3A/3B/3C/3D/3F' },
+  { partido: 'R32-4',  local: '1F', visitante: '2C' },
+  { partido: 'R32-5',  local: '2E', visitante: '2I' },
+  { partido: 'R32-6',  local: '1I', visitante: '3C/3D/3F/3G/3H' },
+  { partido: 'R32-7',  local: '1A', visitante: '3C/3E/3F/3H/3I' },
+  { partido: 'R32-8',  local: '1L', visitante: '3E/3H/3I/3J/3K' },
+  { partido: 'R32-9',  local: '1G', visitante: '3A/3E/3H/3I/3J' },
+  { partido: 'R32-10', local: '1D', visitante: '3B/3E/3F/3I/3J' },
+  { partido: 'R32-11', local: '1H', visitante: '2J' },
+  { partido: 'R32-12', local: '2K', visitante: '2L' },
+  { partido: 'R32-13', local: '1B', visitante: '3E/3F/3G/3I/3J' },
+  { partido: 'R32-14', local: '2D', visitante: '2G' },
+  { partido: 'R32-15', local: '1J', visitante: '2H' },
+  { partido: 'R32-16', local: '1K', visitante: '3D/3E/3I/3J/3L' },
+]
+
+function CrucesR32({ tablaGrupos }) {
+  // Devuelve { nombre, emoji } para un slot tipo "1A"/"2B" si el grupo tiene
+  // ese equipo en esa posición. Para multi-3° o slot no resuelto: null.
+  function resolverSlot(codigo) {
+    const m = /^([12])([A-L])$/.exec(codigo)
+    if (!m) return null
+    const posicion = parseInt(m[1], 10)
+    const grupo = m[2]
+    const tg = tablaGrupos.find(g => g.grupo === grupo)
+    if (!tg) return null
+    const eq = (tg.equipos || []).find(e => e.posicion === posicion)
+    if (!eq) return null
+    return { nombre: eq.nombre, emoji: eq.emoji || null }
+  }
+  function renderSlot(codigo) {
+    const resolved = resolverSlot(codigo)
+    // Etiqueta tipo "1°A", "2°B" para slots simples; multi-3° queda con su forma.
+    const m = /^([12])([A-L])$/.exec(codigo)
+    const etiqueta = m ? `${m[1]}°${m[2]}` : codigo
+    if (resolved) {
+      return (
+        <span>
+          <span style={{ color: 'var(--color-muted)', fontSize: 11, marginRight: 6, fontWeight: 600 }}>{etiqueta}</span>
+          {resolved.emoji ? `${resolved.emoji} ` : ''}{resolved.nombre}
+        </span>
+      )
+    }
+    return <span style={{ color: 'var(--color-muted)' }}>{etiqueta}</span>
+  }
+  return (
+    <section style={{ marginBottom: 20 }}>
+      <HeaderSeccion emoji="🏆" label="Llaves de Round of 32" extra="(cruces oficiales — equipos se resuelven a medida que terminan los grupos)" />
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ color: 'var(--color-muted)', fontSize: 10, textTransform: 'uppercase' }}>
+              <th style={{ ...thG, textAlign: 'left', paddingLeft: 12 }}>Partido</th>
+              <th style={{ ...thG, textAlign: 'left' }}>Local</th>
+              <th style={thG}>vs</th>
+              <th style={{ ...thG, textAlign: 'left' }}>Visitante</th>
+            </tr>
+          </thead>
+          <tbody>
+            {R32_CRUCES.map(c => (
+              <tr key={c.partido} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                <td style={{ ...tdG, textAlign: 'left', paddingLeft: 12, fontWeight: 700, color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
+                  {c.partido}
+                </td>
+                <td style={{ ...tdG, textAlign: 'left' }}>{renderSlot(c.local)}</td>
+                <td style={{ ...tdG, color: 'var(--color-muted)', fontSize: 11 }}>vs</td>
+                <td style={{ ...tdG, textAlign: 'left' }}>{renderSlot(c.visitante)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{
+        fontSize: 11, color: 'var(--color-muted)', marginTop: 6, lineHeight: 1.45,
+        padding: '6px 10px',
+      }}>
+        Los slots tipo <code>3A/3B/3C/...</code> se resuelven cuando los 12 grupos terminan y FIFA asigna qué tercero juega cada cruce.
+      </div>
+    </section>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // TopTarjetasSection — render del top calculado desde la matriz Fase 2.
