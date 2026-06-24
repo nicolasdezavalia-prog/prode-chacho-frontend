@@ -831,22 +831,26 @@ const tdG = { padding: '4px 6px', textAlign: 'center', fontVariantNumeric: 'tabu
 //   para cada uno de los 8 slots. Mientras la matriz no esté cargada o la
 //   combo aún no esté definida, se muestran los candidatos posibles del slot.
 // ────────────────────────────────────────────────────────────────────────────
+// Orden visual: respeta el listado oficial del bracket FIFA (lado izquierdo
+// arriba→abajo, luego lado derecho arriba→abajo). Las etiquetas R32-X
+// mantienen su numeración FIFA original — el script importer del Anexo C
+// las usa como referencia, por eso no se renumeran al reordenar visualmente.
 const R32_CRUCES = [
-  { partido: 'R32-1',  local: '2A', visitante: '2B' },
-  { partido: 'R32-2',  local: '1C', visitante: '2F' },
   { partido: 'R32-3',  local: '1E', visitante: 'THIRD_SLOT_vs_1E' },
-  { partido: 'R32-4',  local: '1F', visitante: '2C' },
-  { partido: 'R32-5',  local: '2E', visitante: '2I' },
   { partido: 'R32-6',  local: '1I', visitante: 'THIRD_SLOT_vs_1I' },
+  { partido: 'R32-1',  local: '2A', visitante: '2B' },
+  { partido: 'R32-4',  local: '1F', visitante: '2C' },
+  { partido: 'R32-12', local: '2K', visitante: '2L' },
+  { partido: 'R32-11', local: '1H', visitante: '2J' },
+  { partido: 'R32-10', local: '1D', visitante: 'THIRD_SLOT_vs_1D' },
+  { partido: 'R32-9',  local: '1G', visitante: 'THIRD_SLOT_vs_1G' },
+  { partido: 'R32-2',  local: '1C', visitante: '2F' },
+  { partido: 'R32-5',  local: '2E', visitante: '2I' },
   { partido: 'R32-7',  local: '1A', visitante: 'THIRD_SLOT_vs_1A' },
   { partido: 'R32-8',  local: '1L', visitante: 'THIRD_SLOT_vs_1L' },
-  { partido: 'R32-9',  local: '1G', visitante: 'THIRD_SLOT_vs_1G' },
-  { partido: 'R32-10', local: '1D', visitante: 'THIRD_SLOT_vs_1D' },
-  { partido: 'R32-11', local: '1H', visitante: '2J' },
-  { partido: 'R32-12', local: '2K', visitante: '2L' },
-  { partido: 'R32-13', local: '1B', visitante: 'THIRD_SLOT_vs_1B' },
-  { partido: 'R32-14', local: '2D', visitante: '2G' },
   { partido: 'R32-15', local: '1J', visitante: '2H' },
+  { partido: 'R32-14', local: '2D', visitante: '2G' },
+  { partido: 'R32-13', local: '1B', visitante: 'THIRD_SLOT_vs_1B' },
   { partido: 'R32-16', local: '1K', visitante: 'THIRD_SLOT_vs_1K' },
 ]
 
@@ -1188,6 +1192,7 @@ function LoPusieron({ items }) {
 // Texto: "Mostrar todos (N)" cuando colapsado, "Mostrar menos" cuando expandido.
 // Defensivo: si total / expandido / onToggle no son válidos, no rompe.
 // ─────────────────────────────────────────────────────────────────────────
+
 function BotonMostrarMas({ total, expandido, onToggle }) {
   if (!Number.isInteger(total) || total <= LIMITE_COLAPSO) return null
   if (typeof onToggle !== 'function') return null
