@@ -895,9 +895,24 @@ const MATRIZ_TERCEROS = {
   // },
 }
 
+// Mismo criterio que mundial-stats.js compararTerceros: Pts → DG → GF →
+// Fair Play (amarillas + rojas*3, menor gana) → alfabético. Duplicado en
+// el FE para poder ordenar la lista en simulación sin un endpoint dedicado.
+function fairPlayScoreFE(r) {
+  return (r?.amarillas || 0) + (r?.rojas || 0) * 3
+}
+function compararTercerosFE(a, b) {
+  if (b.pts !== a.pts) return b.pts - a.pts
+  if (b.dg !== a.dg) return b.dg - a.dg
+  if (b.gf !== a.gf) return b.gf - a.gf
+  const fpA = fairPlayScoreFE(a), fpB = fairPlayScoreFE(b)
+  if (fpA !== fpB) return fpA - fpB
+  return (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+}
+
 // Dada la lista de 8 grupos cuyos terceros clasificaron (ej. ['A','C',...,'J']),
 // devuelve la asignación de cada slot SI la combo está cargada en la matriz.
-// Si no hay 8 grupos definitivos o la combo no está cargada → null (fallback).
+// Si no hay 8 grupos o la combo no está cargada → null (fallback).
 function resolverTercerosR32(gruposClasificados) {
   if (!Array.isArray(gruposClasificados) || gruposClasificados.length !== 8) return null
   const key = [...gruposClasificados].sort().join('-')
@@ -919,14 +934,19 @@ function CrucesR32({ tablaGrupos, terceros }) {
     return { nombre: eq.nombre, emoji: eq.emoji || null, grupo }
   }
 
-  // ¿Tenemos los 8 mejores terceros definitivos? El backend marca estado
-  // 'clasificaria' a los 8 candidatos del top. Cuando terceros.definitivo
-  // es true Y hay exactamente 8 con estado 'clasificaria', podemos resolver.
+  // ─── Top 8 terceros actuales (simulación) o definitivos ───
+  // Tomamos TODOS los terceros (completos + pendientes), los re-sorteamos con
+  // el mismo criterio FIFA (Pts → DG → GF → Fair Play → alfabético) y nos
+  // quedamos con los 8 primeros. Esto funciona aunque NINGÚN grupo haya
+  // terminado: usa las posiciones provisorias. terceros.definitivo solo
+  // decide si la etiqueta dice "simulación" o "definitivo".
   const definitivo = terceros?.definitivo === true
-  const grupos8 = definitivo
-    ? (terceros?.items || []).filter(r => r.estado === 'clasificaria').map(r => r.grupo)
-    : []
-  const asignacion = grupos8.length === 8 ? resolverTercerosR32(grupos8) : null
+  const todosLosItems = Array.isArray(terceros?.items) ? terceros.items : []
+  const top8 = [...todosLosItems].sort(compararTercerosFE).slice(0, 8)
+  const grupos8 = top8.map(r => r.grupo)
+  const comboKey = grupos8.length === 8 ? [...grupos8].sort().join('-') : null
+  const asignacion = comboKey ? resolverTercerosR32(grupos8) : null
+  const modo = definitivo ? 'definitivo' : 'simulacion'
 
   function renderSlot(slot) {
     // Slot simple "1A"/"2B": resolver directo contra tabla_grupos.
@@ -956,7 +976,7 @@ function CrucesR32({ tablaGrupos, terceros }) {
           </span>
         )
       }
-      // Fallback: mostrar candidatos del slot.
+      // Fallback: candidatos del slot (literales del fixture oficial).
       const candidatos = THIRD_SLOTS_CANDIDATOS[slot] || []
       return (
         <span style={{ color: 'var(--color-muted)', fontSize: 12 }}>
@@ -967,18 +987,62 @@ function CrucesR32({ tablaGrupos, terceros }) {
     return <span style={{ color: 'var(--color-muted)' }}>{slot}</span>
   }
 
+  // ─── Banner según modo + estado de la matriz ───
   const matrizCargada = Object.keys(MATRIZ_TERCEROS).length > 0
-  const nota = definitivo && grupos8.length === 8 && !asignacion
-    ? `⚠️ Los 8 terceros están definidos (${grupos8.sort().join(',')}) pero falta cargar esa combinación en la matriz oficial FIFA. Mostrando candidatos posibles.`
-    : !definitivo
-      ? 'Los slots de terceros muestran los candidatos posibles según el fixture oficial. Se resolverán cuando los 12 grupos terminen y se conozcan los 8 mejores terceros.'
-      : matrizCargada
-        ? null
-        : '⚠️ Matriz oficial FIFA no cargada todavía. Mostrando candidatos posibles para los slots de terceros.'
+  const tieneTop8 = grupos8.length === 8
+  let bannerLabel, bannerBg, bannerBorder, bannerColor
+  if (modo === 'definitivo') {
+    bannerLabel = 'Cruces DEFINITIVOS — los 12 grupos terminaron.'
+    bannerBg = 'rgba(22,163,74,0.07)'; bannerBorder = 'rgba(22,163,74,0.25)'; bannerColor = '#15803d'
+  } else {
+    bannerLabel = 'Proyección actual: cruces simulados según las posiciones y mejores terceros de hoy.'
+    bannerBg = 'rgba(124,58,237,0.07)'; bannerBorder = 'rgba(124,58,237,0.25)'; bannerColor = '#6d28d9'
+  }
+
+  let nota = null
+  if (tieneTop8 && !asignacion) {
+    nota = matrizCargada
+      ? `⚠️ Los 8 mejores terceros actuales forman la combinación ${comboKey} pero esa entrada no está en la matriz oficial cargada. Mostrando candidatos posibles.`
+      : `⚠️ Matriz oficial FIFA aún no cargada. Combinación actual de terceros: ${comboKey}. Mostrando candidatos posibles para los slots de terceros.`
+  } else if (!tieneTop8) {
+    nota = 'Necesito 8 terceros para simular los cruces. Falta data de grupos.'
+  }
 
   return (
     <section style={{ marginBottom: 20 }}>
-      <HeaderSeccion emoji="🏆" label="Llaves de Round of 32" extra="(cruces oficiales — equipos se resuelven a medida que terminan los grupos)" />
+      <HeaderSeccion emoji="🏆" label="Llaves de Round of 32" extra={modo === 'definitivo' ? '(definitivos)' : '(proyección actual)'} />
+
+      {/* Banner modo */}
+      <div style={{
+        padding: '8px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12,
+        background: bannerBg, border: `1px solid ${bannerBorder}`, color: bannerColor,
+        fontWeight: 600,
+      }}>
+        {bannerLabel}
+      </div>
+
+      {/* Top 8 terceros actuales (chips) — para que el user vea qué combo se está usando */}
+      {tieneTop8 && (
+        <div style={{
+          fontSize: 12, marginBottom: 10, lineHeight: 1.8,
+          padding: '8px 12px', borderRadius: 8,
+          background: 'rgba(0,0,0,0.03)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+            Combinación de terceros usada ({comboKey})
+          </div>
+          {top8.map(t => (
+            <span key={t.grupo} style={{
+              display: 'inline-block', marginRight: 6, padding: '2px 8px',
+              background: 'rgba(124,58,237,0.10)', color: '#6d28d9',
+              borderRadius: 99, fontWeight: 600,
+            }}>
+              3°{t.grupo} {t.emoji ? `${t.emoji} ` : ''}{t.nombre}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
@@ -1005,8 +1069,8 @@ function CrucesR32({ tablaGrupos, terceros }) {
       </div>
       {nota && (
         <div style={{
-          fontSize: 11, color: 'var(--color-muted)', marginTop: 6, lineHeight: 1.45,
-          padding: '6px 10px',
+          fontSize: 11, color: '#a16207', marginTop: 6, lineHeight: 1.45,
+          padding: '6px 10px', background: 'rgba(234,179,8,0.08)', borderRadius: 6,
         }}>
           {nota}
         </div>
