@@ -277,7 +277,7 @@ export default function AdminMundialResultados({ torneoId, estado }) {
           const tieneCargado = !!resultados[p.id]
           return (
             <div key={p.id} className="card" style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <span style={{
                   fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
                   background: 'rgba(0,0,0,0.06)', borderRadius: 99, padding: '2px 8px',

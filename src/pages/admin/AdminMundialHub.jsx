@@ -4,6 +4,7 @@ import { api } from '../../api/index.js'
 import MundialIcon from '../../components/MundialIcon.jsx'
 import AdminMundialEquipos from './AdminMundialEquipos.jsx'
 import AdminMundialPreguntas from './AdminMundialPreguntas.jsx'
+import AdminMundialRespuestasUsers from './AdminMundialRespuestasUsers.jsx'
 import AdminMundialResultados from './AdminMundialResultados.jsx'
 import AdminMundialCambios from './AdminMundialCambios.jsx'
 import AdminMundialPremios from './AdminMundialPremios.jsx'
@@ -325,6 +326,11 @@ export default function AdminMundialHub() {
           onClick={() => setActiveTab('resultados')}
         />
         <Tab
+          label="👥 Resp. users"
+          active={activeTab === 'resp_users'}
+          onClick={() => setActiveTab('resp_users')}
+        />
+        <Tab
           label="🔁 Cambios"
           active={activeTab === 'cambios'}
           onClick={() => setActiveTab('cambios')}
@@ -485,6 +491,14 @@ export default function AdminMundialHub() {
           torneoId={torneoId}
           estado={config.estado}
           onChanged={load}
+        />
+      )}
+
+      {/* Tab Respuestas users — sprint mobile-admin */}
+      {activeTab === 'resp_users' && (
+        <AdminMundialRespuestasUsers
+          torneoId={torneoId}
+          estado={config.estado}
         />
       )}
 

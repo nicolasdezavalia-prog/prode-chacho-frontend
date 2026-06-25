@@ -332,6 +332,16 @@ export const api = {
   saveMundialMisRespuestas: (torneoId, respuestas) =>
     request('PUT', `/mundial/${torneoId}/mis-respuestas`, { respuestas }),
 
+  // ── Admin: cargar respuestas en nombre de otro user (sprint mobile-admin) ──
+  // Bypass deadline + estado='abierto'. Bloquea solo estado='configuracion'.
+  // Registra en mundial_respuestas_admin_log.
+  getMundialAdminRespuestasUsers: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/respuestas-admin/users`),
+  getMundialAdminRespuestasDeUser: (torneoId, userId) =>
+    request('GET', `/mundial/${torneoId}/respuestas-admin/${userId}`),
+  saveMundialAdminRespuestasDeUser: (torneoId, userId, respuestas, observacion) =>
+    request('PUT', `/mundial/${torneoId}/respuestas-admin/${userId}`, { respuestas, observacion }),
+
   // Mundial — Fase 3 (resultados + ranking + mis-puntos)
   // - getMundialResultados:   solo visible en estado >= 'grupos_jugados' (sino 403).
   // - saveMundialResultado:   upsert; requiere estado >= 'grupos_jugados';

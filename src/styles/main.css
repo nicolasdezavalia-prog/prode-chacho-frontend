@@ -436,3 +436,67 @@ input.small { width: 70px; text-align: center; }
   padding: 6px;
 }
 .pronostico-input-group .separator { color: var(--color-muted); font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE (≤640px) — sprint mobile admin.
+   Reglas globales que se aplican SOLO en pantallas chicas. NO afectan desktop.
+   Cubre las situaciones del admin que se rompían en celular:
+   - Inputs/selects con altura táctil (44px iOS, font-size 16px evita zoom)
+   - Cards con padding más chico
+   - Tablas con scroll horizontal explícito + min altura de celdas
+   - Tabs scrollables horizontalmente sin esconder ninguna
+   ═════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Reducir padding global del container para aprovechar todo el ancho */
+  .container { padding: 12px; }
+
+  /* Cards: padding más chico */
+  .card { padding: 10px 12px; }
+  .card-header { font-size: 14px; padding: 8px 10px; }
+
+  /* Inputs y selects táctiles: font-size 16px evita auto-zoom de iOS */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  select,
+  textarea {
+    font-size: 16px !important;
+    min-height: 40px;
+  }
+
+  /* Botones más fáciles de tocar */
+  .btn, button.btn { min-height: 40px; }
+  .btn-sm { min-height: 32px; padding: 6px 10px; }
+
+  /* Tablas dentro de admin: forzar scroll horizontal con touch action.
+     Si la tabla está dentro de un div con overflowX: 'auto' (patrón común
+     en estas páginas), aseguramos que el contenedor no aplaste filas. */
+  .card table,
+  .admin-table-wrap table {
+    font-size: 13px;
+  }
+  .card table td,
+  .card table th {
+    padding: 8px 6px;
+  }
+
+  /* Form rows: en mobile siempre stack vertical, aunque desktop use grid 2 cols */
+  .form-row-2 { grid-template-columns: 1fr !important; }
+
+  /* Tabs admin: scroll horizontal explícito, NO ocultarlas */
+  .admin-tabs,
+  [class*="tabs"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* Headers de seccion mas compactos */
+  h1 { font-size: 20px; }
+  h2 { font-size: 17px; }
+  h3 { font-size: 15px; }
+}
