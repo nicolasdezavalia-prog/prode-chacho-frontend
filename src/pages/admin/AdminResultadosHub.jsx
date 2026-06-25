@@ -151,6 +151,13 @@ function MundialCard({ torneo: t }) {
             ⚽ Cargar resultados de partidos
           </Link>
           <Link
+            to={`/admin/torneo/${t.id}/mundial?tab=resultados`}
+            className="btn btn-primary btn-sm"
+            style={{ fontSize: 12 }}
+          >
+            ❓ Cargar resultados de preguntas
+          </Link>
+          <Link
             to={`/admin/torneo/${t.id}/mundial`}
             className="btn btn-secondary btn-sm"
             style={{ fontSize: 12 }}

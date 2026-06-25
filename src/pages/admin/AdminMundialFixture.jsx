@@ -78,6 +78,10 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
   const [equipos, setEquipos]     = useState([])
   const [dirty, setDirty]         = useState(new Set())   // keys con cambios
   const [filtroRonda, setFiltroRonda] = useState('')
+  // Sprint feedback: stats.tabla_grupos + KO finalizados -> equipos clasificados
+  // que aun no tienen partido en la ronda siguiente ("esperando rival"). Si
+  // falla la carga, queda en null y el componente degrada silenciosamente.
+  const [stats, setStats] = useState(null)
   const [filtroGrupo, setFiltroGrupo] = useState('')
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
@@ -98,13 +102,17 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [data, cat] = await Promise.all([
+      const [data, cat, statsRes] = await Promise.all([
         api.getMundialPartidos(torneoId),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
+        // Stats opcional: si falla no rompe el fixture editor (solo se pierde
+        // la card de "Equipos esperando rival"). Por eso .catch(() => null).
+        api.getMundialStatsCalculadas(torneoId).catch(() => null),
       ])
       setFilas((data.partidos || []).map(filaDesdePartido))
       setMeta(data.meta || null)
       setEquipos(Array.isArray(cat) ? cat.filter(e => e.activo !== 0) : [])
+      setStats(statsRes || null)
       setDirty(new Set())
     } catch (e) {
       setError(e.message)
@@ -319,6 +327,16 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
         </span>
       </div>
 
+      {/* Card "Equipos esperando rival" — sprint feedback. Se renderea solo
+          si filtroRonda es una ronda KO (16vos..final) y hay equipos clasificados
+          que aun no aparecen en partidos de esa ronda. */}
+      <EquiposEsperandoRival
+        ronda={filtroRonda}
+        filas={filas}
+        stats={stats}
+        equipos={equipos}
+      />
+
       {visibles.length === 0 ? (
         <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 14 }}>
           {filas.length === 0
@@ -529,4 +547,140 @@ const inputMini = {
 const selectFiltro = {
   padding: '6px 10px', fontSize: 13, border: '1px solid var(--color-border)',
   borderRadius: 6, background: 'white',
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// EquiposEsperandoRival — sprint feedback (2026-06-25)
+//
+// Cuando el admin filtra por una ronda KO (16vos..final) y ve "Ningún partido
+// coincide con los filtros" (porque el bracket aun no se materializo), esta
+// card le muestra los EQUIPOS QUE YA ESTAN CLASIFICADOS y esperan que el
+// rival se defina.
+//
+// Reglas por ronda:
+//   - 16vos: top 1 y top 2 de cada grupo COMPLETO (6 finalizados) cuyo
+//     codigo no aparece en partidos de 16vos.
+//   - 8vos, 4tos, semis, final, tercer_puesto: ganadores (goles, sino penales)
+//     de partidos de la ronda anterior finalizados, cuyo codigo no aparece
+//     en partidos de la ronda filtrada.
+//
+// Sin stats, no renderea (degradacion silenciosa).
+// ─────────────────────────────────────────────────────────────────────────
+
+const RONDA_ANTERIOR_KO = {
+  '8vos':           '16vos',
+  '4tos':           '8vos',
+  'semis':          '4tos',
+  'final':          'semis',
+  'tercer_puesto':  'semis',
+}
+// Que lado avanza desde la ronda anterior: 'final' y rondas intermedias usan
+// el ganador; 'tercer_puesto' usa los PERDEDORES de semis.
+const RONDA_LADO_KO = {
+  '8vos':           'ganador',
+  '4tos':           'ganador',
+  'semis':          'ganador',
+  'final':          'ganador',
+  'tercer_puesto':  'perdedor',
+}
+
+// Devuelve { ganador, perdedor } o null si KO indefinido (empate sin penales,
+// no finalizado, o goles null).
+function resolverKOFront(p) {
+  if (p.estado !== 'finalizado') return null
+  const gl = p.goles_local, gv = p.goles_visitante
+  if (gl == null || gv == null) return null
+  if (gl > gv) return { ganador: p.equipo_local,    perdedor: p.equipo_visitante }
+  if (gv > gl) return { ganador: p.equipo_visitante, perdedor: p.equipo_local    }
+  const pl = p.penales_local, pv = p.penales_visitante
+  if (Number.isInteger(pl) && Number.isInteger(pv) && pl !== pv) {
+    return pl > pv
+      ? { ganador: p.equipo_local,    perdedor: p.equipo_visitante }
+      : { ganador: p.equipo_visitante, perdedor: p.equipo_local    }
+  }
+  return null
+}
+
+function EquiposEsperandoRival({ ronda, filas, stats, equipos }) {
+  // Si no hay filtro o filtra grupos, no aplica.
+  if (!ronda || ronda === 'grupos') return null
+
+  const getEq = (codigo) => equipos.find(e => e.codigo === codigo)
+  const codigosEnRonda = new Set(
+    filas.filter(f => f.ronda === ronda).flatMap(f => [f.equipo_local, f.equipo_visitante]).filter(Boolean)
+  )
+
+  let clasificados = []
+  let detalleContexto = ''
+
+  if (ronda === '16vos') {
+    if (!stats || !Array.isArray(stats.tabla_grupos)) return null
+    const gruposCompletos = stats.tabla_grupos.filter(tg => tg.completo)
+    if (gruposCompletos.length === 0) return null
+    for (const tg of gruposCompletos) {
+      const top2 = (tg.equipos || []).slice(0, 2)
+      for (const e of top2) {
+        if (codigosEnRonda.has(e.equipo_codigo)) continue
+        clasificados.push({
+          codigo: e.equipo_codigo,
+          origen: `${e.posicion}° Grupo ${tg.grupo}`,
+        })
+      }
+    }
+    detalleContexto = `${gruposCompletos.length}/${stats.tabla_grupos.length} grupos completos`
+  } else {
+    // KO siguientes: ganadores de la ronda anterior finalizados
+    const rondaPrev = RONDA_ANTERIOR_KO[ronda]
+    if (!rondaPrev) return null
+    const partidosPrev = filas.filter(f => f.ronda === rondaPrev && f.estado === 'finalizado')
+    if (partidosPrev.length === 0) return null
+    // tercer_puesto: perdedores de semis. Resto: ganadores.
+    const lado = RONDA_LADO_KO[ronda] || 'ganador'
+    for (const p of partidosPrev) {
+      const r = resolverKOFront(p)
+      if (!r) continue
+      const codigo = r[lado]
+      if (!codigo) continue
+      if (codigosEnRonda.has(codigo)) continue
+      const labelLado = lado === 'perdedor' ? 'Perdedor' : 'Ganador'
+      clasificados.push({ codigo, origen: `${labelLado} ${rondaPrev} #${p.orden}` })
+    }
+    detalleContexto = `${partidosPrev.length} partidos ${rondaPrev} finalizados`
+  }
+
+  if (clasificados.length === 0) return null
+
+  // Sort alfabetico por nombre (mas amigable para el admin).
+  clasificados.sort((a, b) => {
+    const na = getEq(a.codigo)?.nombre || a.codigo
+    const nb = getEq(b.codigo)?.nombre || b.codigo
+    return na.localeCompare(nb, 'es', { sensitivity: 'base' })
+  })
+
+  return (
+    <div className="card" style={{ marginBottom: 12, padding: '12px 14px', borderColor: 'rgba(99,102,241,0.35)' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>⏳ Equipos esperando rival en {RONDA_LABEL[ronda] || ronda}</span>
+        <span style={{ fontSize: 11, color: 'var(--color-muted)', fontWeight: 400 }}>
+          ({clasificados.length} esperando · {detalleContexto})
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {clasificados.map(c => {
+          const eq = getEq(c.codigo)
+          return (
+            <span key={c.codigo} style={{
+              fontSize: 12, padding: '4px 10px', borderRadius: 99,
+              background: 'rgba(99,102,241,0.10)', color: 'var(--color-text)',
+              border: '1px solid rgba(99,102,241,0.25)',
+            }} title={c.origen}>
+              {eq?.emoji ? `${eq.emoji} ` : ''}
+              <strong>{eq?.nombre || c.codigo}</strong>
+              <span style={{ color: 'var(--color-muted)', marginLeft: 6, fontSize: 11 }}>· {c.origen}</span>
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
 }

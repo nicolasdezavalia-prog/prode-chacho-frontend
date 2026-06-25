@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { api } from '../../api/index.js'
 import MundialIcon from '../../components/MundialIcon.jsx'
 import AdminMundialEquipos from './AdminMundialEquipos.jsx'
 import AdminMundialPreguntas from './AdminMundialPreguntas.jsx'
-import AdminMundialRespuestasUsers from './AdminMundialRespuestasUsers.jsx'
 import AdminMundialResultados from './AdminMundialResultados.jsx'
 import AdminMundialCambios from './AdminMundialCambios.jsx'
 import AdminMundialPremios from './AdminMundialPremios.jsx'
@@ -78,22 +77,34 @@ function previewDeadline(fecha, hora) {
   return `${d}/${m}/${y} ${hora} hs`
 }
 
+// Tabs validas - whitelist para validar el query param ?tab=.
+const TABS_VALIDAS = new Set([
+  'config', 'preguntas', 'equipos', 'premios', 'fixture',
+  'resultados', 'cambios', 'datos_utiles',
+])
+
 export default function AdminMundialHub() {
   const { torneoId } = useParams()
+  const [searchParams] = useSearchParams()
   const [torneo, setTorneo]   = useState(null)
   const [config, setConfig]   = useState(null)
   const [form, setForm]       = useState(null)
   const [saving, setSaving]   = useState(false)
   const [avanzando, setAvanzando] = useState(false)
   const [forzando, setForzando] = useState(false)
-  // Estado seleccionado en el select de "Forzar estado". Vacío = no hay
-  // selección. Se limpia al éxito.
+  // Estado seleccionado en el select de "Forzar estado". Vacio = no hay
+  // seleccion. Se limpia al exito.
   const [forzarEstadoSel, setForzarEstadoSel] = useState('')
   const [error, setError]     = useState('')
   const [info, setInfo]       = useState('')
-  // Tabs state-based (Fase 2.1). Solo 'config' y 'equipos' están activas.
-  // Las demás (preguntas, premios, resultados, cambios) entran en fases siguientes.
-  const [activeTab, setActiveTab] = useState('config')
+  // Tab inicial: query param ?tab=<nombre> si es valido, sino 'config'.
+  // Permite atajos desde AdminResultadosHub (link directo a "Cargar resultados
+  // de preguntas" -> ?tab=resultados).
+  const initialTab = (() => {
+    const t = searchParams.get('tab')
+    return (t && TABS_VALIDAS.has(t)) ? t : 'config'
+  })()
+  const [activeTab, setActiveTab] = useState(initialTab)
 
   useEffect(() => { load() }, [torneoId])
 
@@ -326,11 +337,6 @@ export default function AdminMundialHub() {
           onClick={() => setActiveTab('resultados')}
         />
         <Tab
-          label="👥 Resp. users"
-          active={activeTab === 'resp_users'}
-          onClick={() => setActiveTab('resp_users')}
-        />
-        <Tab
           label="🔁 Cambios"
           active={activeTab === 'cambios'}
           onClick={() => setActiveTab('cambios')}
@@ -491,14 +497,6 @@ export default function AdminMundialHub() {
           torneoId={torneoId}
           estado={config.estado}
           onChanged={load}
-        />
-      )}
-
-      {/* Tab Respuestas users — sprint mobile-admin */}
-      {activeTab === 'resp_users' && (
-        <AdminMundialRespuestasUsers
-          torneoId={torneoId}
-          estado={config.estado}
         />
       )}
 
