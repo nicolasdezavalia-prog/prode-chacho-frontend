@@ -148,10 +148,9 @@ export default function Navbar() {
   if (contexto === 'mundial' && verMundial) {
     contextLinks.push({ to: miMundialPath, label: 'Mi Mundial', exact: !!mundialUnicoId })
     if (mundialUnicoId) {
-      contextLinks.push({ to: `/mundial/${mundialUnicoId}/ranking`,             label: 'Ranking' })
-      contextLinks.push({ to: `/mundial/${mundialUnicoId}/ranking-proyectado`,  label: 'Ranking proyectado' })
-      contextLinks.push({ to: `/mundial/${mundialUnicoId}/respuestas`,          label: 'Respuestas' })
-      contextLinks.push({ to: `/mundial/${mundialUnicoId}/datos`,               label: 'Datos útiles' })
+      contextLinks.push({ to: `/mundial/${mundialUnicoId}/ranking`,    label: 'Ranking' })
+      contextLinks.push({ to: `/mundial/${mundialUnicoId}/respuestas`, label: 'Respuestas' })
+      contextLinks.push({ to: `/mundial/${mundialUnicoId}/datos`,      label: 'Datos útiles' })
     }
   }
   if (contexto === 'tradicional' && verTradicional) {

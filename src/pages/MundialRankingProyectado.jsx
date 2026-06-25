@@ -267,7 +267,7 @@ export default function MundialRankingProyectado() {
 // Cada item.fuente ∈ 'oficial' | 'proyectado' | 'pendiente' decide los chips
 // que se muestran. Ya viene ordenado del backend (fuente → aciertos → numero).
 // ─────────────────────────────────────────────────────────────────────────
-function DetalleUserMixto({ detalle }) {
+export function DetalleUserMixto({ detalle }) {
   // useMemo ANTES de cualquier early-return para respetar las reglas de hooks.
   const grupos = useMemo(() => {
     const g = { oficial: [], proyectado: [], pendiente: [] }
@@ -402,5 +402,6 @@ const th = {
 
 const td = {
   padding: '10px 12px',
-  borderBottom: '1px solid var(--color-border)',
+  borderBottom: '1px solid var(--color-borde
+r)',
 }
