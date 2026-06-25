@@ -774,20 +774,25 @@ function DashboardCalculado({ stats }) {
             {afc.map(e => {
               const est = ESTADO_EQUIPO[e.estado] || ESTADO_EQUIPO.en_juego
               return (
-                <span key={e.equipo_codigo} style={{
-                  fontSize: 12, padding: '4px 10px', borderRadius: 99,
+                <div key={e.equipo_codigo} style={{
+                  fontSize: 12, padding: '6px 10px', borderRadius: 8,
                   background: 'rgba(0,0,0,0.04)',
+                  display: 'flex', flexDirection: 'column', gap: 4,
                 }}>
                   {e.emoji ? `${e.emoji} ` : ''}{e.nombre}
                   <span style={{ color: est.color, marginLeft: 6, fontWeight: 600 }}>
                     {RONDA_DISPLAY[e.ronda_alcanzada] || e.ronda_alcanzada || '—'}
                   </span>
-                </span>
+                  {Array.isArray(e.lo_pusieron) && e.lo_pusieron.length > 0 && <LoPusieron items={e.lo_pusieron} />}
+                </div>
               )
             })}
           </div>
         </section>
       )}
+
+      {/* Eliminados por ronda (Sprint 3) */}
+      <EliminadosPorRonda equipos={stats.equipos || []} />
     </>
   )
 }
@@ -1157,6 +1162,61 @@ function TopTarjetasSection({ emoji, label, sufijo, items, total, expandido, onT
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// EliminadosPorRonda — Sprint 3.
+// Card adicional: agrupa equipos por ronda donde quedaron eliminados.
+// Si no hay eliminados, no renderea nada.
+// ──────────────────────────────────────────────────────────────────────
+const ORDEN_RONDAS_ELIM = ['grupos','16vos','8vos','4tos','semis','tercer_puesto','final']
+function EliminadosPorRonda({ equipos }) {
+  const eliminados = (equipos || []).filter(e => e.estado === 'eliminado' && e.eliminado_en)
+  if (eliminados.length === 0) return null
+  const porRonda = new Map()
+  for (const e of eliminados) {
+    if (!porRonda.has(e.eliminado_en)) porRonda.set(e.eliminado_en, [])
+    porRonda.get(e.eliminado_en).push(e)
+  }
+  const rondas = [...porRonda.keys()].sort((a,b) => {
+    const ia = ORDEN_RONDAS_ELIM.indexOf(a); const ib = ORDEN_RONDAS_ELIM.indexOf(b)
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+  })
+  return (
+    <section style={{ marginBottom: 20 }}>
+      <HeaderSeccion emoji="❌" label="Eliminados por ronda" extra={'(' + eliminados.length + ' equipo' + (eliminados.length === 1 ? '' : 's') + ' fuera)'} />
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <tbody>
+            {rondas.map(r => {
+              const lista = porRonda.get(r)
+              return (
+                <tr key={r} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                  <td style={{ ...tdMain, width: 100, fontWeight: 700, color: 'var(--color-muted)' }}>
+                    {RONDA_DISPLAY[r] || r}
+                  </td>
+                  <td style={tdMain}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {lista.map(e => (
+                        <span key={e.equipo_codigo} style={{
+                          fontSize: 12, padding: '3px 8px', borderRadius: 6,
+                          background: 'rgba(0,0,0,0.05)',
+                        }}>
+                          {e.emoji ? (e.emoji + ' ') : ''}{e.nombre}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ ...tdValor, fontSize: 12, fontWeight: 600, color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
+                    {lista.length} eq.
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
 // LoPusieron — Fase B.
 // Chips compactos con los nombres de users que predijeron este item.
 // El backend ya hizo el match (mundial-pusieron.js + endpoints), acá solo
