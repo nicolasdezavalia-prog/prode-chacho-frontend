@@ -402,6 +402,5 @@ const th = {
 
 const td = {
   padding: '10px 12px',
-  borderBottom: '1px solid var(--color-borde
-r)',
+  borderBottom: '1px solid var(--color-border)',
 }

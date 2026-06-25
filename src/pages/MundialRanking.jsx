@@ -38,26 +38,24 @@ const MOTIVO_MSG = {
 export default function MundialRanking() {
   const { torneoId } = useParams()
   const { user }     = useAuth()
-  const [searchParams, setSearchParams] = useSearchParams()
-  // Vista por defecto: 'oficial' (consistente con la decisión C de 2026-06-25).
-  // El query param ?vista=proyectado fuerza la vista mixta — útil para
-  // compartir links o para que el toggle persista en URL.
-  // `vistaQuery` lee lo del param; `vistaParam` (más abajo) hace fallback a
-  // 'oficial' si el endpoint mixto NO tiene datos — evita que el user
-  // quede "atrapado" en proyectado sin manera de volver.
-  const vistaQuery   = searchParams.get('vista') === 'proyectado' ? 'proyectado' : 'oficial'
-
   const [torneo, setTorneo]   = useState(null)
   const [data, setData]       = useState(null)
   const [premiosCalc, setPremiosCalc] = useState(null)
-  // Ranking proyectado interno: placeholder cuando NO hay resultados oficiales
-  // todavía (durante grupos). Se sigue cargando como fallback.
+  // Fase Proyección: ranking calculado desde fixture/tarjetas/goleadores.
+  // Se carga siempre, pero solo se renderiza si el oficial está vacío
+  // (durante grupos). Si el endpoint falla, fallback null (no rompe).
   const [proyectado, setProyectado] = useState(null)
-  // Ranking mixto (oficial + proyectado sumados) — alimenta la vista
-  // "Proyectado" del toggle. Se carga en paralelo y se cachea localmente.
   const [mixto, setMixto] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const vistaQuery   = searchParams.get('vista') === 'proyectado' ? 'proyectado' : 'oficial'
+  function setVista(v) {
+    const next = new URLSearchParams(searchParams)
+    if (v === 'proyectado') next.set('vista', 'proyectado')
+    else                    next.delete('vista')
+    setSearchParams(next, { replace: true })
+  }
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
@@ -67,11 +65,8 @@ export default function MundialRanking() {
       const [torneos, rk, premios, proy, mx] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialRanking(torneoId),
-        // Premios: fallback null si el endpoint no responde (no crítico).
         api.getMundialPremiosCalculados(torneoId).catch(() => null),
-        // Ranking proyectado (placeholder cuando aún no hay oficiales).
         api.getMundialRankingProyectado(torneoId).catch(() => null),
-        // Ranking mixto (oficial + proyectado) — alimenta la vista del toggle.
         api.getMundialRankingMixto(torneoId).catch(() => null),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))
@@ -86,13 +81,6 @@ export default function MundialRanking() {
     } finally {
       setLoading(false)
     }
-  }
-
-  function setVista(v) {
-    const next = new URLSearchParams(searchParams)
-    if (v === 'proyectado') next.set('vista', 'proyectado')
-    else                    next.delete('vista')
-    setSearchParams(next, { replace: true })
   }
 
   // Maps por posición para cruce O(1) por fila.
@@ -130,8 +118,6 @@ export default function MundialRanking() {
   const estimado   = !!premiosCalc?.estimado
   // Mostrar columna Comida solo si HAY al menos una fila con comida_rol cargada.
   const hayComida  = comidaPorPosicion.size > 0
-  // Fallback de vista: si el user pidió 'proyectado' pero el mixto está
-  // vacío (endpoint falló o no hay datos suficientes), volvemos a 'oficial'.
   const tieneMixto = Array.isArray(mixto?.ranking) && mixto.ranking.length > 0
   const vistaParam = (vistaQuery === 'proyectado' && tieneMixto) ? 'proyectado' : 'oficial'
 
@@ -177,7 +163,7 @@ export default function MundialRanking() {
       </div>
 
       {/* Toggle Oficial / Proyectado — solo si hay datos del mixto */}
-      {Array.isArray(mixto?.ranking) && mixto.ranking.length > 0 && (
+      {tieneMixto && (
         <div style={{
           display: 'flex', gap: 6, marginBottom: 12,
           background: 'rgba(0,0,0,0.04)', borderRadius: 8, padding: 4,
@@ -363,8 +349,7 @@ export default function MundialRanking() {
         </div>
       )}
 
-      {/* Vista PROYECTADA — alimenta de /ranking-mixto */}
-      {vistaParam === 'proyectado' && (
+{vistaParam === 'proyectado' && (
         <VistaProyectada
           mixto={mixto}
           user={user}
@@ -382,14 +367,11 @@ export default function MundialRanking() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// VistaProyectada — render del ranking-mixto (oficial + proyección). Incluye
-// banner morado, top con totales, tabla expandible con DetalleUserMixto.
-// Premios/comida vienen mapeados a la posición proyectada (decisión B2).
+// VistaProyectada — render del ranking-mixto (oficial + proyección).
 // ─────────────────────────────────────────────────────────────────────────
 function VistaProyectada({ mixto, user, premioPorPosicion, comidaPorPosicion, hayPremios, hayComida, comidaBadge, fmtUsd, colorUsd }) {
   const [expandido, setExpandido] = useState({})
   function toggle(uid) { setExpandido(p => ({ ...p, [uid]: !p[uid] })) }
-
   if (!mixto || !Array.isArray(mixto.ranking)) {
     return (
       <div style={{
@@ -397,7 +379,7 @@ function VistaProyectada({ mixto, user, premioPorPosicion, comidaPorPosicion, ha
         background: 'rgba(0,0,0,0.04)', color: 'var(--color-muted)',
         borderRadius: 8, fontSize: 14,
       }}>
-        Todavía no hay datos suficientes para proyectar el ranking.
+        Todavia no hay datos suficientes para proyectar el ranking.
       </div>
     )
   }
@@ -414,11 +396,11 @@ function VistaProyectada({ mixto, user, premioPorPosicion, comidaPorPosicion, ha
         borderRadius: 8, fontSize: 13, lineHeight: 1.5,
       }}>
         <div style={{ fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>
-          🔮 Pts oficiales + proyección al día de hoy
+          🔮 Pts oficiales + proyeccion al dia de hoy
         </div>
         <div style={{ color: 'var(--color-text)' }}>
           <strong>{ofi}</strong> oficiales + <strong>{proy}</strong> proyectables · <strong>{total}</strong> totales.
-          {hayPremios && ' Premios y comida calculados sobre la posición proyectada.'}
+          {hayPremios && ' Premios y comida calculados sobre la posicion proyectada.'}
         </div>
         {mixto.caveat && (
           <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6, fontStyle: 'italic' }}>
@@ -530,6 +512,7 @@ function VistaProyectada({ mixto, user, premioPorPosicion, comidaPorPosicion, ha
   )
 }
 
+
 const th = {
   padding: '10px 12px', textAlign: 'left',
   fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
@@ -608,7 +591,7 @@ function RankingProyectado({ data, user }) {
                       fontWeight: esYo ? 600 : 400,
                       cursor: puedeExpandir ? 'pointer' : 'default',
                     }}
-                    onClick={() => puedeExpandir && toggle(r.user_id)}
+                    onClick={() => puedeExpandir && toggleUser(r.user_id)}
                   >
                     <td style={{ ...td, fontWeight: 700, color: r.posicion === 1 ? '#7c3aed' : 'var(--color-text)' }}>
                       {r.posicion}
@@ -618,54 +601,21 @@ function RankingProyectado({ data, user }) {
                       {esYo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
                     </td>
                     <td style={{ ...td, textAlign: 'right' }}>
-                      <strong>{r.puntos_totales}</strong>
-                      <span style={{
-                        display: 'block', fontSize: 10, color: 'var(--color-muted)',
-                        fontWeight: 400, marginTop: 2,
-                      }}>
-                        {r.puntos_oficiales} of + {r.puntos_proyectados} proy
-                      </span>
+                      <strong>{r.puntos_proyectados}</strong>
                     </td>
                     <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
-                      {r.aciertos_totales}
+                      {r.aciertos_proyectados}
                     </td>
-                    {hayPremios && (
-                      <td style={{
-                        ...td, textAlign: 'right', fontWeight: 600,
-                        color: colorUsd(usd),
-                        fontVariantNumeric: 'tabular-nums',
-                      }}>
-                        {usdLabel || <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>—</span>}
-                      </td>
-                    )}
-                    {hayComida && (
-                      <td style={{ ...td, textAlign: 'center' }}>
-                        {badge ? (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700,
-                            padding: '3px 8px', borderRadius: 99,
-                            color: badge.fg, background: badge.bg,
-                            textTransform: 'uppercase', letterSpacing: '0.03em',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {badge.label}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-muted)' }}>—</span>
-                        )}
-                      </td>
-                    )}
                     <td style={{ ...td, textAlign: 'center', color: 'var(--color-muted)', userSelect: 'none' }}>
                       {puedeExpandir ? (open ? '▲' : '▼') : ''}
                     </td>
                   </tr>
                   {open && puedeExpandir && (
-                    <tr styl
-e={{
+                    <tr style={{
                       background: esYo ? 'rgba(124,58,237,0.04)' : 'rgba(124,58,237,0.03)',
                     }}>
-                      <td colSpan={colSpanExp} style={{ padding: '8px 16px 12px 16px', borderBottom: '1px solid var(--color-border)' }}>
-                        <DetalleUserMixto detalle={detalle} />
+                      <td colSpan={5} style={{ padding: '8px 16px 12px 16px', borderBottom: '1px solid var(--color-border)' }}>
+                        <DetalleUserProyectado detalle={detalle} />
                       </td>
                     </tr>
                   )}
@@ -675,6 +625,207 @@ e={{
           </tbody>
         </table>
       </div>
+
+      {/* Detalle opcional de no proyectables (colapsable) */}
+      {Array.isArray(data?.no_proyectables) && data.no_proyectables.length > 0 && (
+        <details style={{ marginTop: 10, fontSize: 12, color: 'var(--color-muted)' }}>
+          <summary style={{ cursor: 'pointer' }}>
+            Ver {data.no_proyectables.length} pregunta{data.no_proyectables.length === 1 ? '' : 's'} aún no proyectable{data.no_proyectables.length === 1 ? '' : 's'}
+          </summary>
+          <ul style={{ margin: '6px 0 0 18px', padding: 0, lineHeight: 1.5 }}>
+            {data.no_proyectables.map(p => (
+              <li key={p.numero}>
+                <strong>#{p.numero}</strong> {p.enunciado} — <span style={{ fontStyle: 'italic' }}>{p.motivo}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
+}
+const td = {
+  padding: '10px 12px',
+  borderBottom: '1px solid var(--color-border)',
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+
+// DetalleUserProyectado — Opción A.
+// Mini-tabla con preguntas proyectables que el user RESPONDIÓ. Ordenado:
+// aciertos primero (✓ verde, +N pts), después fallidos (✗ gris, 0 pts).
+// Las preguntas no respondidas o no proyectables NO aparecen acá — el
+// listado de "no proyectables" sigue en el <details> general al pie.
+// ─────────────────────────────────────────────────────────────────────────
+function DetalleUserProyectado({ detalle }) {
+  if (!Array.isArray(detalle) || detalle.length === 0) return null
+  const aciertosCount = detalle.filter(d => d.acerto).length
+  return (
+    <div>
+      <div style={{
+        fontSize: 10, fontWeight: 700,
+        color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em',
+        marginBottom: 6,
+      }}>
+        Detalle proyectado — {aciertosCount} acierto{aciertosCount === 1 ? '' : 's'} de {detalle.length} respondida{detalle.length === 1 ? '' : 's'}
+      </div>
+      <div>
+        {detalle.map(d => {
+          const tieneChips = !!(d.respuesta_user_display || d.respuesta_actual_display)
+          return (
+            <div
+              key={d.numero}
+              style={{
+                padding: '5px 0',
+                borderBottom: '1px dashed rgba(0,0,0,0.06)',
+                fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  width: 18, textAlign: 'center',
+                  color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                  fontWeight: 700, flexShrink: 0,
+                }}>
+                  {d.acerto ? '✓' : '✗'}
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  minWidth: 28, flexShrink: 0,
+                }}>
+                  #{d.numero}
+                </span>
+                <span style={{ flex: 1, color: 'var(--color-text)' }}>
+                  {d.enunciado}
+                </span>
+                <span style={{
+                  fontWeight: 700, whiteSpace: 'nowrap',
+                  color: d.acerto ? '#7c3aed' : 'var(--color-muted)',
+                }}>
+                  {d.acerto ? `+${d.pts_proyectados} pts` : '0 pts'}
+                </span>
+              </div>
+              {tieneChips && (
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: 6,
+                  marginLeft: 56, marginTop: 4, fontSize: 11,
+                }}>
+                  {d.respuesta_user_display && (
+                    <span style={{
+                      background: 'rgba(0,0,0,0.05)', color: 'var(--color-text)',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      {d.respuesta_user_display}
+                    </span>
+                  )}
+                  {d.respuesta_actual_display && (
+                    <span style={{
+                      background: 'rgba(124, 58, 237, 0.10)', color: '#6d28d9',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      Hoy: {d.respuesta_actual_display}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DetalleUserOficial — Fase A (Ranking oficial).
+// Espejo de DetalleUserProyectado pero para el ranking con resultados ya
+// publicados. Chips: gris "Vos: X" / verde "Real: Y". Solo lista preguntas
+// con resultado oficial cargado.
+// ─────────────────────────────────────────────────────────────────────────
+function DetalleUserOficial({ detalle }) {
+  if (!Array.isArray(detalle) || detalle.length === 0) return null
+  const aciertosCount = detalle.filter(d => d.acerto).length
+  return (
+    <div>
+      <div style={{
+        fontSize: 10, fontWeight: 700,
+        color: 'var(--color-success)', textTransform: 'uppercase', letterSpacing: '0.05em',
+        marginBottom: 6,
+      }}>
+        Detalle &mdash; {aciertosCount} acierto{aciertosCount === 1 ? '' : 's'} de {detalle.length} pregunta{detalle.length === 1 ? '' : 's'} con resultado
+      </div>
+      <div>
+        {detalle.map(d => {
+          const tieneChips = !!(d.respuesta_user_display || d.respuesta_oficial_display) || d.respondida === false
+          return (
+            <div
+              key={d.pregunta_id || d.numero}
+              style={{
+                padding: '5px 0',
+                borderBottom: '1px dashed rgba(0,0,0,0.06)',
+                fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  width: 18, textAlign: 'center',
+                  color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                  fontWeight: 700, flexShrink: 0,
+                }}>
+                  {d.acerto ? '✓' : '✗'}
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  minWidth: 28, flexShrink: 0,
+                }}>
+                  #{d.numero}
+                </span>
+                <span style={{ flex: 1, color: 'var(--color-text)' }}>
+                  {d.enunciado}
+                </span>
+                <span style={{
+                  fontWeight: 700, whiteSpace: 'nowrap',
+                  color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                }}>
+                  {d.acerto ? `+${d.pts} pts` : '0 pts'}
+                </span>
+              </div>
+              {tieneChips && (
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: 6,
+                  marginLeft: 56, marginTop: 4, fontSize: 11,
+                }}>
+                  {d.respuesta_user_display && (
+                    <span style={{
+                      background: 'rgba(0,0,0,0.05)', color: 'var(--color-text)',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      {d.respuesta_user_display}
+                    </span>
+                  )}
+                  {d.respuesta_oficial_display && (
+                    <span style={{
+                      background: 'rgba(22,163,74,0.10)', color: 'var(--color-success)',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      Real: {d.respuesta_oficial_display}
+                    </span>
+                  )}
+                  {d.respondida === false && (
+                    <span style={{
+                      background: 'rgba(234,179,8,0.10)', color: '#a16207',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      No respondiste
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
