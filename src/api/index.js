@@ -409,6 +409,12 @@ export const api = {
   // total_preguntas, no_proyectables, caveat, meta }.
   getMundialRankingProyectado: (torneoId) =>
     request('GET', `/mundial/${torneoId}/ranking-proyectado`),
+  // Fase B (2026-06-25) — Ranking mixto: combina pts oficiales (de
+  // mundial_resultados) + pts proyectados (de fixture). Cada item del
+  // detalle viene con fuente='oficial'|'proyectado'|'pendiente'. Pensado
+  // para la página "Ranking proyectado".
+  getMundialRankingMixto: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/ranking-mixto`),
   // Fase Proyección 2 — detalle por pregunta del user actual.
   // Devuelve { items: [{ pregunta_id, numero, enunciado, proyectable,
   // pts_proyectados, motivo? }], pts_totales_proyectados, caveat }.

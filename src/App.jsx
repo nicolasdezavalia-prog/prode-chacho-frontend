@@ -41,6 +41,7 @@ import MundialLista from './pages/MundialLista.jsx'
 import MundialPlaceholder from './pages/MundialPlaceholder.jsx'
 import MundialResponder from './pages/MundialResponder.jsx'
 import MundialRanking from './pages/MundialRanking.jsx'
+import MundialRankingProyectado from './pages/MundialRankingProyectado.jsx'
 import MundialRespuestasPublicas from './pages/MundialRespuestasPublicas.jsx'
 import MundialDatosUtiles from './pages/MundialDatosUtiles.jsx'
 import ProdeTradicionalLista from './pages/ProdeTradicionalLista.jsx'
@@ -118,6 +119,7 @@ export default function App() {
             <Route path="/mundial" element={<PrivateRoute><MundialLista /></PrivateRoute>} />
             <Route path="/mundial/:torneoId" element={<PrivateRoute><MundialResponder /></PrivateRoute>} />
             <Route path="/mundial/:torneoId/ranking" element={<PrivateRoute><MundialRanking /></PrivateRoute>} />
+            <Route path="/mundial/:torneoId/ranking-proyectado" element={<PrivateRoute><MundialRankingProyectado /></PrivateRoute>} />
             <Route path="/mundial/:torneoId/respuestas" element={<PrivateRoute><MundialRespuestasPublicas /></PrivateRoute>} />
             <Route path="/mundial/:torneoId/datos" element={<PrivateRoute><MundialDatosUtiles /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />

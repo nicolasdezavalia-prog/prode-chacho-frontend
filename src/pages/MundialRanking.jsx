@@ -92,6 +92,14 @@ export default function MundialRanking() {
     return m
   }, [premiosCalc])
 
+  // Estado de expansión por user_id (ranking oficial — espejo del proyectado).
+  // Cada user puede expandirse independientemente para ver el detalle de
+  // qué preguntas acertó / falló (chips Vos / Real).
+  const [expandidoOf, setExpandidoOf] = useState({})
+  function toggleUserOf(uid) {
+    setExpandidoOf(prev => ({ ...prev, [uid]: !prev[uid] }))
+  }
+
   if (loading) return <div className="loading">Cargando ranking...</div>
   if (error)   return <div className="error-msg" style={{ margin: 24 }}>{error}</div>
 
@@ -188,7 +196,8 @@ export default function MundialRanking() {
 
       {visible && ranking.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 600 }}>
             <thead>
               <tr style={{ background: 'var(--color-surface2)' }}>
                 <th style={th}>#</th>
@@ -197,6 +206,7 @@ export default function MundialRanking() {
                 <th style={{ ...th, textAlign: 'right' }}>Aciertos</th>
                 {hayPremios && <th style={{ ...th, textAlign: 'right' }}>Premio/Castigo</th>}
                 {hayComida && <th style={{ ...th, textAlign: 'center' }}>Comida</th>}
+                <th style={{ ...th, width: 28 }} aria-label="Expandir"></th>
               </tr>
             </thead>
             <tbody>
@@ -206,58 +216,78 @@ export default function MundialRanking() {
                 const usdLabel = fmtUsd(usd)
                 const rol   = comidaPorPosicion.get(r.posicion) || null
                 const badge = comidaBadge(rol)
+                const detalle = Array.isArray(r.detalle) ? r.detalle : []
+                const puedeExpandir = detalle.length > 0
+                const open = !!expandidoOf[r.user_id]
+                const colSpanExp = 5 + (hayPremios ? 1 : 0) + (hayComida ? 1 : 0)
                 return (
-                  <tr
-                    key={r.user_id}
-                    style={{
-                      background: esYo ? 'rgba(59,130,246,0.07)' : 'transparent',
-                      fontWeight: esYo ? 600 : 400,
-                    }}
-                  >
-                    <td style={{ ...td, fontWeight: 700, color: r.posicion === 1 ? 'var(--color-primary)' : 'var(--color-text)' }}>
-                      {r.posicion}
-                    </td>
-                    <td style={td}>
-                      {r.nombre || `Usuario ${r.user_id}`}
-                      {esYo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
-                    </td>
-                    <td style={{ ...td, textAlign: 'right' }}>
-                      <strong>{r.puntos_totales}</strong>
-                    </td>
-                    <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
-                      {r.aciertos}
-                    </td>
-                    {hayPremios && (
-                      <td style={{
-                        ...td, textAlign: 'right', fontWeight: 600,
-                        color: colorUsd(usd),
-                        fontVariantNumeric: 'tabular-nums',
+                  <Fragment key={r.user_id}>
+                    <tr
+                      style={{
+                        background: esYo ? 'rgba(59,130,246,0.07)' : 'transparent',
+                        fontWeight: esYo ? 600 : 400,
+                        cursor: puedeExpandir ? 'pointer' : 'default',
+                      }}
+                      onClick={() => puedeExpandir && toggleUserOf(r.user_id)}
+                    >
+                      <td style={{ ...td, fontWeight: 700, color: r.posicion === 1 ? 'var(--color-primary)' : 'var(--color-text)' }}>
+                        {r.posicion}
+                      </td>
+                      <td style={td}>
+                        {r.nombre || `Usuario ${r.user_id}`}
+                        {esYo && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}>(vos)</span>}
+                      </td>
+                      <td style={{ ...td, textAlign: 'right' }}>
+                        <strong>{r.puntos_totales}</strong>
+                      </td>
+                      <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>
+                        {r.aciertos}
+                      </td>
+                      {hayPremios && (
+                        <td style={{
+                          ...td, textAlign: 'right', fontWeight: 600,
+                          color: colorUsd(usd),
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          {usdLabel || <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>—</span>}
+                        </td>
+                      )}
+                      {hayComida && (
+                        <td style={{ ...td, textAlign: 'center' }}>
+                          {badge ? (
+                            <span style={{
+                              fontSize: 10, fontWeight: 700,
+                              padding: '3px 8px', borderRadius: 99,
+                              color: badge.fg, background: badge.bg,
+                              textTransform: 'uppercase', letterSpacing: '0.03em',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {badge.label}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-muted)' }}>—</span>
+                          )}
+                        </td>
+                      )}
+                      <td style={{ ...td, textAlign: 'center', color: 'var(--color-muted)', userSelect: 'none' }}>
+                        {puedeExpandir ? (open ? '▲' : '▼') : ''}
+                      </td>
+                    </tr>
+                    {open && puedeExpandir && (
+                      <tr style={{
+                        background: esYo ? 'rgba(59,130,246,0.04)' : 'rgba(0,0,0,0.02)',
                       }}>
-                        {usdLabel || <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>—</span>}
-                      </td>
+                        <td colSpan={colSpanExp} style={{ padding: '8px 16px 12px 16px', borderBottom: '1px solid var(--color-border)' }}>
+                          <DetalleUserOficial detalle={detalle} />
+                        </td>
+                      </tr>
                     )}
-                    {hayComida && (
-                      <td style={{ ...td, textAlign: 'center' }}>
-                        {badge ? (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700,
-                            padding: '3px 8px', borderRadius: 99,
-                            color: badge.fg, background: badge.bg,
-                            textTransform: 'uppercase', letterSpacing: '0.03em',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {badge.label}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-muted)' }}>—</span>
-                        )}
-                      </td>
-                    )}
-                  </tr>
+                  </Fragment>
                 )
               })}
             </tbody>
           </table>
+        </div>
         </div>
       )}
 
@@ -413,6 +443,7 @@ const td = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+
 // DetalleUserProyectado — Opción A.
 // Mini-tabla con preguntas proyectables que el user RESPONDIÓ. Ordenado:
 // aciertos primero (✓ verde, +N pts), después fallidos (✗ gris, 0 pts).
@@ -487,6 +518,100 @@ function DetalleUserProyectado({ detalle }) {
                       padding: '2px 8px', borderRadius: 10, fontWeight: 600,
                     }}>
                       Hoy: {d.respuesta_actual_display}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DetalleUserOficial — Fase A (Ranking oficial).
+// Espejo de DetalleUserProyectado pero para el ranking con resultados ya
+// publicados. Chips: gris "Vos: X" / verde "Real: Y". Solo lista preguntas
+// con resultado oficial cargado.
+// ─────────────────────────────────────────────────────────────────────────
+function DetalleUserOficial({ detalle }) {
+  if (!Array.isArray(detalle) || detalle.length === 0) return null
+  const aciertosCount = detalle.filter(d => d.acerto).length
+  return (
+    <div>
+      <div style={{
+        fontSize: 10, fontWeight: 700,
+        color: 'var(--color-success)', textTransform: 'uppercase', letterSpacing: '0.05em',
+        marginBottom: 6,
+      }}>
+        Detalle &mdash; {aciertosCount} acierto{aciertosCount === 1 ? '' : 's'} de {detalle.length} pregunta{detalle.length === 1 ? '' : 's'} con resultado
+      </div>
+      <div>
+        {detalle.map(d => {
+          const tieneChips = !!(d.respuesta_user_display || d.respuesta_oficial_display) || d.respondida === false
+          return (
+            <div
+              key={d.pregunta_id || d.numero}
+              style={{
+                padding: '5px 0',
+                borderBottom: '1px dashed rgba(0,0,0,0.06)',
+                fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  width: 18, textAlign: 'center',
+                  color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                  fontWeight: 700, flexShrink: 0,
+                }}>
+                  {d.acerto ? '✓' : '✗'}
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  minWidth: 28, flexShrink: 0,
+                }}>
+                  #{d.numero}
+                </span>
+                <span style={{ flex: 1, color: 'var(--color-text)' }}>
+                  {d.enunciado}
+                </span>
+                <span style={{
+                  fontWeight: 700, whiteSpace: 'nowrap',
+                  color: d.acerto ? 'var(--color-success)' : 'var(--color-muted)',
+                }}>
+                  {d.acerto ? `+${d.pts} pts` : '0 pts'}
+                </span>
+              </div>
+              {tieneChips && (
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: 6,
+                  marginLeft: 56, marginTop: 4, fontSize: 11,
+                }}>
+                  {d.respuesta_user_display && (
+                    <span style={{
+                      background: 'rgba(0,0,0,0.05)', color: 'var(--color-text)',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      {d.respuesta_user_display}
+                    </span>
+                  )}
+                  {d.respuesta_oficial_display && (
+                    <span style={{
+                      background: 'rgba(22,163,74,0.10)', color: 'var(--color-success)',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      Real: {d.respuesta_oficial_display}
+                    </span>
+                  )}
+                  {d.respondida === false && (
+                    <span style={{
+                      background: 'rgba(234,179,8,0.10)', color: '#a16207',
+                      padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    }}>
+                      No respondiste
                     </span>
                   )}
                 </div>
