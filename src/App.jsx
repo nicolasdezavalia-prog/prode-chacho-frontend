@@ -167,8 +167,8 @@ export default function App() {
   )
 }
 
-// Redirect:
- /mundial/:torneoId/ranking-proyectado → /mundial/:torneoId/ranking?vista=proyectado
+// Redirect: /mundial/:torneoId/ranking-proyectado → /mundial/:torneoId/ranking?vista=proyectado
+// Mantiene compat con bookmarks/links viejos.
 function RedirRankingProy() {
   const { torneoId } = useParams()
   return <Navigate to={`/mundial/${torneoId}/ranking?vista=proyectado`} replace />
