@@ -141,20 +141,23 @@ export default function MundialRanking() {
     setExpandidoOf(prev => ({ ...prev, [uid]: !prev[uid] }))
   }
 
+  // Sprint exclusion-comida: Map<user_id, comida_rol> que respeta posicion
+  // EFECTIVA (saltando excluidos). IMPORTANTE: este useMemo DEBE declararse
+  // ANTES de los early returns para no violar las reglas de hooks de React
+  // (error #310: Rendered more hooks than during the previous render).
+  const rankingMemo = Array.isArray(data?.ranking) ? data.ranking : []
+  const comidaPorUserId = useMemo(
+    () => buildComidaPorUserId(rankingMemo, comidaPorPosicion),
+    [rankingMemo, comidaPorPosicion]
+  )
+
   if (loading) return <div className="loading">Cargando ranking...</div>
   if (error)   return <div className="error-msg" style={{ margin: 24 }}>{error}</div>
 
   const visible    = data?.visible === true
-  const ranking    = Array.isArray(data?.ranking) ? data.ranking : []
+  const ranking    = rankingMemo
   const hayPremios = !!premiosCalc?.configurado
   const estimado   = !!premiosCalc?.estimado
-  // Sprint exclusion-comida: Map<user_id, comida_rol> que respeta posicion
-  // EFECTIVA (saltando excluidos). Se recomputa si cambia el ranking o los
-  // premios. Si no hay roles configurados, queda vacio.
-  const comidaPorUserId = useMemo(
-    () => buildComidaPorUserId(ranking, comidaPorPosicion),
-    [ranking, comidaPorPosicion]
-  )
   // Mostrar columna Comida solo si HAY al menos una fila con comida_rol cargada.
   const hayComida  = comidaPorPosicion.size > 0
   const tieneMixto = Array.isArray(mixto?.ranking) && mixto.ranking.length > 0
