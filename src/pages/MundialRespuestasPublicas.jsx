@@ -24,7 +24,7 @@
  * evitar duplicación con `mundial-scoring.js`.
  */
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, Fragment } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { useAuth } from '../App.jsx'
@@ -274,6 +274,12 @@ export default function MundialRespuestasPublicas() {
   // Las pendientes pueden tener chip amarillo de proyección (ver
   // ChipResultadoProyectado) — referencia visual, no suma puntos.
   const [filtroPreg, setFiltroPreg] = useState(null)
+  // Sprint historial cambios: cuál celda muestra el popover de historial.
+  // Key: `${pregunta_id}_${user_id}`. null = ninguno.
+  // Sprint historial: { key: 'pregId_userId', anchor: { top, left } } o null.
+  // anchor calculado al click para posicionar popover con position:fixed
+  // y evitar recorte por overflow:auto del contenedor scroll.
+  const [historialAbierto, setHistorialAbierto] = useState(null)
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
@@ -649,10 +655,13 @@ export default function MundialRespuestasPublicas() {
                     const usarChips = p.tipo_pregunta === 'multi_equipo'
                       && Array.isArray(cell.detalle_items)
                       && cell.detalle_items.length > 0
+                    const tieneHistorial = Array.isArray(cell.historial) && cell.historial.length > 0
+                    const historialKey = `${p.id}_${part.user_id}`
                     return (
                       <td
                         key={part.user_id}
                         className={esYo ? 'rp-cell--self' : undefined}
+                        style={{ position: 'relative' }}
                       >
                         <div className="rp-cell-content">
                           {usarChips
@@ -663,8 +672,41 @@ export default function MundialRespuestasPublicas() {
                               {' '}(agrupado como <strong>{cell.agrupado_como}</strong>)
                             </span>
                           )}
+                          {tieneHistorial && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHistorialAbierto({
+                                  key: historialKey,
+                                  anchor: { top: rect.bottom + 4, left: rect.left },
+                                })
+                              }}
+                              title={`${cell.historial.length} cambio${cell.historial.length === 1 ? '' : 's'} publicado${cell.historial.length === 1 ? '' : 's'}`}
+                              style={{
+                                marginLeft: 6, padding: '1px 6px', fontSize: 10, fontWeight: 700,
+                                border: '1px solid rgba(124,58,237,0.30)',
+                                background: 'rgba(124,58,237,0.10)',
+                                color: '#7c3aed', borderRadius: 99,
+                                cursor: 'pointer', verticalAlign: 'middle',
+                              }}
+                            >
+                              ↻ {cell.historial.length}
+                            </button>
+                          )}
                         </div>
                         {renderEstado(cell)}
+                        {tieneHistorial && historialAbierto?.key === historialKey && (
+                          <HistorialPopover
+                            tipo={p.tipo_pregunta}
+                            historial={cell.historial}
+                            actual={cell.respuesta_json}
+                            fmtRespuesta={fmtRespuesta}
+                            anchor={historialAbierto.anchor}
+                            onClose={() => setHistorialAbierto(null)}
+                          />
+                        )}
                       </td>
                     )
                   })}
@@ -984,4 +1026,75 @@ function ChipResultadoProyectado({ resultado, equiposByCodigo }) {
     )
   }
   return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HistorialPopover — sprint historial-cambios (2026-06-25).
+// Popover compacto debajo de la celda que muestra V0 (inicial) → V1 → V2 → ...
+// → vigente (la actual en respuesta_json).
+//
+// Cierre: click en backdrop (overlay invisible).
+// ─────────────────────────────────────────────────────────────────────────
+function HistorialPopover({ tipo, historial, actual, fmtRespuesta, anchor, onClose }) {
+  if (!Array.isArray(historial) || historial.length === 0) return null
+  // V0 = primer respuesta_anterior_json del historial (estado inicial del user).
+  const v0 = historial[0].respuesta_anterior_json
+  // anchor.top y anchor.left vienen del getBoundingClientRect del badge.
+  // Si el popover se sale a la derecha del viewport, lo movemos hacia la izquierda.
+  const POPOVER_WIDTH = 280
+  const safeLeft = anchor && typeof window !== 'undefined'
+    ? Math.min(anchor.left, Math.max(8, window.innerWidth - POPOVER_WIDTH - 8))
+    : (anchor?.left || 0)
+  const safeTop = anchor?.top || 0
+  return (
+    <>
+      {/* Backdrop fijo invisible para cerrar al click fuera */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200, background: 'transparent',
+        }}
+      />
+      <div style={{
+        position: 'fixed', top: safeTop, left: safeLeft, zIndex: 201,
+        width: POPOVER_WIDTH,
+        minWidth: 240, maxWidth: POPOVER_WIDTH,
+        background: 'white',
+        border: '1px solid var(--color-border)',
+        borderRadius: 8,
+        boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+        padding: '10px 12px',
+        fontSize: 12, textAlign: 'left',
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--color-text)' }}>
+          Historial de respuestas
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px' }}>
+          <div style={{ fontWeight: 700, color: 'var(--color-muted)' }}>V0</div>
+          <div>
+            <span style={{ color: 'var(--color-muted)', fontStyle: 'italic' }}>inicial: </span>
+            <strong>{fmtRespuesta(tipo, v0) || '(vacía)'}</strong>
+          </div>
+          {historial.map((h, i) => (
+            <Fragment key={i}>
+              <div style={{ fontWeight: 700, color: '#7c3aed' }}>V{i + 1}</div>
+              <div>
+                <strong>{fmtRespuesta(tipo, h.respuesta_nueva_json)}</strong>
+                <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 1 }}>
+                  {h.ventana_nombre} · {h.costo_usd} USD · {(h.created_at || '').slice(0, 16).replace('T', ' ')}
+                </div>
+              </div>
+            </Fragment>
+          ))}
+          <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>Hoy</div>
+          <div>
+            <strong>{fmtRespuesta(tipo, actual)}</strong>
+            <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 1 }}>
+              respuesta vigente
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  )
 }
