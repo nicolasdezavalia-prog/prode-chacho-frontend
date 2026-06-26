@@ -269,8 +269,10 @@ export default function MundialRespuestasPublicas() {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
   // Sprint vista respuestas (2026-06-25): filtro por estado de pregunta.
-  // null = "Todas" (sin filtro). 'pendiente' = solo sin info, 'ttd' = proyectable
-  // sin resultado oficial, 'completo' = con resultado oficial cargado.
+  // null = "Todas" (sin filtro). 'pendiente' = sin resultado oficial,
+  // 'completo' = con resultado oficial cargado por el admin.
+  // Las pendientes pueden tener chip amarillo de proyección (ver
+  // ChipResultadoProyectado) — referencia visual, no suma puntos.
   const [filtroPreg, setFiltroPreg] = useState(null)
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
@@ -419,19 +421,17 @@ export default function MundialRespuestasPublicas() {
     if (!filtroPreg) return preguntas
     return preguntas.filter(p => {
       if (filtroPreg === 'completo')  return p.tiene_resultado === true
-      if (filtroPreg === 'ttd')       return !p.tiene_resultado && p.proyectable === true
-      if (filtroPreg === 'pendiente') return !p.tiene_resultado && p.proyectable !== true
+      if (filtroPreg === 'pendiente') return !p.tiene_resultado
       return true
     })
   }, [preguntas, filtroPreg])
   const countByFiltro = useMemo(() => {
-    let pend = 0, ttd = 0, comp = 0
+    let pend = 0, comp = 0
     for (const p of preguntas) {
       if (p.tiene_resultado) comp++
-      else if (p.proyectable) ttd++
       else pend++
     }
-    return { todas: preguntas.length, pendiente: pend, ttd, completo: comp }
+    return { todas: preguntas.length, pendiente: pend, completo: comp }
   }, [preguntas])
 
   /**
@@ -569,10 +569,6 @@ export default function MundialRespuestasPublicas() {
           <FiltroBtn label="⏳ Pendiente" count={countByFiltro.pendiente}
             active={filtroPreg === 'pendiente'}
             onClick={() => setFiltroPreg(filtroPreg === 'pendiente' ? null : 'pendiente')} />
-          <FiltroBtn label="🔮 TTD" count={countByFiltro.ttd}
-            active={filtroPreg === 'ttd'}
-            onClick={() => setFiltroPreg(filtroPreg === 'ttd' ? null : 'ttd')}
-            title="Tournament To Date — el sistema ya sabe la respuesta hoy" />
           <FiltroBtn label="✓ Completo" count={countByFiltro.completo}
             active={filtroPreg === 'completo'}
             onClick={() => setFiltroPreg(filtroPreg === 'completo' ? null : 'completo')} />
@@ -628,6 +624,7 @@ export default function MundialRespuestasPublicas() {
                     </span>
                     {/* Sprint vista respuestas: chip(s) con la respuesta oficial. */}
                     <ChipResultadoOficial resultado={p.resultado_oficial} equiposByCodigo={equiposByCodigo} />
+                    <ChipResultadoProyectado resultado={p.resultado_proyectado} equiposByCodigo={equiposByCodigo} />
                   </th>
                   {participantes.map(part => {
                     const esYo = user && part.user_id === user.id
@@ -932,6 +929,56 @@ function ChipResultadoOficial({ resultado, equiposByCodigo }) {
       <div style={{ marginTop: 4 }}>
         <span style={chipBase}>
           ✓ {eq?.emoji ? `${eq.emoji} ` : ''}{resultado.simple}
+        </span>
+      </div>
+    )
+  }
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ChipResultadoProyectado — sprint vista respuestas (2026-06-25).
+// Mismo shape que ChipResultadoOficial pero con colores AMARILLOS y ícono ⏳
+// para señalar que es proyección del sistema, NO confirmado por el admin.
+// No suma puntos — solo referencia visual.
+// Render solo si el backend mandó resultado_proyectado (y NO hay oficial).
+// ─────────────────────────────────────────────────────────────────────────
+function ChipResultadoProyectado({ resultado, equiposByCodigo }) {
+  if (!resultado) return null
+  const chipBase = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+    fontSize: 10,
+    fontWeight: 600,
+    padding: '2px 7px',
+    borderRadius: 99,
+    background: 'rgba(234,179,8,0.10)',
+    color: '#a16207',
+    border: '1px solid rgba(234,179,8,0.30)',
+    whiteSpace: 'nowrap',
+  }
+  if (Array.isArray(resultado.codigos) && resultado.codigos.length > 0) {
+    return (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+        <span style={{ fontSize: 10, color: '#a16207', fontWeight: 700, alignSelf: 'center' }}>⏳</span>
+        {resultado.codigos.map(codigo => {
+          const eq = equiposByCodigo?.get?.(codigo)
+          return (
+            <span key={codigo} style={chipBase}>
+              {eq?.emoji ? `${eq.emoji} ` : ''}{codigo}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+  if (typeof resultado.simple === 'string' && resultado.simple.trim()) {
+    const eq = resultado.equipo_codigo ? equiposByCodigo?.get?.(resultado.equipo_codigo) : null
+    return (
+      <div style={{ marginTop: 4 }}>
+        <span style={chipBase}>
+          ⏳ {eq?.emoji ? `${eq.emoji} ` : ''}{resultado.simple}
         </span>
       </div>
     )
