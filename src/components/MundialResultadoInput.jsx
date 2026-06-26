@@ -90,23 +90,63 @@ function InputOpcionUnica({ cfg, resultado, onChange, disabled }) {
 }
 
 // ── equipo_categoria: dropdown contra catálogo, sin restriccion ───────────
+// Sprint aliases (2026-06-25): si la sugerencia detecto empate y precargo
+// resultado.aliases = ['X','Y'], los mostramos como chips READ-ONLY debajo
+// del dropdown. El admin solo confirma. Si cambia el dropdown manualmente,
+// los aliases se borran (es una decision nueva del admin).
 function InputEquipoCategoria({ resultado, onChange, disabled, equiposCatalogo }) {
+  const aliases = Array.isArray(resultado.aliases) ? resultado.aliases : []
+  const getEq = (codigo) => equiposCatalogo.find(e => e.codigo === codigo)
   return (
-    <select
-      value={resultado.equipo || ''}
-      onChange={e => onChange({ equipo: e.target.value })}
-      disabled={disabled || equiposCatalogo.length === 0}
-      style={selectStyle}
-    >
-      <option value="">
-        {equiposCatalogo.length === 0 ? '— Sin equipos en catálogo —' : '— Elegí el equipo real —'}
-      </option>
-      {equiposCatalogo.map(eq => (
-        <option key={eq.codigo} value={eq.codigo}>
-          {eq.codigo} — {eq.nombre}{eq.grupo ? ` (Grupo ${eq.grupo})` : ''}
+    <div>
+      <select
+        value={resultado.equipo || ''}
+        onChange={e => onChange({ equipo: e.target.value })}
+        disabled={disabled || equiposCatalogo.length === 0}
+        style={selectStyle}
+      >
+        <option value="">
+          {equiposCatalogo.length === 0 ? '— Sin equipos en catálogo —' : '— Elegí el equipo real —'}
         </option>
-      ))}
-    </select>
+        {equiposCatalogo.map(eq => (
+          <option key={eq.codigo} value={eq.codigo}>
+            {eq.codigo} — {eq.nombre}{eq.grupo ? ` (Grupo ${eq.grupo})` : ''}
+          </option>
+        ))}
+      </select>
+      {aliases.length > 0 && (
+        <div style={{
+          marginTop: 8,
+          padding: '6px 10px',
+          background: 'rgba(99,102,241,0.07)',
+          border: '1px solid rgba(99,102,241,0.20)',
+          borderRadius: 6,
+          fontSize: 12,
+        }}>
+          <span style={{ color: 'var(--color-muted)', marginRight: 6 }}>
+            🎯 Empate — tambien cuentan:
+          </span>
+          {aliases.map(codigo => {
+            const eq = getEq(codigo)
+            return (
+              <span key={codigo} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                marginRight: 6, padding: '2px 8px', borderRadius: 99,
+                background: 'rgba(99,102,241,0.12)', color: 'var(--color-text)',
+                fontWeight: 500,
+              }}>
+                {eq?.emoji ? `${eq.emoji} ` : ''}
+                {eq?.nombre || codigo}
+              </span>
+            )
+          })}
+          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+            Cualquiera de estos cobra los mismos pts. Para cambiar la lista,
+            elegi otro equipo en el dropdown (resetea los empatados).
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
