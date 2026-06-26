@@ -268,6 +268,10 @@ export default function MundialRespuestasPublicas() {
   const [equipos, setEquipos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
+  // Sprint vista respuestas (2026-06-25): filtro por estado de pregunta.
+  // null = "Todas" (sin filtro). 'pendiente' = solo sin info, 'ttd' = proyectable
+  // sin resultado oficial, 'completo' = con resultado oficial cargado.
+  const [filtroPreg, setFiltroPreg] = useState(null)
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
@@ -376,7 +380,13 @@ export default function MundialRespuestasPublicas() {
     const estado = cell.estado
     const pts    = cell.puntos_obtenidos
     let ptsLabel, ptsClass
-    if (estado === 'pendiente' || pts === null) {
+    // Sprint vista respuestas: si la pregunta esta pendiente (sin resultado
+    // oficial), el chip amarillo PENDIENTE ya lo dice todo. No duplicamos el
+    // texto "pendiente" debajo.
+    if (estado === 'pendiente') {
+      ptsLabel = null
+      ptsClass = ''
+    } else if (pts === null) {
       ptsLabel = 'pendiente'
       ptsClass = 'rp-pts--muted'
     } else if (pts > 0) {
@@ -394,7 +404,7 @@ export default function MundialRespuestasPublicas() {
         <span className={`rp-badge rp-badge--${estado}`}>
           {ESTADO_LABELS[estado] || estado}
         </span>
-        <span className={`rp-pts ${ptsClass}`}>{ptsLabel}</span>
+        {ptsLabel && <span className={`rp-pts ${ptsClass}`}>{ptsLabel}</span>}
       </span>
     )
   }
@@ -404,6 +414,25 @@ export default function MundialRespuestasPublicas() {
    */
 
   const preguntas = Array.isArray(data?.preguntas) ? data.preguntas : []
+  // Sprint vista respuestas: filtro PENDIENTE/TTD/COMPLETO.
+  const preguntasVisibles = useMemo(() => {
+    if (!filtroPreg) return preguntas
+    return preguntas.filter(p => {
+      if (filtroPreg === 'completo')  return p.tiene_resultado === true
+      if (filtroPreg === 'ttd')       return !p.tiene_resultado && p.proyectable === true
+      if (filtroPreg === 'pendiente') return !p.tiene_resultado && p.proyectable !== true
+      return true
+    })
+  }, [preguntas, filtroPreg])
+  const countByFiltro = useMemo(() => {
+    let pend = 0, ttd = 0, comp = 0
+    for (const p of preguntas) {
+      if (p.tiene_resultado) comp++
+      else if (p.proyectable) ttd++
+      else pend++
+    }
+    return { todas: preguntas.length, pendiente: pend, ttd, completo: comp }
+  }, [preguntas])
 
   /**
    * Participantes: viene del backend con puntos_totales (cruzado con ranking).
@@ -425,9 +454,14 @@ export default function MundialRespuestasPublicas() {
       }
       base = [...map.values()]
     }
-    const arr = base.slice().sort((a, b) =>
-      (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
-    )
+    // Sprint vista respuestas: ordenar por puntos DESC, desempate alfabetico.
+    // Promote-yo a primer lugar se aplica DESPUES (cero pierde por ordenarse).
+    const arr = base.slice().sort((a, b) => {
+      const ptsA = Number.isInteger(a.puntos_totales) ? a.puntos_totales : 0
+      const ptsB = Number.isInteger(b.puntos_totales) ? b.puntos_totales : 0
+      if (ptsB !== ptsA) return ptsB - ptsA
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+    })
     // Promover al user actual a la primera posición si está en la lista.
     if (user && arr.some(p => p.user_id === user.id)) {
       const yo = arr.find(p => p.user_id === user.id)
@@ -526,7 +560,33 @@ export default function MundialRespuestasPublicas() {
       )}
 
       {/* Matriz comparativa */}
-      {visible && preguntas.length > 0 && participantes.length > 0 && (
+      {/* Sprint vista respuestas: botones de filtro de preguntas. */}
+      {visible && preguntas.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+          <FiltroBtn label="Todas" count={countByFiltro.todas}
+            active={filtroPreg === null}
+            onClick={() => setFiltroPreg(null)} />
+          <FiltroBtn label="⏳ Pendiente" count={countByFiltro.pendiente}
+            active={filtroPreg === 'pendiente'}
+            onClick={() => setFiltroPreg(filtroPreg === 'pendiente' ? null : 'pendiente')} />
+          <FiltroBtn label="🔮 TTD" count={countByFiltro.ttd}
+            active={filtroPreg === 'ttd'}
+            onClick={() => setFiltroPreg(filtroPreg === 'ttd' ? null : 'ttd')}
+            title="Tournament To Date — el sistema ya sabe la respuesta hoy" />
+          <FiltroBtn label="✓ Completo" count={countByFiltro.completo}
+            active={filtroPreg === 'completo'}
+            onClick={() => setFiltroPreg(filtroPreg === 'completo' ? null : 'completo')} />
+        </div>
+      )}
+
+      {/* Mensaje cuando el filtro deja la lista vacia */}
+      {visible && preguntas.length > 0 && filtroPreg && preguntasVisibles.length === 0 && (
+        <div className="card" style={{ padding: '20px 16px', textAlign: 'center', fontSize: 13, color: 'var(--color-muted)' }}>
+          No hay preguntas en este filtro.
+        </div>
+      )}
+
+      {visible && preguntasVisibles.length > 0 && participantes.length > 0 && (
         <div className="rp-scroll">
           <table className="rp-matrix">
             <thead>
@@ -553,7 +613,7 @@ export default function MundialRespuestasPublicas() {
               </tr>
             </thead>
             <tbody>
-              {preguntas.map(p => {
+              {preguntasVisibles.map(p => {
                 const displayText = enunciadoDisplay(p.numero, p.enunciado)
                 const truncado    = displayText !== p.enunciado
                 return (
@@ -566,6 +626,8 @@ export default function MundialRespuestasPublicas() {
                     <span className="rp-q-text" title={truncado ? undefined : p.enunciado}>
                       {displayText}
                     </span>
+                    {/* Sprint vista respuestas: chip(s) con la respuesta oficial. */}
+                    <ChipResultadoOficial resultado={p.resultado_oficial} equiposByCodigo={equiposByCodigo} />
                   </th>
                   {participantes.map(part => {
                     const esYo = user && part.user_id === user.id
@@ -784,4 +846,95 @@ const segTd = {
   padding: '10px 12px',
   fontSize: 13,
   verticalAlign: 'middle',
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sprint vista respuestas (2026-06-25)
+// FiltroBtn — botón compacto con etiqueta + contador.
+// ─────────────────────────────────────────────────────────────────────────
+function FiltroBtn({ label, count, active, onClick, title }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      style={{
+        padding: '6px 10px',
+        fontSize: 12,
+        fontWeight: 600,
+        borderRadius: 6,
+        cursor: 'pointer',
+        border: active ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+        background: active ? 'rgba(99,102,241,0.10)' : 'white',
+        color: active ? 'var(--color-primary)' : 'var(--color-text)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span>{label}</span>
+      <span style={{
+        fontSize: 11,
+        padding: '1px 6px',
+        borderRadius: 99,
+        background: active ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)',
+        color: active ? 'white' : 'var(--color-muted)',
+        fontWeight: 700,
+      }}>{count}</span>
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ChipResultadoOficial — chip(s) con la respuesta oficial debajo de la
+// columna pregunta. Se renderea solo si `resultado` viene del backend.
+// Shape:
+//   - { codigos: ['ALE','FRA','HOL'] } → un chip por código con emoji
+//   - { simple: 'Sí'/'5'/'8°' } → un solo chip con texto
+//   - null/undefined → no renderea nada
+// ─────────────────────────────────────────────────────────────────────────
+function ChipResultadoOficial({ resultado, equiposByCodigo }) {
+  if (!resultado) return null
+  const chipBase = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+    fontSize: 10,
+    fontWeight: 600,
+    padding: '2px 7px',
+    borderRadius: 99,
+    background: 'rgba(22,163,74,0.10)',
+    color: 'var(--color-success)',
+    border: '1px solid rgba(22,163,74,0.25)',
+    whiteSpace: 'nowrap',
+  }
+  // Caso codigos: chips por equipo. Aliases muestran varios chips uno al lado del otro.
+  if (Array.isArray(resultado.codigos) && resultado.codigos.length > 0) {
+    return (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+        <span style={{ fontSize: 10, color: 'var(--color-success)', fontWeight: 700, alignSelf: 'center' }}>✓</span>
+        {resultado.codigos.map(codigo => {
+          const eq = equiposByCodigo?.get?.(codigo)
+          return (
+            <span key={codigo} style={chipBase}>
+              {eq?.emoji ? `${eq.emoji} ` : ''}{codigo}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+  // Caso simple: un solo chip con texto.
+  if (typeof resultado.simple === 'string' && resultado.simple.trim()) {
+    const eq = resultado.equipo_codigo ? equiposByCodigo?.get?.(resultado.equipo_codigo) : null
+    return (
+      <div style={{ marginTop: 4 }}>
+        <span style={chipBase}>
+          ✓ {eq?.emoji ? `${eq.emoji} ` : ''}{resultado.simple}
+        </span>
+      </div>
+    )
+  }
+  return null
 }
