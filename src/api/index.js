@@ -48,6 +48,15 @@ export const api = {
   updateTorneo: (id, data) => request('PATCH', `/torneos/${id}`, data),
   addJugadorTorneo: (torneoId, userId) => request('POST', `/torneos/${torneoId}/jugadores`, { user_id: userId }),
   removeJugadorTorneo: (torneoId, userId) => request('DELETE', `/torneos/${torneoId}/jugadores/${userId}`),
+
+  // Sprint exclusion-comida (2026-06-25): admin marca jugadores que NO comen
+  // (ej: viven en el exterior). Siguen cobrando premios USD; solo cambia el
+  // badge de comida en el ranking y la asignacion de "come gratis" se shiftea
+  // al siguiente elegible.
+  getTorneoJugadores: (torneoId) =>
+    request('GET', `/torneos/${torneoId}/jugadores`),
+  setExcluidoComidaTorneo: (torneoId, userId, excluido_comida) =>
+    request('PATCH', `/torneos/${torneoId}/jugadores/${userId}`, { excluido_comida }),
   getTablaGeneral: (torneoId) => request('GET', `/torneos/${torneoId}/tabla`),
   getTablaMensual: (torneoId, mes, anio) => request('GET', `/torneos/${torneoId}/tabla-mensual?mes=${mes}&anio=${anio}`),
   getCierre: (torneoId, mes, anio) => request('GET', `/torneos/${torneoId}/tabla-mensual-cierre?mes=${mes}&anio=${anio}`),

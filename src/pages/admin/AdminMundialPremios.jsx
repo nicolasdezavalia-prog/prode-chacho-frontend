@@ -348,6 +348,11 @@ export default function AdminMundialPremios({ torneoId, estado }) {
           {saving ? 'Guardando...' : '💾 Guardar premios'}
         </button>
       </div>
+
+      {/* Sprint exclusion-comida: marcar jugadores que NO van a la comida.
+          Sigue cobrando/pagando USD normal, solo el rol de comida lo saltea
+          (se reasigna al siguiente elegible). */}
+      <JugadoresExcluidosComida torneoId={torneoId} />
     </div>
   )
 }
@@ -372,4 +377,114 @@ const inputStyle = {
   fontSize: 13,
   outline: 'none',
   background: 'white',
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// JugadoresExcluidosComida — sprint exclusion-comida (2026-06-25).
+// Grilla de jugadores con checkbox para marcar quien NO participa de la
+// comida. PATCH instantaneo (sin save explicito). Lectura: GET /torneos/:id/jugadores.
+// ─────────────────────────────────────────────────────────────────────────
+function JugadoresExcluidosComida({ torneoId }) {
+  const [jugadores, setJugadores] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [savingId, setSavingId] = useState(null)
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
+
+  useEffect(() => {
+    let cancel = false
+    async function load() {
+      setLoading(true); setError('')
+      try {
+        const r = await api.getTorneoJugadores(torneoId)
+        if (!cancel) setJugadores(Array.isArray(r?.jugadores) ? r.jugadores : [])
+      } catch (e) {
+        if (!cancel) setError(e.message || String(e))
+      } finally {
+        if (!cancel) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancel = true }
+  }, [torneoId])
+
+  async function toggle(userId, nuevoValor) {
+    setSavingId(userId); setError(''); setInfo('')
+    try {
+      await api.setExcluidoComidaTorneo(torneoId, userId, nuevoValor)
+      setJugadores(prev => prev.map(j => j.id === userId ? { ...j, excluido_comida: nuevoValor } : j))
+      setInfo(nuevoValor ? 'Jugador excluido de la comida.' : 'Jugador habilitado para la comida.')
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  const excluidos = jugadores.filter(j => j.excluido_comida).length
+
+  return (
+    <div className="card" style={{ marginTop: 24, padding: '14px 16px' }}>
+      <h3 style={{ margin: '0 0 6px 0', fontSize: 15 }}>
+        Jugadores excluidos de la comida
+      </h3>
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+        Los jugadores marcados aca <strong>NO ocupan cupos de comida</strong> ("come gratis", "paga",
+        "organiza"). Esos roles se shiftean al siguiente jugador elegible del ranking. El
+        premio/castigo USD <strong>no cambia</strong>: el excluido sigue cobrando/pagando segun su posicion.
+      </div>
+
+      {error && (
+        <div style={{
+          padding: '6px 10px', background: 'rgba(239,68,68,0.10)',
+          color: 'var(--color-danger)', borderRadius: 6, marginBottom: 8, fontSize: 12,
+        }}>{error}</div>
+      )}
+      {info && (
+        <div style={{
+          padding: '6px 10px', background: 'rgba(22,163,74,0.10)',
+          color: 'var(--color-success)', borderRadius: 6, marginBottom: 8, fontSize: 12,
+        }}>{info}</div>
+      )}
+
+      {loading ? (
+        <div style={{ color: 'var(--color-muted)', fontSize: 13 }}>Cargando jugadores...</div>
+      ) : jugadores.length === 0 ? (
+        <div style={{ color: 'var(--color-muted)', fontSize: 13 }}>
+          Este torneo no tiene jugadores asignados todavia.
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 8 }}>
+            <strong>{excluidos}</strong> de <strong>{jugadores.length}</strong> jugadores excluidos.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 6 }}>
+            {jugadores.map(j => (
+              <label key={j.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                background: j.excluido_comida ? 'rgba(124,58,237,0.08)' : 'rgba(0,0,0,0.03)',
+                border: '1px solid ' + (j.excluido_comida ? 'rgba(124,58,237,0.30)' : 'transparent'),
+                borderRadius: 6, fontSize: 13, cursor: 'pointer',
+                opacity: savingId === j.id ? 0.6 : 1,
+              }}>
+                <input
+                  type="checkbox"
+                  checked={!!j.excluido_comida}
+                  disabled={savingId === j.id}
+                  onChange={e => toggle(j.id, e.target.checked)}
+                />
+                <span style={{ fontWeight: 500 }}>{j.nombre}</span>
+                {j.excluido_comida && (
+                  <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700, marginLeft: 'auto' }}>
+                    🌍 FUERA
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }

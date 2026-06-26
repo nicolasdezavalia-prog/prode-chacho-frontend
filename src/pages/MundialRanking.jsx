@@ -35,6 +35,38 @@ const MOTIVO_MSG = {
   sin_resultados: 'Todavía no hay resultados cargados. El ranking aparece cuando el admin carga el primer resultado.',
 }
 
+
+// Sprint exclusion-comida: dado un ranking ordenado (con .posicion dense-rank
+// y .excluido_comida por user), construye Map<user_id, comida_rol> usando la
+// POSICION EFECTIVA (saltando excluidos). Esto hace que un excluido NO ocupe
+// cupos de "come gratis" — el rol baja al siguiente elegible. Si comparten
+// posicion real (empate), tambien comparten posicion efectiva.
+function buildComidaPorUserId(ranking, comidaPorPosicion) {
+  const out = new Map()
+  if (!Array.isArray(ranking) || !comidaPorPosicion || comidaPorPosicion.size === 0) {
+    return out
+  }
+  const eligibles = ranking.filter(r => !r.excluido_comida)
+  let posEfectiva = 0
+  let prevPosOriginal = null
+  for (let i = 0; i < eligibles.length; i++) {
+    const r = eligibles[i]
+    if (r.posicion !== prevPosOriginal) {
+      posEfectiva = i + 1
+      prevPosOriginal = r.posicion
+    }
+    const rol = comidaPorPosicion.get(posEfectiva)
+    if (rol) out.set(r.user_id, rol)
+  }
+  return out
+}
+
+// Badge "Fuera" para users excluidos de la comida. Se renderea en la columna
+// COMIDA con estilo gris claro (visualmente subordinado a los badges activos).
+function badgeFueraComida() {
+  return { label: '🌍 Fuera', fg: 'var(--color-muted)', bg: 'rgba(0,0,0,0.04)' }
+}
+
 export default function MundialRanking() {
   const { torneoId } = useParams()
   const { user }     = useAuth()
@@ -116,6 +148,13 @@ export default function MundialRanking() {
   const ranking    = Array.isArray(data?.ranking) ? data.ranking : []
   const hayPremios = !!premiosCalc?.configurado
   const estimado   = !!premiosCalc?.estimado
+  // Sprint exclusion-comida: Map<user_id, comida_rol> que respeta posicion
+  // EFECTIVA (saltando excluidos). Se recomputa si cambia el ranking o los
+  // premios. Si no hay roles configurados, queda vacio.
+  const comidaPorUserId = useMemo(
+    () => buildComidaPorUserId(ranking, comidaPorPosicion),
+    [ranking, comidaPorPosicion]
+  )
   // Mostrar columna Comida solo si HAY al menos una fila con comida_rol cargada.
   const hayComida  = comidaPorPosicion.size > 0
   const tieneMixto = Array.isArray(mixto?.ranking) && mixto.ranking.length > 0
@@ -260,8 +299,8 @@ export default function MundialRanking() {
                 const esYo  = user && r.user_id === user.id
                 const usd   = premioPorPosicion.get(r.posicion)
                 const usdLabel = fmtUsd(usd)
-                const rol   = comidaPorPosicion.get(r.posicion) || null
-                const badge = comidaBadge(rol)
+                const rolComida = r.excluido_comida ? null : (comidaPorUserId.get(r.user_id) || null)
+                const badge = r.excluido_comida ? badgeFueraComida() : comidaBadge(rolComida)
                 const detalle = Array.isArray(r.detalle) ? r.detalle : []
                 const puedeExpandir = detalle.length > 0
                 const open = !!expandidoOf[r.user_id]
@@ -384,6 +423,8 @@ function VistaProyectada({ mixto, user, premioPorPosicion, comidaPorPosicion, ha
     )
   }
   const ranking = mixto.ranking
+  // Sprint exclusion-comida: posicion efectiva (mismo helper que la vista oficial).
+  const comidaPorUserId = buildComidaPorUserId(ranking, comidaPorPosicion)
   const ofi   = Number.isInteger(mixto.preguntas_con_resultado) ? mixto.preguntas_con_resultado : 0
   const proy  = Number.isInteger(mixto.preguntas_proyectables)  ? mixto.preguntas_proyectables  : 0
   const total = Number.isInteger(mixto.total_preguntas)         ? mixto.total_preguntas         : 0
@@ -427,8 +468,8 @@ function VistaProyectada({ mixto, user, premioPorPosicion, comidaPorPosicion, ha
               const esYo  = user && r.user_id === user.id
               const usd   = premioPorPosicion.get(r.posicion)
               const usdLabel = fmtUsd(usd)
-              const rol   = comidaPorPosicion.get(r.posicion) || null
-              const badge = comidaBadge(rol)
+              const rolComida = r.excluido_comida ? null : (comidaPorUserId.get(r.user_id) || null)
+              const badge = r.excluido_comida ? badgeFueraComida() : comidaBadge(rolComida)
               const detalle = Array.isArray(r.detalle) ? r.detalle : []
               const puedeExpandir = detalle.length > 0
               const open = !!expandido[r.user_id]
