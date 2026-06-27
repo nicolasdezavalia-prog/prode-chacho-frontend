@@ -182,13 +182,14 @@ export default function MundialResponder() {
         : { items: [], pts_totales_proyectados: 0 })
       setPremiosCalc(premios && typeof premios === 'object' ? premios : null)
 
-      // Fase 5 — si el torneo está en 'cambios_abiertos', cargamos el contexto
-      // y los cambios ya cargados por este user. Estos endpoints son no-ops
-      // (devuelven ctx vacío) si no aplica, así que llamarlos siempre tampoco
-      // sería incorrecto; pero evitamos round-trips innecesarios.
+      // Sprint cambios-por-ventana (2026-06-25): el flow ahora se rige por
+      // VENTANA abierta, no por estado del torneo. Cargamos el contexto siempre
+      // excepto en los extremos donde el backend ya bloquea (configuracion/
+      // finalizado). El endpoint devuelve ventana=null si no hay ventana
+      // abierta, asi que el modo cambios queda en off naturalmente.
       let mapMixed = mapRes
       let ctx = { visible: false }
-      if (cfg.estado === 'cambios_abiertos') {
+      if (cfg.estado !== 'configuracion' && cfg.estado !== 'finalizado') {
         const [ctxResp, misCambResp] = await Promise.all([
           api.getMundialMisCambiosDisponibles(torneoId).catch(() => null),
           api.getMundialMisCambios(torneoId).catch(() => null),
@@ -226,10 +227,35 @@ export default function MundialResponder() {
   const deadlineVencido = deadline && !isNaN(deadline.getTime()) && new Date() > deadline
   const cargaAbierta    = estado === 'abierto' && !deadlineVencido
 
-  // Fase 5 — modo "cambios": el torneo está en 'cambios_abiertos' y el user
-  // está habilitado en la ventana. Editar preguntas con cambio_habilitado=1.
-  const modoCambios       = estado === 'cambios_abiertos'
-  const puedeCargarCambios = modoCambios && !!misCambiosCtx?.habilitado && !!misCambiosCtx?.ventana
+  // Sprint cambios-por-ventana (2026-06-25): modo "cambios" se activa cuando
+  // hay ventana abierta Y el user está habilitado. Independiente del estado
+  // del torneo (excepto configuracion/finalizado que el backend bloquea).
+  const modoCambios       = !!misCambiosCtx?.ventana && misCambiosCtx?.ventana?.estado === 'abierta'
+  const puedeCargarCambios = modoCambios && !!misCambiosCtx?.habilitado
+
+  // Sprint costo-por-equipo (2026-06-25): calcula EN VIVO cuántos cupos costaría
+  // cada pregunta editada (vs respuestasPreVentana). multi_equipo cuenta diff
+  // de equipos; el resto = 1 si difiere, 0 si igual. Cero cuando no hay edit.
+  const costosPendientesPorPregunta = useMemo(() => {
+    const out = {}
+    if (!modoCambios) return out
+    for (const p of preguntas) {
+      const ant = respuestasPreVentana?.[p.id] || {}
+      const nue = respuestasUsr?.[p.id] || {}
+      let costo = 0
+      if (p.tipo_pregunta === 'multi_equipo') {
+        const anteriores = new Set(Array.isArray(ant.equipos) ? ant.equipos : [])
+        const nuevos = Array.isArray(nue.equipos) ? nue.equipos : []
+        for (const e of nuevos) if (!anteriores.has(e)) costo++
+      } else {
+        // Comparación simple: JSON estable.
+        costo = JSON.stringify(ant) === JSON.stringify(nue) ? 0 : 1
+      }
+      if (costo > 0) out[p.id] = costo
+    }
+    return out
+  }, [modoCambios, preguntas, respuestasPreVentana, respuestasUsr])
+  const costoPendienteTotal = Object.values(costosPendientesPorPregunta).reduce((a, b) => a + b, 0)
 
   // Mapa { pregunta_id: 'completa' | 'parcial' | 'vacia' } + parseo de cfg una sola vez.
   const evaluacion = useMemo(() => {
@@ -451,8 +477,8 @@ export default function MundialResponder() {
                 fontSize: 12, padding: '3px 10px', borderRadius: 99,
                 background: 'rgba(124,58,237,0.12)', color: '#7c3aed',
                 whiteSpace: 'nowrap', fontWeight: 600,
-              }}>
-                🔄 {misCambiosCtx.cambios_usados}/{misCambiosCtx.ventana?.cambios_por_usuario} usados · USD {misCambiosCtx.costo_usd}
+              }} title="Usados guardados + pendientes del editor / cupo máximo">
+                🔄 {misCambiosCtx.cambios_usados}{costoPendienteTotal > 0 ? ` + ${costoPendienteTotal} pend.` : ''} / {misCambiosCtx.ventana?.cambios_por_usuario} cupos · USD {misCambiosCtx.costo_usd}
               </span>
             ) : (
               <span style={{
