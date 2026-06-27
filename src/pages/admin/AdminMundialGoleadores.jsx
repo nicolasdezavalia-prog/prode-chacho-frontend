@@ -104,6 +104,19 @@ export default function AdminMundialGoleadores({ torneoId }) {
         Alimenta Datos útiles y la futura sugerencia de la pregunta Goleador.
         El nombre que cargues acá es el <strong>canónico</strong> — usá la grafía linda (ej: "K. Mbappé").
       </div>
+      {/* Sprint goleadores-por-partido: aviso anti doble-cuenta */}
+      <div style={{
+        padding: '8px 12px', marginBottom: 12,
+        background: 'rgba(234,179,8,0.10)', color: '#a16207',
+        border: '1px solid rgba(234,179,8,0.30)',
+        borderRadius: 6, fontSize: 12, lineHeight: 1.5,
+      }}>
+        ⚠️ <strong>A partir de ahora cargá goleadores desde el modal del Fixture</strong>
+        (boton ⚽ en cada partido). Esta pantalla queda solo para el TOP historico
+        que ya cargaste manualmente. Si sumás un goleador acá Y también en un
+        partido del Fixture, el sistema lo cuenta DOS veces — descontá los goles
+        que ya estén cargados via modal.
+      </div>
       {error && <div className="error-msg" style={{ marginBottom: 10 }}>{error}</div>}
       {info && (
         <div style={{ padding: '6px 10px', marginBottom: 10, background: 'rgba(22,163,74,0.10)', color: 'var(--color-success)', borderRadius: 6, fontSize: 12 }}>{info}</div>

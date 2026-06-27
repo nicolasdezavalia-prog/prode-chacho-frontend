@@ -115,7 +115,7 @@ export default function MundialDatosUtiles() {
         // página (cae al fallback de items manuales transparentemente).
         api.getMundialTarjetasPartido(torneoId).catch(() => null),
         api.getMundialStatsCalculadas(torneoId).catch(() => null),
-        api.getMundialGoleadores(torneoId).catch(() => null),
+        api.getMundialGoleadoresTop(torneoId).catch(() => null),
         api.getMundialPremiosIndividuales(torneoId).catch(() => null),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))

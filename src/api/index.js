@@ -392,6 +392,18 @@ export const api = {
   // Sprint Final C5 — goleadores (top mantenido por admin; GET público).
   getMundialGoleadores: (torneoId) =>
     request('GET', `/mundial/${torneoId}/goleadores`),
+  // Sprint goleadores-por-partido: top CONSOLIDADO (manual + por-partido).
+  // Para AdminMundialGoleadores (edicion manual) seguir usando getMundialGoleadores.
+  // Para Datos Utiles (publico) usar este.
+  getMundialGoleadoresTop: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/goleadores-top`),
+  // Sprint goleadores-por-partido (2026-06-25): goleadores por partido desde el modal del Fixture.
+  getMundialPartidoGoleadores: (torneoId, partidoId) =>
+    request('GET', `/mundial/${torneoId}/partidos/${partidoId}/goleadores`),
+  saveMundialPartidoFull: (torneoId, partidoId, payload) =>
+    request('PUT', `/mundial/${torneoId}/partidos/${partidoId}/full`, payload),
+  getMundialJugadoresConocidos: (torneoId, equipo) =>
+    request('GET', `/mundial/${torneoId}/jugadores-conocidos?equipo=${encodeURIComponent(equipo)}`),
   saveMundialGoleadoresBulk: (torneoId, goleadores) =>
     request('PUT', `/mundial/${torneoId}/goleadores/bulk`, { goleadores }),
   deleteMundialGoleador: (torneoId, id) =>

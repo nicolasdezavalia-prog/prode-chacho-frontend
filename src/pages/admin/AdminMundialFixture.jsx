@@ -21,6 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../api/index.js'
 import EquipoAutocomplete from '../../components/EquipoAutocomplete.jsx'
+import ModalPartido from '../../components/ModalPartido.jsx'
 
 const RONDA_LABEL = {
   grupos:        'Grupos',
@@ -78,6 +79,9 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
   const [equipos, setEquipos]     = useState([])
   const [dirty, setDirty]         = useState(new Set())   // keys con cambios
   const [filtroRonda, setFiltroRonda] = useState('')
+  // Sprint goleadores-por-partido (2026-06-25): modal de carga full.
+  // Estado: el partido actualmente abierto en el modal, o null.
+  const [partidoModal, setPartidoModal] = useState(null)
   // Sprint feedback: stats.tabla_grupos + KO finalizados -> equipos clasificados
   // que aun no tienen partido en la ronda siguiente ("esperando rival"). Si
   // falla la carga, queda en null y el componente degrada silenciosamente.
@@ -465,6 +469,13 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       {uxErr && <span title={uxErr} style={{ marginRight: 4 }}>⚠️</span>}
+                      {f.existente && f.equipo_local && f.equipo_visitante && (
+                        <button type="button" onClick={() => setPartidoModal(f)}
+                          title="Abrir modal de carga completa (goleadores, tarjetas, estado)"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, marginRight: 6 }}>
+                          ⚽
+                        </button>
+                      )}
                       {(f.estado === 'pendiente' || !f.existente) && !soloResultados && (
                         <button type="button" onClick={() => borrar(f)}
                           title={f.existente ? 'Borrar partido pendiente' : 'Descartar fila nueva'}
@@ -480,6 +491,16 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
           </table>
           </div>
         </>
+      )}
+
+      {partidoModal && (
+        <ModalPartido
+          torneoId={torneoId}
+          partido={partidoModal}
+          equiposCatalogo={equipos}
+          onClose={() => setPartidoModal(null)}
+          onSaved={() => load()}
+        />
       )}
     </div>
   )

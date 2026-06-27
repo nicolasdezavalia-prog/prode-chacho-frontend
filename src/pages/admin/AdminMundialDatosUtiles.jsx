@@ -91,7 +91,7 @@ export default function AdminMundialDatosUtiles({ torneoId }) {
         // Admin: traemos también inactivos para poder ver/editar.
         api.getMundialDatosUtiles(torneoId, { incluir_inactivos: 1 }),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
-        api.getMundialGoleadores(torneoId).catch(() => null),
+        api.getMundialGoleadoresTop(torneoId).catch(() => null),
       ])
       setItems(Array.isArray(list) ? list : [])
       setEquipos(Array.isArray(cat) ? cat : [])
