@@ -50,6 +50,11 @@ export default function AdminMundialCambios({ torneoId, estado, onChanged }) {
   const [creando, setCreando] = useState(false)
   // Tracking de operaciones en curso
   const [accionando, setAccionando] = useState({}) // { ventanaId: true }
+  // Sprint editar-ventana (2026-06-27): edición inline. Una sola ventana en
+  // edición a la vez. Form preinicializado con valores actuales al abrir.
+  const [editandoId, setEditandoId] = useState(null)
+  const [formEdit, setFormEdit]     = useState({ nombre: '', costo_usd: '', cambios_por_usuario: '' })
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [torneoId])
 
@@ -124,6 +129,67 @@ export default function AdminMundialCambios({ torneoId, estado, onChanged }) {
       setError(e.message)
     } finally {
       setCreando(false)
+    }
+  }
+
+  // Sprint editar-ventana (2026-06-27)
+  function abrirEdicion(v) {
+    setEditandoId(v.id)
+    setFormEdit({
+      nombre: v.nombre || '',
+      costo_usd: String(v.costo_usd ?? ''),
+      cambios_por_usuario: String(v.cambios_por_usuario ?? ''),
+    })
+    setError(''); setInfo('')
+  }
+  function cancelarEdicion() {
+    setEditandoId(null)
+    setFormEdit({ nombre: '', costo_usd: '', cambios_por_usuario: '' })
+  }
+  async function handleGuardarEdicion(e, ventana) {
+    e?.preventDefault?.()
+    if (guardandoEdit) return
+    setGuardandoEdit(true)
+    setError(''); setInfo('')
+    try {
+      const body = {}
+      const n = formEdit.nombre.trim()
+      if (n.length === 0) {
+        setError('Nombre no puede ser vacío.')
+        setGuardandoEdit(false); return
+      }
+      if (n !== (ventana.nombre || '')) body.nombre = n
+      if (formEdit.costo_usd !== '' && parseInt(formEdit.costo_usd, 10) !== ventana.costo_usd) {
+        body.costo_usd = parseInt(formEdit.costo_usd, 10)
+      }
+      if (formEdit.cambios_por_usuario !== '' && parseInt(formEdit.cambios_por_usuario, 10) !== ventana.cambios_por_usuario) {
+        body.cambios_por_usuario = parseInt(formEdit.cambios_por_usuario, 10)
+      }
+      if (Object.keys(body).length === 0) {
+        setInfo('Sin cambios para guardar.')
+        cancelarEdicion()
+        setGuardandoEdit(false); return
+      }
+      // Warning si baja el cupo por debajo de lo ya cargado por algún user.
+      if (body.cambios_por_usuario !== undefined && ventana.estado === 'abierta' && ventana.total_cambios > 0) {
+        const ok = window.confirm(
+          `Vas a cambiar el cupo a ${body.cambios_por_usuario}.\n\n` +
+          `Hay ${ventana.users_con_cambios} usuario(s) con ${ventana.total_cambios} cambio(s) cargados.\n` +
+          `Si bajaste el cupo por debajo de lo que algún user ya usó, el badge le mostrará exceso ` +
+          `(pero el back rechaza nuevas cargas correctamente). Los cambios ya guardados NO se borran.\n\n` +
+          `¿Confirmar?`
+        )
+        if (!ok) { setGuardandoEdit(false); return }
+      }
+      await api.updateMundialVentana(torneoId, ventana.id, body)
+      setInfo(`Ventana #${ventana.id} actualizada.`)
+      cancelarEdicion()
+      await load()
+      onChanged?.()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGuardandoEdit(false)
     }
   }
 
@@ -393,6 +459,17 @@ export default function AdminMundialCambios({ torneoId, estado, onChanged }) {
                       Publicar
                     </button>
                   )}
+                  {/* Sprint editar-ventana (2026-06-27): editable salvo publicada */}
+                  {!esPublicada && editandoId !== v.id && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => abrirEdicion(v)}
+                      disabled={accionando[v.id]}
+                      title="Editar nombre, costo y cupo"
+                    >
+                      ✏️ Editar
+                    </button>
+                  )}
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => toggleExpandida(v.id)}
@@ -401,6 +478,64 @@ export default function AdminMundialCambios({ torneoId, estado, onChanged }) {
                   </button>
                 </div>
               </div>
+
+              {editandoId === v.id && (
+                <form
+                  onSubmit={e => handleGuardarEdicion(e, v)}
+                  style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed var(--color-border)' }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
+                    Editar ventana
+                    {v.estado === 'abierta' && (
+                      <span style={{ marginLeft: 8, fontSize: 11, color: '#a16207', textTransform: 'none', fontWeight: 500 }}>
+                        ⚠️ Ventana abierta — cambios afectan a users en vivo
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: 10, marginBottom: 10,
+                  }}>
+                    <div>
+                      <label style={labelStyle}>Nombre</label>
+                      <input
+                        type="text"
+                        value={formEdit.nombre}
+                        onChange={e => setFormEdit(f => ({ ...f, nombre: e.target.value }))}
+                        style={inputStyle}
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Costo USD por cambio</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={formEdit.costo_usd}
+                        onChange={e => setFormEdit(f => ({ ...f, costo_usd: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Cambios por usuario</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={formEdit.cambios_por_usuario}
+                        onChange={e => setFormEdit(f => ({ ...f, cambios_por_usuario: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={cancelarEdicion} disabled={guardandoEdit}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={guardandoEdit}>
+                      {guardandoEdit ? 'Guardando...' : 'Guardar'}
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {expandido && (
                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--color-border)' }}>

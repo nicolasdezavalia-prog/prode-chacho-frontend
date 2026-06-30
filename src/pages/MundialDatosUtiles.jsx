@@ -256,7 +256,10 @@ export default function MundialDatosUtiles() {
                 {visibles(goleadores, 'goleadores_estruc').map((g, idx) => (
                   <tr key={g.id} style={{
                     borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.05)',
-                    opacity: g.activo === 1 ? 1 : 0.6,
+                    // Sprint fix-eliminado-goleadores (2026-06-27): usar equipo_eliminado
+                    // (semántica: equipo del jugador fuera del torneo) en lugar de activo
+                    // (que era undefined en /goleadores-top y disparaba el badge para todos).
+                    opacity: g.equipo_eliminado ? 0.6 : 1,
                   }}>
                     <td style={{ ...tdMain, width: 40, textAlign: 'right', fontWeight: 700, color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums' }}>
                       {g.posicion}°
@@ -264,7 +267,7 @@ export default function MundialDatosUtiles() {
                     <td style={tdMain}>
                       <div style={{ fontWeight: 600 }}>
                         {g.jugador}
-                        {g.activo !== 1 && (
+                        {g.equipo_eliminado && (
                           <span style={{
                             marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '1px 7px',
                             borderRadius: 99, background: 'rgba(220,38,38,0.10)', color: '#b91c1c',

@@ -436,8 +436,20 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
                     <CeldaNum f={f} campo="goles_local" setCampo={setCampo} destacada />
                     <CeldaNum f={f} campo="goles_visitante" setCampo={setCampo} destacada />
                     <td style={td}>
-                      <CeldaEquipo equipos={equipos} valor={f.equipo_visitante} getEq={getEq}
-                        onChange={c => setCampo(f.key, 'equipo_visitante', c)} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <CeldaEquipo equipos={equipos} valor={f.equipo_visitante} getEq={getEq}
+                            onChange={c => setCampo(f.key, 'equipo_visitante', c)} />
+                        </div>
+                        {/* Sprint reorden-modal (2026-06-27): ⚽ inline aquí, antes de tarjetas */}
+                        {f.existente && f.equipo_local && f.equipo_visitante && (
+                          <button type="button" onClick={() => setPartidoModal(f)}
+                            title="Abrir modal de carga completa (goleadores, tarjetas, estado)"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', flexShrink: 0 }}>
+                            ⚽
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <CeldaNum f={f} campo="amarillas_local" setCampo={setCampo} />
                     <CeldaNum f={f} campo="amarillas_visitante" setCampo={setCampo} />
@@ -469,13 +481,7 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       {uxErr && <span title={uxErr} style={{ marginRight: 4 }}>⚠️</span>}
-                      {f.existente && f.equipo_local && f.equipo_visitante && (
-                        <button type="button" onClick={() => setPartidoModal(f)}
-                          title="Abrir modal de carga completa (goleadores, tarjetas, estado)"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, marginRight: 6 }}>
-                          ⚽
-                        </button>
-                      )}
+                      {/* Sprint reorden-modal (2026-06-27): el ⚽ se movió a la celda del visitante */}
                       {(f.estado === 'pendiente' || !f.existente) && !soloResultados && (
                         <button type="button" onClick={() => borrar(f)}
                           title={f.existente ? 'Borrar partido pendiente' : 'Descartar fila nueva'}
