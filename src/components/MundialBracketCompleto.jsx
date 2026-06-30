@@ -85,9 +85,13 @@ export default function MundialBracketCompleto({ tablaGrupos = [], partidos = []
     }
     const casc = CASCADA_KO.find(c => c.ronda === ronda && c.orden === orden)
     if (!casc) return null
+    // Fix ganador-parcial (2026-06-27): si el partido fuente ya esta finalizado,
+    // mostramos el ganador real (con bandera) en lugar del placeholder generico.
+    // Cubre el caso "Paraguay gano R32-3 pero R32-6 sigue pendiente -> 8vos-1
+    // existe conceptualmente pero el backend no lo creo todavia".
     return {
-      local: { label: labelSlotKO(casc.local), placeholder: true },
-      visitante: { label: labelSlotKO(casc.visitante), placeholder: true },
+      local:     resolverSlotKO(casc.local,     porRondaOrden, catalogo),
+      visitante: resolverSlotKO(casc.visitante, porRondaOrden, catalogo),
     }
   }
 
@@ -527,6 +531,25 @@ function LinkEquipo({ lado, gan, finalizado, goles }) {
       )}
     </div>
   )
+}
+
+// Fix ganador-parcial (2026-06-27): si el partido origen (R32/8vos/etc.) esta
+// finalizado, devolvemos el equipo ganador real (o perdedor para 3er puesto);
+// si no, fallback al label "Ganador R32-X" / "Perdedor SF-Y".
+function resolverSlotKO(origen, porRondaOrden, catalogo) {
+  if (!origen) return { label: '-', placeholder: true }
+  const p = porRondaOrden.get(origen.from + ':' + origen.orden)
+  if (p && p.estado === 'finalizado') {
+    const gan = ganadorCodigo(p)
+    if (gan) {
+      const codigoBuscado = origen.lado === 'perdedor'
+        ? (gan === p.equipo_local ? p.equipo_visitante : p.equipo_local)
+        : gan
+      const eq = equipoLabel(codigoBuscado, catalogo)
+      return { ...eq, placeholder: false }
+    }
+  }
+  return { label: labelSlotKO(origen), placeholder: true }
 }
 
 function equipoLabel(codigo, catalogo) {
