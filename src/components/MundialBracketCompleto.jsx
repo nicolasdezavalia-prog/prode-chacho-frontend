@@ -1,21 +1,58 @@
 /**
  * MundialBracketCompleto — vista bracket FIFA con grupos al costado.
  *
- * Layout:
- *   Desktop: 3 columnas (Grupos A-F | Bracket | Grupos G-L)
- *   Mobile: stack vertical (Grupos | Bracket)
+ * Rediseño visual estilo FIFA oficial:
+ *   - Fondo dark navy con gradiente sutil.
+ *   - Header "WORLD CHAMPIONS" arriba en dorado.
+ *   - Grupos con barra de color identitario lateral.
+ *   - Bracket KO con slots oscuros, ganador resaltado verde menta.
+ *   - Copa al centro (CopaMundial SVG inline) y "BRONZE WINNER" abajo.
+ *   - Banderas reales desde flagcdn.com via <Bandera> con fallback a emoji.
  *
- * Bracket: 5 columnas con todas las rondas KO. Cuando un partido futuro no
- * existe todavía (ronda anterior sin finalizar), se muestran placeholders
- * "Ganador R32-1 vs Ganador R32-2" desde la cascada local. Para R32 sin
- * partidos generados, slots "1°A vs 2°B" del bracket oficial.
+ * Layout:
+ *   Desktop: 3 columnas (Grupos A-F | Bracket simétrico | Grupos G-L)
+ *   Mobile (<900px): stack vertical (Grupos grid 2-col, Bracket con scroll horizontal)
+ *
+ * Bracket simétrico:
+ *   R32-i | 8-i | QF-i | SF-i |  COPA  | SF-d | QF-d | 8-d | R32-d
+ *   El orden vertical de cada columna se calcula a partir de CASCADA_KO
+ *   (no es 1..N, sino el orden visual que respeta los cruces).
+ *
+ * Placeholders: si un partido futuro no existe todavía se muestra "Ganador
+ * R32-3" / "1°A vs 2°B" en cursiva gris.
  */
 
 import { useMemo } from 'react'
 import {
-  CASCADA_KO, RONDAS_BRACKET, RONDA_LABEL,
+  CASCADA_KO, RONDA_LABEL,
   R32_BRACKET, labelSlotR32, labelSlotKO,
 } from '../data/mundial-cascada-ko.js'
+import CopaMundial from './CopaMundial.jsx'
+import Bandera from './Bandera.jsx'
+
+// Paleta FIFA-style oscura.
+const C = {
+  bg:        '#0a1628',
+  bgGrad:    '#142847',
+  panel:     '#0f1f3a',
+  border:    '#1e3a5f',
+  borderHi:  '#3b82f6',
+  text:      '#e2e8f0',
+  muted:     '#7d8ba6',
+  gold:      '#fbbf24',
+  bronze:    '#cd7f32',
+  win:       '#10b981',
+  winBg:     'rgba(16,185,129,0.15)',
+}
+
+// Color identitario por grupo (paleta 12 tonos balanceada).
+const COLOR_GRUPO = {
+  A: '#ef4444', B: '#f97316', C: '#eab308', D: '#84cc16',
+  E: '#22c55e', F: '#14b8a6', G: '#06b6d4', H: '#3b82f6',
+  I: '#6366f1', J: '#a855f7', K: '#ec4899', L: '#f43f5e',
+}
+
+const RONDAS_BRACKET_LOCAL = ['16vos', '8vos', '4tos', 'semis', 'tercer_puesto', 'final']
 
 export default function MundialBracketCompleto({ tablaGrupos = [], partidos = [], catalogo = {} }) {
   const porRondaOrden = useMemo(() => {
@@ -56,7 +93,7 @@ export default function MundialBracketCompleto({ tablaGrupos = [], partidos = []
 
   const partidosPorRonda = useMemo(() => {
     const por = {}
-    for (const ronda of RONDAS_BRACKET) {
+    for (const ronda of RONDAS_BRACKET_LOCAL) {
       const cuantos = ronda === '16vos' ? 16 : ronda === '8vos' ? 8 : ronda === '4tos' ? 4 : ronda === 'semis' ? 2 : 1
       por[ronda] = Array.from({ length: cuantos }, (_, i) => ({
         orden: i + 1,
@@ -67,38 +104,311 @@ export default function MundialBracketCompleto({ tablaGrupos = [], partidos = []
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [porRondaOrden, catalogo])
 
+  // Reordenamiento visual del bracket: usamos CASCADA_KO para que cada
+  // columna se muestre arriba→abajo en el orden simétrico clásico.
+  const ordenVisual = useMemo(() => {
+    const expandirR32 = (ronda, orden) => {
+      if (ronda === '16vos') return [orden]
+      const casc = CASCADA_KO.find(c => c.ronda === ronda && c.orden === orden)
+      if (!casc) return [orden]
+      return [
+        ...expandirR32(casc.local.from, casc.local.orden),
+        ...expandirR32(casc.visitante.from, casc.visitante.orden),
+      ]
+    }
+    const r32Izq = expandirR32('semis', 1)
+    const r32Der = expandirR32('semis', 2)
+    const buscarOctavoPara = r32orden => {
+      const c = CASCADA_KO.find(x => x.ronda === '8vos' &&
+        ((x.local.from === '16vos' && x.local.orden === r32orden) ||
+         (x.visitante.from === '16vos' && x.visitante.orden === r32orden)))
+      return c ? c.orden : null
+    }
+    const buscarCuartoPara = ottoOrden => {
+      const c = CASCADA_KO.find(x => x.ronda === '4tos' &&
+        ((x.local.from === '8vos' && x.local.orden === ottoOrden) ||
+         (x.visitante.from === '8vos' && x.visitante.orden === ottoOrden)))
+      return c ? c.orden : null
+    }
+    const dedup = arr => Array.from(new Set(arr))
+    const ottoIzq = dedup(r32Izq.map(buscarOctavoPara).filter(Boolean))
+    const ottoDer = dedup(r32Der.map(buscarOctavoPara).filter(Boolean))
+    const qfIzq   = dedup(ottoIzq.map(buscarCuartoPara).filter(Boolean))
+    const qfDer   = dedup(ottoDer.map(buscarCuartoPara).filter(Boolean))
+    return { r32Izq, r32Der, ottoIzq, ottoDer, qfIzq, qfDer }
+  }, [])
+
+  function porOrden(ronda, ordenes) {
+    return ordenes.map(o => partidosPorRonda[ronda].find(p => p.orden === o)).filter(Boolean)
+  }
+
   const gruposIzq = tablaGrupos.filter(g => ['A','B','C','D','E','F'].includes(g.grupo))
   const gruposDer = tablaGrupos.filter(g => ['G','H','I','J','K','L'].includes(g.grupo))
 
+  const finalP = partidosPorRonda['final'][0]
+  const campeon = (() => {
+    if (!finalP || !finalP.ganador_codigo) return null
+    return finalP.local?.codigo === finalP.ganador_codigo ? finalP.local : finalP.visitante
+  })()
+
   return (
-    <div className="card" style={{ padding: 14, overflowX: 'auto' }}>
-      <div className="mundial-bracket-grid">
-        <div className="mundial-bracket-grupos">
-          {gruposIzq.map(g => <GrupoCard key={g.grupo} grupo={g} />)}
-        </div>
-        <div className="mundial-bracket-centro">
-          <BracketColumna ronda="16vos" partidos={partidosPorRonda['16vos']} />
-          <BracketColumna ronda="8vos"  partidos={partidosPorRonda['8vos']}  />
-          <BracketColumna ronda="4tos"  partidos={partidosPorRonda['4tos']}  />
-          <BracketColumna ronda="semis" partidos={partidosPorRonda['semis']} />
-          <BracketColumnaFinal
-            final={partidosPorRonda['final'][0]}
-            tercerPuesto={partidosPorRonda['tercer_puesto'][0]}
-          />
-        </div>
-        <div className="mundial-bracket-grupos">
-          {gruposDer.map(g => <GrupoCard key={g.grupo} grupo={g} />)}
+    <div className="mbc-root">
+      <div className="mbc-headline">
+        <div className="mbc-headline-line" />
+        <div className="mbc-headline-text">WORLD CHAMPIONS 2026</div>
+        <div className="mbc-headline-line" />
+      </div>
+
+      <div className="mbc-scroll">
+        <div className="mbc-grid">
+          <div className="mbc-grupos">
+            {gruposIzq.map(g => <GrupoCard key={g.grupo} grupo={g} />)}
+          </div>
+
+          <div className="mbc-centro">
+            <BracketColumna ronda="16vos" partidos={porOrden('16vos', ordenVisual.r32Izq)} />
+            <BracketColumna ronda="8vos"  partidos={porOrden('8vos',  ordenVisual.ottoIzq)} />
+            <BracketColumna ronda="4tos"  partidos={porOrden('4tos',  ordenVisual.qfIzq)} />
+            <BracketColumna ronda="semis" partidos={porOrden('semis', [1])} />
+
+            <ColumnaCentralFinal final={finalP} campeon={campeon} />
+
+            <BracketColumna ronda="semis" partidos={porOrden('semis', [2])} />
+            <BracketColumna ronda="4tos"  partidos={porOrden('4tos',  ordenVisual.qfDer)} />
+            <BracketColumna ronda="8vos"  partidos={porOrden('8vos',  ordenVisual.ottoDer)} />
+            <BracketColumna ronda="16vos" partidos={porOrden('16vos', ordenVisual.r32Der)} />
+          </div>
+
+          <div className="mbc-grupos">
+            {gruposDer.map(g => <GrupoCard key={g.grupo} grupo={g} />)}
+          </div>
         </div>
       </div>
+
+      <div className="mbc-tercer-wrap">
+        <div className="mbc-tercer-titulo">
+          <span className="mbc-tercer-badge">BRONZE WINNER · 3er PUESTO</span>
+        </div>
+        <div className="mbc-tercer-card">
+          <PartidoCard ronda="tercer_puesto" orden={1} partido={partidosPorRonda['tercer_puesto'][0]} variant="bronze" />
+        </div>
+      </div>
+
       <style>{`
-        .mundial-bracket-grid { display: grid; grid-template-columns: 180px 1fr 180px; gap: 12px; align-items: start; }
-        .mundial-bracket-grupos { display: flex; flex-direction: column; gap: 8px; }
-        .mundial-bracket-centro { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 8px; min-width: 0; }
+        .mbc-root {
+          background: radial-gradient(ellipse at top, ${C.bgGrad} 0%, ${C.bg} 55%, #050d1c 100%);
+          border-radius: 14px;
+          padding: 20px 14px 24px;
+          color: ${C.text};
+          font-family: inherit;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.04);
+        }
+        .mbc-root::before {
+          content: '';
+          position: absolute; inset: 0;
+          background: repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 12px);
+          pointer-events: none;
+        }
+        .mbc-headline {
+          display: flex; align-items: center; gap: 14px;
+          margin-bottom: 18px;
+          position: relative; z-index: 1;
+        }
+        .mbc-headline-line {
+          flex: 1; height: 1px;
+          background: linear-gradient(90deg, transparent, ${C.gold}aa, transparent);
+        }
+        .mbc-headline-text {
+          font-size: clamp(14px, 2.2vw, 22px);
+          font-weight: 900;
+          letter-spacing: 0.28em;
+          color: ${C.gold};
+          text-shadow: 0 0 18px rgba(251,191,36,0.35);
+          padding: 0 6px;
+          text-transform: uppercase;
+        }
+        .mbc-scroll { overflow-x: auto; overflow-y: hidden; position: relative; z-index: 1; }
+        .mbc-grid {
+          display: grid;
+          grid-template-columns: 168px 1fr 168px;
+          gap: 14px; align-items: start;
+          min-width: 980px;
+        }
+        .mbc-grupos { display: flex; flex-direction: column; gap: 6px; }
+        .mbc-centro {
+          display: grid;
+          grid-template-columns: minmax(108px,1fr) minmax(108px,1fr) minmax(104px,1fr) minmax(104px,1fr) minmax(160px,1.5fr) minmax(104px,1fr) minmax(104px,1fr) minmax(108px,1fr) minmax(108px,1fr);
+          gap: 6px; min-width: 0; align-items: stretch;
+        }
+        .mbc-grupo {
+          background: ${C.panel};
+          border: 1px solid ${C.border};
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        }
+        .mbc-grupo-hdr {
+          display: flex; align-items: center; gap: 6px;
+          padding: 5px 8px;
+          font-size: 11px; font-weight: 800; letter-spacing: 0.12em;
+          color: #fff;
+          text-transform: uppercase;
+        }
+        .mbc-grupo-dot {
+          width: 10px; height: 10px; border-radius: 50%;
+          box-shadow: 0 0 6px currentColor;
+        }
+        .mbc-grupo-row {
+          display: flex; align-items: center; gap: 6px;
+          padding: 4px 8px;
+          font-size: 11.5px;
+          border-top: 1px solid rgba(255,255,255,0.04);
+          color: ${C.text};
+        }
+        .mbc-grupo-row.eliminado { opacity: 0.42; text-decoration: line-through; }
+        .mbc-grupo-pos {
+          width: 14px; text-align: right;
+          color: ${C.muted}; font-size: 10px; font-weight: 700;
+          font-variant-numeric: tabular-nums;
+        }
+        .mbc-grupo-nombre {
+          flex: 1; min-width: 0;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .mbc-col { display: flex; flex-direction: column; min-width: 0; }
+        .mbc-col-hdr {
+          font-size: 9.5px; font-weight: 800;
+          color: ${C.muted}; text-transform: uppercase; letter-spacing: 0.18em;
+          text-align: center;
+          padding-bottom: 4px;
+          border-bottom: 1px solid ${C.border};
+          margin-bottom: 4px;
+        }
+        .mbc-col-list {
+          display: flex; flex-direction: column;
+          gap: 6px; flex: 1;
+          justify-content: space-around;
+        }
+        .mbc-match {
+          background: linear-gradient(180deg, ${C.panel} 0%, #0a1830 100%);
+          border: 1px solid ${C.border};
+          border-radius: 6px;
+          padding: 4px 0 5px;
+          font-size: 11px;
+          position: relative;
+          transition: border-color 120ms, transform 120ms;
+        }
+        .mbc-match:hover { border-color: ${C.borderHi}; }
+        .mbc-match.destacado {
+          background: linear-gradient(180deg, #1a2f5e 0%, #0a1830 100%);
+          border-color: ${C.gold};
+          box-shadow: 0 0 14px rgba(251,191,36,0.25);
+        }
+        .mbc-match.bronze {
+          background: linear-gradient(180deg, #2a1810 0%, #0a1830 100%);
+          border-color: ${C.bronze};
+          box-shadow: 0 0 12px rgba(205,127,50,0.20);
+        }
+        .mbc-match-tag {
+          font-size: 8.5px; color: ${C.muted}; text-align: center;
+          letter-spacing: 0.10em; padding: 1px 4px 3px;
+          font-weight: 700;
+        }
+        .mbc-match-tag.bronze { color: ${C.bronze}; }
+        .mbc-match-tag.gold  { color: ${C.gold}; }
+        .mbc-team {
+          display: flex; align-items: center; gap: 5px;
+          padding: 4px 7px;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          color: ${C.text};
+          font-weight: 600;
+        }
+        .mbc-team.placeholder { color: ${C.muted}; font-style: italic; font-weight: 400; }
+        .mbc-team.loser       { color: ${C.muted}; opacity: 0.55; }
+        .mbc-team.winner {
+          background: ${C.winBg};
+          color: ${C.win};
+          font-weight: 800;
+          box-shadow: inset 3px 0 0 ${C.win};
+        }
+        .mbc-team-emoji { font-size: 13px; line-height: 1; }
+        .mbc-team-name {
+          flex: 1; min-width: 0;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .mbc-team-goles {
+          font-variant-numeric: tabular-nums;
+          font-weight: 800;
+          color: inherit;
+          min-width: 14px; text-align: right;
+        }
+        .mbc-copa-col {
+          display: flex; flex-direction: column;
+          align-items: stretch;
+          gap: 10px;
+          padding: 0 4px;
+          justify-content: center;
+        }
+        .mbc-copa-icon {
+          display: flex; justify-content: center; align-items: center;
+          padding: 6px 0;
+          filter: drop-shadow(0 0 20px rgba(251,191,36,0.45));
+        }
+        .mbc-final-label {
+          text-align: center;
+          font-size: 10px; font-weight: 800;
+          letter-spacing: 0.22em;
+          color: ${C.gold};
+          text-transform: uppercase;
+        }
+        .mbc-campeon {
+          text-align: center;
+          padding: 6px 8px;
+          background: linear-gradient(180deg, rgba(251,191,36,0.18), rgba(180,83,9,0.05));
+          border: 1px solid ${C.gold};
+          border-radius: 6px;
+          color: ${C.gold};
+          font-weight: 900;
+          font-size: 13px;
+          letter-spacing: 0.04em;
+          box-shadow: 0 0 18px rgba(251,191,36,0.30);
+        }
+        .mbc-tercer-wrap {
+          margin-top: 18px;
+          display: flex; flex-direction: column; align-items: center;
+          gap: 6px;
+          position: relative; z-index: 1;
+        }
+        .mbc-tercer-titulo { display: flex; align-items: center; gap: 10px; }
+        .mbc-tercer-badge {
+          font-size: 11px; font-weight: 900;
+          color: ${C.bronze};
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          text-shadow: 0 0 10px rgba(205,127,50,0.45);
+        }
+        .mbc-tercer-card { width: 280px; max-width: 92%; }
         @media (max-width: 900px) {
-          .mundial-bracket-grid { grid-template-columns: 1fr; }
-          .mundial-bracket-grupos { flex-direction: row; flex-wrap: wrap; }
-          .mundial-bracket-grupos > * { flex: 1 1 140px; min-width: 140px; }
-          .mundial-bracket-centro { grid-template-columns: 1fr; gap: 12px; }
+          .mbc-root { padding: 14px 8px 18px; }
+          .mbc-grid {
+            grid-template-columns: 1fr;
+            min-width: 0;
+            gap: 10px;
+          }
+          .mbc-grupos {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+          }
+          .mbc-centro {
+            grid-template-columns: repeat(9, 130px);
+            overflow-x: auto;
+            gap: 5px;
+            padding-bottom: 6px;
+          }
+          .mbc-headline-text { letter-spacing: 0.15em; }
         }
       `}</style>
     </div>
@@ -106,24 +416,24 @@ export default function MundialBracketCompleto({ tablaGrupos = [], partidos = []
 }
 
 function GrupoCard({ grupo }) {
+  const color = COLOR_GRUPO[grupo.grupo] || '#64748b'
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, background: 'white', overflow: 'hidden' }}>
-      <div style={{ padding: '4px 8px', background: 'rgba(0,0,0,0.04)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-muted)', letterSpacing: '0.04em' }}>
-        Grupo {grupo.grupo}
+    <div className="mbc-grupo" style={{ borderTop: '2px solid ' + color }}>
+      <div className="mbc-grupo-hdr" style={{
+        background: 'linear-gradient(90deg, ' + color + '33, transparent)',
+      }}>
+        <span className="mbc-grupo-dot" style={{ background: color, color }} />
+        <span>Grupo {grupo.grupo}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div>
         {grupo.equipos.map(e => (
-          <div key={e.equipo_codigo} style={{
-            padding: '4px 8px', fontSize: 12,
-            display: 'flex', alignItems: 'center', gap: 6,
-            borderTop: '1px solid rgba(0,0,0,0.05)',
-            opacity: e.eliminado_en === 'grupos' ? 0.55 : 1,
-          }}>
-            <span style={{ width: 14, textAlign: 'right', color: 'var(--color-muted)', fontSize: 10 }}>{e.posicion || ''}</span>
-            <span>{e.emoji || ''}</span>
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {e.nombre || e.equipo_codigo}
-            </span>
+          <div
+            key={e.equipo_codigo}
+            className={'mbc-grupo-row' + (e.eliminado_en === 'grupos' ? ' eliminado' : '')}
+          >
+            <span className="mbc-grupo-pos">{e.posicion || ''}</span>
+            <Bandera codigo={e.equipo_codigo} emoji={e.emoji} width={18} height={12} />
+            <span className="mbc-grupo-nombre">{e.nombre || e.equipo_codigo}</span>
           </div>
         ))}
       </div>
@@ -133,42 +443,58 @@ function GrupoCard({ grupo }) {
 
 function BracketColumna({ ronda, partidos }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 4 }}>
-        {RONDA_LABEL[ronda]}
+    <div className="mbc-col">
+      <div className="mbc-col-hdr">{RONDA_LABEL[ronda] || ronda}</div>
+      <div className="mbc-col-list">
+        {partidos.map((p, i) => (
+          <PartidoCard
+            key={ronda + '-' + (p?.orden ?? i)}
+            ronda={ronda}
+            orden={p?.orden}
+            partido={p}
+          />
+        ))}
       </div>
-      {partidos.map((p, i) => (
-        <PartidoCard key={ronda + '-' + i} ronda={ronda} orden={p.orden} partido={p} />
-      ))}
     </div>
   )
 }
 
-function BracketColumnaFinal({ final, tercerPuesto }) {
+function ColumnaCentralFinal({ final, campeon }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 4 }}>Final</div>
-        <PartidoCard ronda="final" orden={1} partido={final} destacado />
+    <div className="mbc-copa-col">
+      <div className="mbc-final-label">FINAL</div>
+      <PartidoCard ronda="final" orden={1} partido={final} variant="gold" />
+      <div className="mbc-copa-icon">
+        <CopaMundial size={110} />
       </div>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 4 }}>3er puesto</div>
-        <PartidoCard ronda="tercer_puesto" orden={1} partido={tercerPuesto} />
-      </div>
+      {campeon ? (
+        <div className="mbc-campeon">
+          <div style={{ fontSize: 9, letterSpacing: '0.2em', opacity: 0.9, marginBottom: 2 }}>CAMPEÓN</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+            <Bandera codigo={campeon.codigo} emoji={campeon.emoji} width={22} height={14} />
+            <span>{campeon.nombre || campeon.codigo}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="mbc-campeon" style={{ opacity: 0.55, borderStyle: 'dashed' }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.2em', marginBottom: 2 }}>CAMPEÓN</div>
+          <div style={{ fontStyle: 'italic', fontSize: 11 }}>Por definir</div>
+        </div>
+      )}
     </div>
   )
 }
 
-function PartidoCard({ ronda, orden, partido, destacado = false }) {
+function PartidoCard({ ronda, orden, partido, variant }) {
   if (!partido) return null
   const ganL = partido.ganador_codigo && partido.local?.codigo === partido.ganador_codigo
   const ganV = partido.ganador_codigo && partido.visitante?.codigo === partido.ganador_codigo
   const finalizado = partido.estado === 'finalizado'
+  const cls = 'mbc-match' + (variant === 'gold' ? ' destacado' : variant === 'bronze' ? ' bronze' : '')
+  const tagCls = 'mbc-match-tag' + (variant === 'gold' ? ' gold' : variant === 'bronze' ? ' bronze' : '')
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 6, background: destacado ? 'rgba(124,58,237,0.05)' : 'white', padding: 4, fontSize: 11 }}>
-      <div style={{ fontSize: 9, color: 'var(--color-muted)', textAlign: 'center', marginBottom: 2 }}>
-        {labelPartidoCorto(ronda, orden)}
-      </div>
+    <div className={cls}>
+      <div className={tagCls}>{labelPartidoCorto(ronda, orden)}</div>
       <LinkEquipo lado={partido.local}     gan={ganL} finalizado={finalizado} goles={partido.goles_local} />
       <LinkEquipo lado={partido.visitante} gan={ganV} finalizado={finalizado} goles={partido.goles_visitante} />
     </div>
@@ -178,22 +504,22 @@ function PartidoCard({ ronda, orden, partido, destacado = false }) {
 function LinkEquipo({ lado, gan, finalizado, goles }) {
   if (!lado) return null
   const esPlaceholder = !!lado.placeholder
+  let cls = 'mbc-team'
+  if (esPlaceholder) cls += ' placeholder'
+  else if (gan)        cls += ' winner'
+  else if (finalizado) cls += ' loser'
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 4,
-      padding: '2px 4px', borderRadius: 4,
-      background: gan ? 'rgba(22,163,74,0.10)' : 'transparent',
-      opacity: (finalizado && !gan) || esPlaceholder ? 0.6 : 1,
-      fontWeight: gan ? 700 : 500,
-      fontStyle: esPlaceholder ? 'italic' : undefined,
-      color: esPlaceholder ? 'var(--color-muted)' : undefined,
-    }}>
-      <span>{lado.emoji || ''}</span>
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {lado.label || lado.nombre || lado.codigo || '—'}
+    <div className={cls}>
+      {!esPlaceholder && lado.codigo ? (
+        <Bandera codigo={lado.codigo} emoji={lado.emoji} width={16} height={11} />
+      ) : (
+        <span className="mbc-team-emoji" style={{ width: 16, display: 'inline-block' }} />
+      )}
+      <span className="mbc-team-name">
+        {esPlaceholder ? (lado.label || '—') : (lado.nombre || lado.codigo || lado.label || '—')}
       </span>
       {finalizado && goles != null && (
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{goles}</span>
+        <span className="mbc-team-goles">{goles}</span>
       )}
     </div>
   )
@@ -203,7 +529,7 @@ function equipoLabel(codigo, catalogo) {
   if (!codigo) return { label: '—' }
   const c = catalogo[codigo]
   if (!c) return { label: codigo, codigo }
-  return { codigo, nombre: c.nombre, emoji: c.emoji, label: (c.emoji ? c.emoji + ' ' : '') + c.nombre }
+  return { codigo, nombre: c.nombre, emoji: c.emoji }
 }
 
 function ganadorCodigo(p) {
@@ -222,7 +548,7 @@ function labelPartidoCorto(ronda, orden) {
   if (ronda === '8vos')  return '8vos-' + orden
   if (ronda === '4tos')  return 'QF-' + orden
   if (ronda === 'semis') return 'SF-' + orden
-  if (ronda === 'final') return 'Final'
-  if (ronda === 'tercer_puesto') return '3er P.'
+  if (ronda === 'final') return 'FINAL'
+  if (ronda === 'tercer_puesto') return '3er PUESTO'
   return ronda
 }
