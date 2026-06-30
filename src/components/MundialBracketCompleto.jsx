@@ -234,7 +234,11 @@ export default function MundialBracketCompleto({ tablaGrupos = [], partidos = []
           display: grid;
           grid-template-columns: 168px 1fr 168px;
           gap: 14px; align-items: start;
-          min-width: 980px;
+          /* FIX layout-bracket (2026-06-27): las 9 cols del centro requieren
+             ~1020px minimo. Con grupos 168*2 + gap 28, el grid necesita
+             >=1380px para no colapsar y dejar los grupos derechos
+             intercalados con el bracket. */
+          min-width: 1400px;
         }
         .mbc-grupos { display: flex; flex-direction: column; gap: 6px; }
         .mbc-centro {

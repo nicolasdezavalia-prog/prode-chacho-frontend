@@ -28,18 +28,26 @@ export const R32_BRACKET = [
   { orden: 16, local: { tipo: 'pos', pos: 1, grupo: 'K' }, visitante: { tipo: 'third', vs: '1K' } },
 ]
 
+// FIX bracket-fifa-oficial (2026-06-27): sincronizado con backend.
+// La cascada anterior cruzaba R32-2 (1°C vs 2°F) con R32-4 (1°F vs 2°C)
+// en 8vos — eso permitia Brasil vs Marruecos (mismo grupo C) en 8vos,
+// violando la regla FIFA. Cascada actualizada segun bracket oficial.
+// Mapping FIFA Match -> R32 interno:
+//   M89=R32-3+R32-6 M90=R32-1+R32-4 M91=R32-2+R32-5 M92=R32-7+R32-8
+//   M93=R32-12+R32-11 M94=R32-10+R32-9 M95=R32-15+R32-14 M96=R32-13+R32-16
+// Fuente: https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
 export const CASCADA_KO = [
-  { ronda: '8vos', orden: 1, local: { from: '16vos', orden: 1,  lado: 'ganador' }, visitante: { from: '16vos', orden: 11, lado: 'ganador' } },
-  { ronda: '8vos', orden: 2, local: { from: '16vos', orden: 2,  lado: 'ganador' }, visitante: { from: '16vos', orden: 4,  lado: 'ganador' } },
-  { ronda: '8vos', orden: 3, local: { from: '16vos', orden: 3,  lado: 'ganador' }, visitante: { from: '16vos', orden: 6,  lado: 'ganador' } },
-  { ronda: '8vos', orden: 4, local: { from: '16vos', orden: 5,  lado: 'ganador' }, visitante: { from: '16vos', orden: 15, lado: 'ganador' } },
-  { ronda: '8vos', orden: 5, local: { from: '16vos', orden: 7,  lado: 'ganador' }, visitante: { from: '16vos', orden: 13, lado: 'ganador' } },
-  { ronda: '8vos', orden: 6, local: { from: '16vos', orden: 8,  lado: 'ganador' }, visitante: { from: '16vos', orden: 9,  lado: 'ganador' } },
-  { ronda: '8vos', orden: 7, local: { from: '16vos', orden: 10, lado: 'ganador' }, visitante: { from: '16vos', orden: 14, lado: 'ganador' } },
-  { ronda: '8vos', orden: 8, local: { from: '16vos', orden: 12, lado: 'ganador' }, visitante: { from: '16vos', orden: 16, lado: 'ganador' } },
+  { ronda: '8vos', orden: 1, local: { from: '16vos', orden: 3,  lado: 'ganador' }, visitante: { from: '16vos', orden: 6,  lado: 'ganador' } },
+  { ronda: '8vos', orden: 2, local: { from: '16vos', orden: 1,  lado: 'ganador' }, visitante: { from: '16vos', orden: 4,  lado: 'ganador' } },
+  { ronda: '8vos', orden: 3, local: { from: '16vos', orden: 2,  lado: 'ganador' }, visitante: { from: '16vos', orden: 5,  lado: 'ganador' } },
+  { ronda: '8vos', orden: 4, local: { from: '16vos', orden: 7,  lado: 'ganador' }, visitante: { from: '16vos', orden: 8,  lado: 'ganador' } },
+  { ronda: '8vos', orden: 5, local: { from: '16vos', orden: 12, lado: 'ganador' }, visitante: { from: '16vos', orden: 11, lado: 'ganador' } },
+  { ronda: '8vos', orden: 6, local: { from: '16vos', orden: 10, lado: 'ganador' }, visitante: { from: '16vos', orden: 9,  lado: 'ganador' } },
+  { ronda: '8vos', orden: 7, local: { from: '16vos', orden: 15, lado: 'ganador' }, visitante: { from: '16vos', orden: 14, lado: 'ganador' } },
+  { ronda: '8vos', orden: 8, local: { from: '16vos', orden: 13, lado: 'ganador' }, visitante: { from: '16vos', orden: 16, lado: 'ganador' } },
   { ronda: '4tos', orden: 1, local: { from: '8vos', orden: 1, lado: 'ganador' }, visitante: { from: '8vos', orden: 2, lado: 'ganador' } },
-  { ronda: '4tos', orden: 2, local: { from: '8vos', orden: 3, lado: 'ganador' }, visitante: { from: '8vos', orden: 4, lado: 'ganador' } },
-  { ronda: '4tos', orden: 3, local: { from: '8vos', orden: 5, lado: 'ganador' }, visitante: { from: '8vos', orden: 6, lado: 'ganador' } },
+  { ronda: '4tos', orden: 2, local: { from: '8vos', orden: 5, lado: 'ganador' }, visitante: { from: '8vos', orden: 6, lado: 'ganador' } },
+  { ronda: '4tos', orden: 3, local: { from: '8vos', orden: 3, lado: 'ganador' }, visitante: { from: '8vos', orden: 4, lado: 'ganador' } },
   { ronda: '4tos', orden: 4, local: { from: '8vos', orden: 7, lado: 'ganador' }, visitante: { from: '8vos', orden: 8, lado: 'ganador' } },
   { ronda: 'semis', orden: 1, local: { from: '4tos', orden: 1, lado: 'ganador' }, visitante: { from: '4tos', orden: 2, lado: 'ganador' } },
   { ronda: 'semis', orden: 2, local: { from: '4tos', orden: 3, lado: 'ganador' }, visitante: { from: '4tos', orden: 4, lado: 'ganador' } },
