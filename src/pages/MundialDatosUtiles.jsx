@@ -39,6 +39,14 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/index.js'
 import MundialIcon from '../components/MundialIcon.jsx'
 import MATRIZ_TERCEROS from '../data/mundial-r32-matriz.js'
+// Sprint bracket-completo (2026-06-27): bracket FIFA + extensión R16..Final + colapsables
+import CardColapsable from '../components/CardColapsable.jsx'
+import MundialBracketCompleto from '../components/MundialBracketCompleto.jsx'
+import {
+  CASCADA_KO as CASCADA_KO_FE,
+  RONDA_LABEL as RONDA_LABEL_FE,
+  labelSlotKO,
+} from '../data/mundial-cascada-ko.js'
 
 // Orden fijo de tipos para que el render sea determinístico independiente
 // del orden alfabético del backend (que igualmente ordena por tipo asc).
@@ -83,6 +91,8 @@ export default function MundialDatosUtiles() {
   // Sprint Final C5/C6: goleadores y premios individuales estructurados.
   const [goleadores, setGoleadores] = useState([])
   const [premiosInd, setPremiosInd] = useState([])
+  // Sprint bracket-completo (2026-06-27): partidos reales para bracket FIFA + rondas siguientes.
+  const [partidos, setPartidos] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   // Fase A — toggle de colapso por sección. Default: todas colapsadas.
@@ -107,7 +117,7 @@ export default function MundialDatosUtiles() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [torneos, list, cat, tj, st, gol, pri] = await Promise.all([
+      const [torneos, list, cat, tj, st, gol, pri, parts] = await Promise.all([
         api.getMundialTorneos(),
         api.getMundialDatosUtiles(torneoId),
         api.getMundialEquiposCatalogo(torneoId).catch(() => []),
@@ -117,6 +127,8 @@ export default function MundialDatosUtiles() {
         api.getMundialStatsCalculadas(torneoId).catch(() => null),
         api.getMundialGoleadoresTop(torneoId).catch(() => null),
         api.getMundialPremiosIndividuales(torneoId).catch(() => null),
+        // Sprint bracket-completo: partidos del torneo.
+        api.getMundialPartidos(torneoId).catch(() => []),
       ])
       const t = (torneos || []).find(x => x.id === parseInt(torneoId, 10))
       if (!t) throw new Error('Torneo Mundial no encontrado')
@@ -127,6 +139,7 @@ export default function MundialDatosUtiles() {
       setStats(st)
       setGoleadores(Array.isArray(gol?.goleadores) ? gol.goleadores : [])
       setPremiosInd(Array.isArray(pri?.premios) ? pri.premios : [])
+      setPartidos(Array.isArray(parts) ? parts : (Array.isArray(parts?.partidos) ? parts.partidos : []))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -227,9 +240,24 @@ export default function MundialDatosUtiles() {
         </Link>
       </div>
 
+      {/* Sprint bracket-completo (2026-06-27): vista FIFA + 12 grupos.
+          Primera card de la página, colapsable (default abierta). */}
+      {statsActivas && (
+        <CardColapsable
+          storageKey="bracket_fifa"
+          titulo={<HeaderSeccion emoji="🏆" label="Bracket completo" extra="(grupos + todas las rondas)" />}
+        >
+          <MundialBracketCompleto
+            tablaGrupos={stats.tabla_grupos || []}
+            partidos={partidos}
+            catalogo={Object.fromEntries([...equipoBy.entries()])}
+          />
+        </CardColapsable>
+      )}
+
       {/* Sprint Final C4 — dashboard calculado desde el fixture */}
       {statsActivas && (
-        <DashboardCalculado stats={stats} />
+        <DashboardCalculado stats={stats} partidos={partidos} equipoBy={equipoBy} />
       )}
 
       {/* Empty */}
@@ -248,8 +276,10 @@ export default function MundialDatosUtiles() {
           Fase A: la lista se colapsa a 10 por default. Botón "Mostrar todos (N)"
           aparece si hay más de 10. El header sigue mostrando el total real. */}
       {hayGoleadoresEstructurados && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="🥇" label="Top goleadores" extra={`(${goleadores.length})`} />
+        <CardColapsable
+          storageKey="goleadores_estruc"
+          titulo={<HeaderSeccion emoji="🥇" label="Top goleadores" extra={`(${goleadores.length})`} />}
+        >
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
@@ -305,13 +335,15 @@ export default function MundialDatosUtiles() {
             expandido={!!expandido['goleadores_estruc']}
             onToggle={() => toggleSeccion('goleadores_estruc')}
           />
-        </section>
+        </CardColapsable>
       )}
 
       {/* Sprint Final C6 — Premios individuales otorgados */}
       {premiosOtorgados.length > 0 && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="🏅" label="Premios individuales" extra={`(${premiosOtorgados.length})`} />
+        <CardColapsable
+          storageKey="premios_individuales"
+          titulo={<HeaderSeccion emoji="🏅" label="Premios individuales" extra={`(${premiosOtorgados.length})`} />}
+        >
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
@@ -338,7 +370,7 @@ export default function MundialDatosUtiles() {
               </tbody>
             </table>
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* Secciones por tipo en orden fijo. Para amarillas_equipo y
@@ -386,23 +418,28 @@ export default function MundialDatosUtiles() {
         const colapsoKey = `manual_${tipo}`
         const visiblesManuales = visibles(items, colapsoKey)
         return (
-          <section key={tipo} style={{ marginBottom: 20 }}>
-            <h2 style={{
-              fontSize: 14, fontWeight: 700,
-              color: 'var(--color-text)',
-              textTransform: 'uppercase', letterSpacing: '0.05em',
-              margin: '0 0 8px 0',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
-              <span style={{ fontSize: 18 }}>{meta.emoji}</span>
-              {meta.label}
-              <span style={{
-                fontSize: 11, color: 'var(--color-muted)',
-                fontWeight: 400, textTransform: 'none',
+          <CardColapsable
+            key={tipo}
+            storageKey={`manual_${tipo}`}
+            titulo={
+              <h2 style={{
+                fontSize: 14, fontWeight: 700,
+                color: 'var(--color-text)',
+                textTransform: 'uppercase', letterSpacing: '0.05em',
+                margin: 0,
+                display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                ({items.length})
-              </span>
-            </h2>
+                <span style={{ fontSize: 18 }}>{meta.emoji}</span>
+                {meta.label}
+                <span style={{
+                  fontSize: 11, color: 'var(--color-muted)',
+                  fontWeight: 400, textTransform: 'none',
+                }}>
+                  ({items.length})
+                </span>
+              </h2>
+            }
+          >
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
@@ -471,7 +508,7 @@ export default function MundialDatosUtiles() {
               expandido={!!expandido[colapsoKey]}
               onToggle={() => toggleSeccion(colapsoKey)}
             />
-          </section>
+          </CardColapsable>
         )
       })}
     </div>
@@ -525,7 +562,7 @@ function HeaderSeccion({ emoji, label, extra }) {
   )
 }
 
-function DashboardCalculado({ stats }) {
+function DashboardCalculado({ stats, partidos = [], equipoBy }) {
   const meta = stats.meta || {}
   const gruposConJuego = (stats.tabla_grupos || []).filter(g => g.jugados > 0)
   const equiposConJuego = (stats.equipos || []).filter(e => e.pj > 0 || e.gf_total > 0 || e.gc_total > 0)
@@ -559,8 +596,10 @@ function DashboardCalculado({ stats }) {
 
       {/* Tabla de grupos */}
       {gruposConJuego.length > 0 && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="📊" label="Tabla de grupos" extra="(calculada del fixture — desempate simplificado: Pts, DG, GF)" />
+        <CardColapsable
+          storageKey="tabla_grupos_calc"
+          titulo={<HeaderSeccion emoji="📊" label="Tabla de grupos" extra="(calculada del fixture — desempate simplificado: Pts, DG, GF)" />}
+        >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
             {gruposConJuego.map(g => (
               <div key={g.grupo} className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -604,17 +643,19 @@ function DashboardCalculado({ stats }) {
               </div>
             ))}
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* Mejores terceros (formato 2026: clasifican los 8 mejores 3°) */}
       {(stats.terceros?.items?.length > 0) && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion
+        <CardColapsable
+          storageKey="mejores_terceros"
+          titulo={<HeaderSeccion
             emoji="🥉"
             label="Mejores terceros"
             extra={`(clasifican ${stats.terceros.cupos} · ${stats.terceros.grupos_completos}/${stats.terceros.total_grupos} grupos completos${stats.terceros.definitivo ? ' · DEFINITIVO' : ' · provisorio'})`}
-          />
+          />}
+        >
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
@@ -664,27 +705,34 @@ function DashboardCalculado({ stats }) {
           }}>
             ⚠️ {stats.nota_desempate || 'Cálculo preliminar con desempate simplificado. Confirmar contra criterio oficial/admin.'}
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* Llaves de Round of 32 */}
       <CrucesR32 tablaGrupos={stats.tabla_grupos || []} terceros={stats.terceros} />
 
+      {/* Sprint bracket-completo (2026-06-27): rondas KO siguientes a R32. */}
+      <LlavesSiguientes partidos={partidos} equipoBy={equipoBy} />
+
       {/* Tops de goles en grupos */}
       {(stats.tops?.goleadores_grupos?.length > 0 || stats.tops?.goleados_grupos?.length > 0) && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="⚽" label="Goles en fase de grupos" />
+        <CardColapsable
+          storageKey="goles_grupos"
+          titulo={<HeaderSeccion emoji="⚽" label="Goles en fase de grupos" />}
+        >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
             <MiniTop titulo="Más goleadores" items={stats.tops.goleadores_grupos} sufijo="goles" />
             <MiniTop titulo="Más goleados" items={stats.tops.goleados_grupos} sufijo="goles en contra" />
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* Empates por grupo */}
       {empatesConDatos.length > 0 && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="🤝" label="Empates por grupo" extra={`(total: ${stats.empates_total})`} />
+        <CardColapsable
+          storageKey="empates_grupo"
+          titulo={<HeaderSeccion emoji="🤝" label="Empates por grupo" extra={`(total: ${stats.empates_total})`} />}
+        >
           <div className="card" style={{ padding: '8px 12px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {(stats.empates_por_grupo || []).map(g => (
               <span key={g.grupo} style={{
@@ -697,7 +745,7 @@ function DashboardCalculado({ stats }) {
               </span>
             ))}
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* GF/GC por equipo (colapsable para no ensuciar) */}
@@ -736,8 +784,10 @@ function DashboardCalculado({ stats }) {
 
       {/* Ronda alcanzada / clasificados / eliminados */}
       {conRonda.length > 0 && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="🛣️" label="Ronda alcanzada" extra="(clasificados de grupos: top-2 y cruces cargados)" />
+        <CardColapsable
+          storageKey="ronda_alcanzada"
+          titulo={<HeaderSeccion emoji="🛣️" label="Ronda alcanzada" extra="(clasificados de grupos: top-2 y cruces cargados)" />}
+        >
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
@@ -766,13 +816,15 @@ function DashboardCalculado({ stats }) {
               </tbody>
             </table>
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* AFC y ronda alcanzada */}
       {afc.length > 0 && (
-        <section style={{ marginBottom: 20 }}>
-          <HeaderSeccion emoji="🌏" label="Equipos AFC" extra="(confederación asiática y ronda alcanzada)" />
+        <CardColapsable
+          storageKey="afc"
+          titulo={<HeaderSeccion emoji="🌏" label="Equipos AFC" extra="(confederación asiática y ronda alcanzada)" />}
+        >
           <div className="card" style={{ padding: '8px 12px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {afc.map(e => {
               const est = ESTADO_EQUIPO[e.estado] || ESTADO_EQUIPO.en_juego
@@ -791,7 +843,7 @@ function DashboardCalculado({ stats }) {
               )
             })}
           </div>
-        </section>
+        </CardColapsable>
       )}
 
       {/* Eliminados por ronda (Sprint 3) */}
@@ -1005,8 +1057,10 @@ function CrucesR32({ tablaGrupos, terceros }) {
   }
 
   return (
-    <section style={{ marginBottom: 20 }}>
-      <HeaderSeccion emoji="🏆" label="Llaves de Round of 32" extra={modo === 'definitivo' ? '(definitivos)' : '(proyección actual)'} />
+    <CardColapsable
+      storageKey="llaves_r32"
+      titulo={<HeaderSeccion emoji="🏆" label="Llaves de Round of 32" extra={modo === 'definitivo' ? '(definitivos)' : '(proyección actual)'} />}
+    >
 
       {/* Banner modo */}
       <div style={{
@@ -1083,7 +1137,7 @@ function CrucesR32({ tablaGrupos, terceros }) {
           {nota}
         </div>
       )}
-    </section>
+    </CardColapsable>
   )
 }
 
@@ -1101,24 +1155,31 @@ function CrucesR32({ tablaGrupos, terceros }) {
 
 function TopTarjetasSection({ emoji, label, sufijo, items, total, expandido, onToggle }) {
   const totalReal = Number.isInteger(total) ? total : items.length
+  // Sprint bracket-completo (2026-06-27): TopTarjetasSection ahora es colapsable.
+  // storageKey deriva del label para diferenciar amarillas/rojas.
+  const storageKey = `tarjetas_${label.toLowerCase().replace(/\s+/g, '_')}`
   return (
-    <section style={{ marginBottom: 20 }}>
-      <h2 style={{
-        fontSize: 14, fontWeight: 700,
-        color: 'var(--color-text)',
-        textTransform: 'uppercase', letterSpacing: '0.05em',
-        margin: '0 0 8px 0',
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        <span style={{ fontSize: 18 }}>{emoji}</span>
-        {label}
-        <span style={{
-          fontSize: 11, color: 'var(--color-muted)',
-          fontWeight: 400, textTransform: 'none',
+    <CardColapsable
+      storageKey={storageKey}
+      titulo={
+        <h2 style={{
+          fontSize: 14, fontWeight: 700,
+          color: 'var(--color-text)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+          margin: 0,
+          display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          ({totalReal})
-        </span>
-      </h2>
+          <span style={{ fontSize: 18 }}>{emoji}</span>
+          {label}
+          <span style={{
+            fontSize: 11, color: 'var(--color-muted)',
+            fontWeight: 400, textTransform: 'none',
+          }}>
+            ({totalReal})
+          </span>
+        </h2>
+      }
+    >
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <tbody>
@@ -1160,7 +1221,7 @@ function TopTarjetasSection({ emoji, label, sufijo, items, total, expandido, onT
         </table>
       </div>
       <BotonMostrarMas total={totalReal} expandido={expandido} onToggle={onToggle} />
-    </section>
+    </CardColapsable>
   )
 }
 
@@ -1183,8 +1244,10 @@ function EliminadosPorRonda({ equipos }) {
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
   })
   return (
-    <section style={{ marginBottom: 20 }}>
-      <HeaderSeccion emoji="❌" label="Eliminados por ronda" extra={'(' + eliminados.length + ' equipo' + (eliminados.length === 1 ? '' : 's') + ' fuera)'} />
+    <CardColapsable
+      storageKey="eliminados_por_ronda"
+      titulo={<HeaderSeccion emoji="❌" label="Eliminados por ronda" extra={'(' + eliminados.length + ' equipo' + (eliminados.length === 1 ? '' : 's') + ' fuera)'} />}
+    >
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <tbody>
@@ -1216,7 +1279,7 @@ function EliminadosPorRonda({ equipos }) {
           </tbody>
         </table>
       </div>
-    </section>
+    </CardColapsable>
   )
 }
 
@@ -1255,6 +1318,97 @@ function LoPusieron({ items }) {
 // Texto: "Mostrar todos (N)" cuando colapsado, "Mostrar menos" cuando expandido.
 // Defensivo: si total / expandido / onToggle no son válidos, no rompe.
 // ─────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────
+// LlavesSiguientes — Sprint bracket-completo (2026-06-27).
+// 8vos, Cuartos, Semis, Final y 3er puesto desde mundial_partidos. Si la
+// ronda no existe aún, placeholder "Ganador R32-X vs Ganador R32-Y".
+// ─────────────────────────────────────────────────────────────────────────
+function LlavesSiguientes({ partidos = [], equipoBy }) {
+  const RONDAS = ['8vos', '4tos', 'semis', 'tercer_puesto', 'final']
+  const eqBy = equipoBy && typeof equipoBy.get === 'function' ? equipoBy : null
+  function eqLabel(codigo) {
+    if (!codigo) return null
+    const eq = eqBy?.get(codigo)
+    if (!eq) return { label: codigo }
+    return { label: (eq.emoji ? eq.emoji + ' ' : '') + (eq.nombre || codigo) }
+  }
+  function partidoEnRonda(ronda, orden) {
+    const p = partidos.find(x => x.ronda === ronda && x.orden === orden)
+    if (p) {
+      return {
+        local: eqLabel(p.equipo_local),
+        visitante: eqLabel(p.equipo_visitante),
+        goles_local: p.goles_local,
+        goles_visitante: p.goles_visitante,
+        estado: p.estado,
+      }
+    }
+    const casc = CASCADA_KO_FE.find(c => c.ronda === ronda && c.orden === orden)
+    if (!casc) return null
+    return {
+      local:     { label: labelSlotKO(casc.local),     placeholder: true },
+      visitante: { label: labelSlotKO(casc.visitante), placeholder: true },
+    }
+  }
+  const cantidadPorRonda = { '8vos': 8, '4tos': 4, 'semis': 2, 'tercer_puesto': 1, 'final': 1 }
+  return (
+    <CardColapsable
+      storageKey="llaves_siguientes"
+      titulo={<HeaderSeccion emoji="🔜" label="Siguientes rondas" extra="(8vos · Cuartos · Semis · Final · 3er puesto)" />}
+    >
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {RONDAS.map(ronda => {
+          const total = cantidadPorRonda[ronda]
+          return (
+            <div key={ronda}>
+              <div style={{
+                padding: '6px 12px', fontSize: 11, fontWeight: 700,
+                background: 'rgba(0,0,0,0.04)', color: 'var(--color-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+              }}>
+                {RONDA_LABEL_FE[ronda] || ronda}
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <tbody>
+                  {Array.from({ length: total }, (_, i) => i + 1).map(orden => {
+                    const p = partidoEnRonda(ronda, orden)
+                    if (!p) return null
+                    const finalizado = p.estado === 'finalizado'
+                    const labelPartido = ronda === 'final'
+                      ? 'Final'
+                      : ronda === 'tercer_puesto' ? '3er P.'
+                      : (RONDA_LABEL_FE[ronda] || ronda) + '-' + orden
+                    return (
+                      <tr key={ronda + '-' + orden} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                        <td style={{ ...tdG, textAlign: 'left', paddingLeft: 12, fontWeight: 700, color: 'var(--color-muted)', whiteSpace: 'nowrap', width: 100 }}>
+                          {labelPartido}
+                        </td>
+                        <td style={{ ...tdG, textAlign: 'left', color: p.local?.placeholder ? 'var(--color-muted)' : undefined, fontStyle: p.local?.placeholder ? 'italic' : undefined }}>
+                          {p.local?.label || '—'}
+                          {finalizado && p.goles_local != null && (
+                            <span style={{ marginLeft: 8, fontWeight: 700 }}>{p.goles_local}</span>
+                          )}
+                        </td>
+                        <td style={{ ...tdG, color: 'var(--color-muted)', fontSize: 11, width: 28 }}>vs</td>
+                        <td style={{ ...tdG, textAlign: 'left', color: p.visitante?.placeholder ? 'var(--color-muted)' : undefined, fontStyle: p.visitante?.placeholder ? 'italic' : undefined }}>
+                          {p.visitante?.label || '—'}
+                          {finalizado && p.goles_visitante != null && (
+                            <span style={{ marginLeft: 8, fontWeight: 700 }}>{p.goles_visitante}</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        })}
+      </div>
+    </CardColapsable>
+  )
+}
 
 function BotonMostrarMas({ total, expandido, onToggle }) {
   if (!Number.isInteger(total) || total <= LIMITE_COLAPSO) return null
