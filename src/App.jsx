@@ -117,13 +117,16 @@ export default function App() {
             <Route path="/juegos" element={<PrivateRoute><GameSelector /></PrivateRoute>} />
             <Route path="/prode" element={<PrivateRoute><ProdeTradicionalLista /></PrivateRoute>} />
             <Route path="/mundial" element={<PrivateRoute><MundialLista /></PrivateRoute>} />
-            <Route path="/mundial/:torneoId" element={<PrivateRoute><MundialResponder /></PrivateRoute>} />
+            {/* Sprint fixture-landing (2026-06-27): landing del Mundial es
+                Fixture "Que se juega?". Mi Mundial en /mi-mundial. */}
+            <Route path="/mundial/:torneoId" element={<PrivateRoute><MundialFixtureImpacto /></PrivateRoute>} />
+            <Route path="/mundial/:torneoId/fixture" element={<PrivateRoute><MundialFixtureImpacto /></PrivateRoute>} />
+            <Route path="/mundial/:torneoId/mi-mundial" element={<PrivateRoute><MundialResponder /></PrivateRoute>} />
             <Route path="/mundial/:torneoId/ranking" element={<PrivateRoute><MundialRanking /></PrivateRoute>} />
             {/* Compat con links viejos: redirect a la misma pantalla con query param */}
             <Route path="/mundial/:torneoId/ranking-proyectado" element={<RedirRankingProy />} />
             <Route path="/mundial/:torneoId/respuestas" element={<PrivateRoute><MundialRespuestasPublicas /></PrivateRoute>} />
             <Route path="/mundial/:torneoId/datos" element={<PrivateRoute><MundialDatosUtiles /></PrivateRoute>} />
-            <Route path="/mundial/:torneoId/fixture" element={<PrivateRoute><MundialFixtureImpacto /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
             <Route path="/estadisticas" element={<PrivateRoute><Estadisticas /></PrivateRoute>} />

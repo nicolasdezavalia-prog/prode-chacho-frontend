@@ -97,7 +97,7 @@ export default function MundialFixtureImpacto() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <Link to={`/mundial/${torneoId}`} className="btn btn-secondary btn-sm">
+          <Link to={`/mundial/${torneoId}/mi-mundial`} className="btn btn-secondary btn-sm">
             Mi Mundial
           </Link>
           <Link to={`/mundial/${torneoId}/ranking`} className="btn btn-secondary btn-sm">
@@ -469,6 +469,17 @@ function JugadosHoy({ items }) {
               </span>
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 40, textAlign: 'right' }}>{p.equipo_visitante}</span>
               <Bandera codigo={p.equipo_visitante} width={22} height={14} />
+              {/* Sprint2 (2026-06-27): pts sumados por el user actual */}
+              {p.pts_sumaste_yo != null && (
+                <span style={{
+                  marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '3px 10px',
+                  borderRadius: 12, whiteSpace: 'nowrap',
+                  background: p.pts_sumaste_yo > 0 ? 'rgba(16,185,129,0.14)' : '#f1f5f9',
+                  color: p.pts_sumaste_yo > 0 ? '#059669' : 'var(--color-muted)',
+                }}>
+                  {p.pts_sumaste_yo > 0 ? '+' + p.pts_sumaste_yo + ' pts' : '+0'}
+                </span>
+              )}
             </div>
           ))}
         </div>

@@ -516,7 +516,7 @@ export default function MundialRespuestasPublicas() {
             </div>
           )}
         </div>
-        <Link to={`/mundial/${torneoId}`} className="btn btn-secondary btn-sm">
+        <Link to={`/mundial/${torneoId}/mi-mundial`} className="btn btn-secondary btn-sm">
           ← Mis respuestas
         </Link>
       </div>
