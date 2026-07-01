@@ -43,6 +43,7 @@ import MundialResponder from './pages/MundialResponder.jsx'
 import MundialRanking from './pages/MundialRanking.jsx'
 import MundialRespuestasPublicas from './pages/MundialRespuestasPublicas.jsx'
 import MundialDatosUtiles from './pages/MundialDatosUtiles.jsx'
+import MundialFixtureImpacto from './pages/MundialFixtureImpacto.jsx'
 import ProdeTradicionalLista from './pages/ProdeTradicionalLista.jsx'
 import AdminMundialHub from './pages/admin/AdminMundialHub.jsx'
 import AdminMundialResultadosPartidos from './pages/admin/AdminMundialResultadosPartidos.jsx'
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="/mundial/:torneoId/ranking-proyectado" element={<RedirRankingProy />} />
             <Route path="/mundial/:torneoId/respuestas" element={<PrivateRoute><MundialRespuestasPublicas /></PrivateRoute>} />
             <Route path="/mundial/:torneoId/datos" element={<PrivateRoute><MundialDatosUtiles /></PrivateRoute>} />
+            <Route path="/mundial/:torneoId/fixture" element={<PrivateRoute><MundialFixtureImpacto /></PrivateRoute>} />
             <Route path="/fecha/:fechaId" element={<PrivateRoute><MiFecha /></PrivateRoute>} />
             <Route path="/tabla/:torneoId" element={<PrivateRoute><TablaGeneral /></PrivateRoute>} />
             <Route path="/estadisticas" element={<PrivateRoute><Estadisticas /></PrivateRoute>} />

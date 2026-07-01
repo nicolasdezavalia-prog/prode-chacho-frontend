@@ -436,6 +436,13 @@ export const api = {
   // para la página "Ranking proyectado".
   getMundialRankingMixto: (torneoId) =>
     request('GET', `/mundial/${torneoId}/ranking-mixto`),
+  // Sprint fixture-impacto (2026-06-27) - landing "Que se juega?":
+  // devuelve para cada proximo partido de la ronda actual (KO) los
+  // 2 escenarios (gana local vs visitante) con delta por user + ranking
+  // hipotetico, mas un resumen de la jornada (max pts posible + posicion
+  // optimista). En fase de grupos por_venir viene vacio.
+  getMundialFixtureImpacto: (torneoId) =>
+    request('GET', `/mundial/${torneoId}/fixture-impacto`),
   // Fase Proyección 2 — detalle por pregunta del user actual.
   // Devuelve { items: [{ pregunta_id, numero, enunciado, proyectable,
   // pts_proyectados, motivo? }], pts_totales_proyectados, caveat }.

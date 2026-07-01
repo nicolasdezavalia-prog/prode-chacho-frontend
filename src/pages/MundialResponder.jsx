@@ -521,6 +521,15 @@ export default function MundialResponder() {
               </span>
             </div>
           )}
+          {/* Sprint fixture-impacto (2026-06-27): link a la nueva vista "Que se juega?" */}
+          <Link
+            to={`/mundial/${torneoId}/fixture`}
+            className="btn btn-primary btn-sm"
+            style={{ fontSize: 12, padding: '5px 12px' }}
+            title="Que se juega? Proximos partidos y que podes sumar"
+          >
+            🎯 Fixture
+          </Link>
           <Link
             to={`/mundial/${torneoId}/ranking`}
             className="btn btn-secondary btn-sm"
