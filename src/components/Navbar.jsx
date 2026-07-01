@@ -146,7 +146,9 @@ export default function Navbar() {
   const contextLinks = []
   contextLinks.push({ to: '/juegos', label: 'Juegos' })
   if (contexto === 'mundial' && verMundial) {
-    contextLinks.push({ to: miMundialPath, label: 'Mi Mundial', exact: !!mundialUnicoId })
+    // Sprint fixture-landing (2026-06-27): la landing del Mundial ahora es
+    // "Que se juega" (proximos partidos). Renombro el link acorde.
+    contextLinks.push({ to: miMundialPath, label: 'Próximos partidos', exact: !!mundialUnicoId })
     if (mundialUnicoId) {
       contextLinks.push({ to: `/mundial/${mundialUnicoId}/ranking`,    label: 'Ranking' })
       contextLinks.push({ to: `/mundial/${mundialUnicoId}/respuestas`, label: 'Respuestas' })

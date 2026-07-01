@@ -1,15 +1,11 @@
 /**
- * MundialFixtureImpacto — "¿Qué se juega?" landing.
+ * MundialFixtureImpacto — "¿Qué se juega?" landing (v2 colapsable).
  *
- * Muestra los próximos partidos de la ronda actual (KO puro) y, para cada
- * uno, cuánto sumaría el user en cada escenario (gana local vs visitante).
- * Incluye:
- *   - Hero "Tu jornada": ranking actual + max_pts posible + posición optimista.
- *   - Card por partido con 2 escenarios (gana local / gana visitante) +
- *     preguntas en juego + top users beneficiados.
- *   - Bloque colapsable "Jugados hoy" al final.
+ * Todas las cards de partido son colapsables (default cerrado). El header
+ * cerrado muestra: chip ronda, equipos con banderas, fecha, chip "+N max pts".
+ * Expandido muestra los 2 escenarios completos.
  *
- * Solo aplica en fase KO. En grupos por_venir viene vacío y mostramos empty.
+ * Lista de beneficiados con "Ver todos (N)" que expande.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -65,7 +61,6 @@ export default function MundialFixtureImpacto() {
 
   const partidoDestacado = useMemo(() => {
     if (!data?.por_venir?.length) return null
-    // Destacado = mayor delta_yo máximo entre gana_local y gana_visitante.
     let best = data.por_venir[0]
     let bestMax = 0
     for (const p of data.por_venir) {
@@ -85,7 +80,6 @@ export default function MundialFixtureImpacto() {
 
   return (
     <div style={{ maxWidth: 720, margin: '24px auto', padding: '0 16px' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
         <MundialIcon width={60} height={42} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -106,10 +100,8 @@ export default function MundialFixtureImpacto() {
         </div>
       </div>
 
-      {/* Hero Tu jornada */}
       <HeroTuJornada data={data} />
 
-      {/* Estados especiales */}
       {enGrupos && (
         <div style={emptyStyle}>
           ⚽ El torneo está en fase de grupos. Esta vista se activa cuando arrancan los 16avos.
@@ -121,26 +113,23 @@ export default function MundialFixtureImpacto() {
         </div>
       )}
 
-      {/* Partido destacado + otros */}
       {partidoDestacado && (
         <>
           <SeparadorFecha texto="EL MÁS CALIENTE PARA VOS" />
-          <PartidoDestacado partido={partidoDestacado} data={data} />
+          <PartidoCard partido={partidoDestacado} data={data} destacado defaultAbierto={false} />
         </>
       )}
       {otros.length > 0 && (
         <>
           <SeparadorFecha texto={`OTROS ${RONDA_LABEL[data.ronda_actual] || 'PARTIDOS'} POR VENIR`} />
-          {otros.map(p => <PartidoCompacto key={p.partido_id} partido={p} />)}
+          {otros.map(p => <PartidoCard key={p.partido_id} partido={p} data={data} destacado={false} defaultAbierto={false} />)}
         </>
       )}
 
-      {/* Jugados hoy */}
       {(data.jugados_hoy || []).length > 0 && (
         <JugadosHoy items={data.jugados_hoy} />
       )}
 
-      {/* Footer */}
       <div style={{
         marginTop: 20, padding: '12px 14px',
         background: 'white', border: '1px solid var(--color-border)',
@@ -239,89 +228,108 @@ function SeparadorFecha({ texto }) {
   )
 }
 
-function PartidoDestacado({ partido, data }) {
+// Card unificada: header siempre visible + contenido colapsable.
+function PartidoCard({ partido, data, destacado, defaultAbierto }) {
+  const [abierto, setAbierto] = useState(!!defaultAbierto)
   const gL = partido.escenarios.gana_local
   const gV = partido.escenarios.gana_visitante
+  const maxD = Math.max(gL.delta_yo, gV.delta_yo)
+
   return (
     <div style={{
-      background: 'white', border: '1px solid var(--color-border)',
-      borderRadius: 12, overflow: 'hidden', marginBottom: 14,
+      background: 'white',
+      border: destacado ? '1px solid rgba(180,83,9,0.35)' : '1px solid var(--color-border)',
+      borderRadius: 12, overflow: 'hidden', marginBottom: 12,
       boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     }}>
-      <div style={{
-        background: '#f8fafc', padding: '8px 14px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        fontSize: 11, borderBottom: '1px solid var(--color-border)',
-      }}>
-        <span style={{ color: '#b45309', fontWeight: 700, letterSpacing: 1 }}>
-          {RONDA_CHIP[partido.ronda] || partido.ronda} · #{partido.orden}
-        </span>
-        <span style={{ color: 'var(--color-muted)' }}>
-          {partido.fecha || 'sin fecha cargada'}
-        </span>
-      </div>
-
-      <div style={{ padding: '16px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-        <div style={{ flex: 1, textAlign: 'right' }}>
-          <div style={{ marginBottom: 4 }}>
-            <Bandera codigo={partido.equipo_local} width={40} height={28} />
+      {/* Header clickeable */}
+      <div
+        role="button" tabIndex={0}
+        onClick={() => setAbierto(a => !a)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAbierto(a => !a) } }}
+        style={{
+          padding: '10px 14px', cursor: 'pointer', userSelect: 'none',
+          background: destacado ? 'rgba(251,191,36,0.06)' : '#f8fafc',
+          borderBottom: abierto ? '1px solid var(--color-border)' : 'none',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 11 }}>
+          <span style={{ color: '#b45309', fontWeight: 700, letterSpacing: 1 }}>
+            {RONDA_CHIP[partido.ronda] || partido.ronda} · #{partido.orden}
+          </span>
+          <span style={{ color: 'var(--color-muted)' }}>
+            {partido.fecha || 'sin fecha'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+            {abierto ? '▼' : '▶'}
+          </span>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+            <Bandera codigo={partido.equipo_local} width={26} height={17} />
+            <span style={{ fontSize: 14, fontWeight: 700, minWidth: 40 }}>{partido.equipo_local}</span>
+            <span style={{ fontSize: 11, color: 'var(--color-muted)', fontWeight: 700 }}>VS</span>
+            <span style={{ fontSize: 14, fontWeight: 700, minWidth: 40, textAlign: 'right' }}>{partido.equipo_visitante}</span>
+            <Bandera codigo={partido.equipo_visitante} width={26} height={17} />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{partido.equipo_local}</div>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 700, padding: '0 4px' }}>VS</div>
-        <div style={{ flex: 1, textAlign: 'left' }}>
-          <div style={{ marginBottom: 4 }}>
-            <Bandera codigo={partido.equipo_visitante} width={40} height={28} />
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{partido.equipo_visitante}</div>
-        </div>
-      </div>
-
-      <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--color-muted)', letterSpacing: 1, fontWeight: 500, marginBottom: 8 }}>
-        EL QUE PIERDE ES ELIMINADO EN {RONDA_CHIP[partido.ronda]}
-      </div>
-
-      <div style={{ padding: '0 14px 14px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <EscenarioCard
-            lado="local"
-            equipo={partido.equipo_local}
-            equipoElim={partido.equipo_visitante}
-            escenario={gL}
-            userIdActual={data.user_actual?.user_id}
-            ronda={partido.ronda}
-          />
-          <EscenarioCard
-            lado="visitante"
-            equipo={partido.equipo_visitante}
-            equipoElim={partido.equipo_local}
-            escenario={gV}
-            userIdActual={data.user_actual?.user_id}
-            ronda={partido.ronda}
-          />
-        </div>
-
-        {partido.preguntas_en_juego?.length > 0 && (
-          <div style={{
-            marginTop: 10, padding: '8px 10px',
-            background: '#fef3c7', borderRadius: 6,
-            fontSize: 11, color: '#78350f', lineHeight: 1.4,
+          <span style={{
+            fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 12,
+            background: maxD > 0 ? 'rgba(16,185,129,0.14)' : '#f1f5f9',
+            color: maxD > 0 ? '#059669' : 'var(--color-muted)',
+            whiteSpace: 'nowrap',
           }}>
-            <strong>Preguntas en juego:</strong> {partido.preguntas_en_juego.map(n => 'P' + n).join(', ')}.
-          </div>
-        )}
+            +{maxD} máx
+          </span>
+        </div>
       </div>
+
+      {abierto && (
+        <div style={{ padding: '14px' }}>
+          <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--color-muted)', letterSpacing: 1, fontWeight: 500, marginBottom: 10 }}>
+            EL QUE PIERDE ES ELIMINADO EN {RONDA_CHIP[partido.ronda]}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <EscenarioCard
+              equipo={partido.equipo_local}
+              equipoElim={partido.equipo_visitante}
+              escenario={gL}
+              userIdActual={data.user_actual?.user_id}
+              ronda={partido.ronda}
+            />
+            <EscenarioCard
+              equipo={partido.equipo_visitante}
+              equipoElim={partido.equipo_local}
+              escenario={gV}
+              userIdActual={data.user_actual?.user_id}
+              ronda={partido.ronda}
+            />
+          </div>
+          {partido.preguntas_en_juego?.length > 0 && (
+            <div style={{
+              marginTop: 10, padding: '8px 10px',
+              background: '#fef3c7', borderRadius: 6,
+              fontSize: 11, color: '#78350f', lineHeight: 1.4,
+            }}>
+              <strong>Preguntas en juego:</strong> {partido.preguntas_en_juego.map(n => 'P' + n).join(', ')}.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-function EscenarioCard({ lado, equipo, equipoElim, escenario, userIdActual, ronda }) {
+function EscenarioCard({ equipo, equipoElim, escenario, userIdActual, ronda }) {
+  const [verTodos, setVerTodos] = useState(false)
   const positivo = escenario.delta_yo > 0
   const bg = positivo ? 'rgba(16,185,129,0.06)' : '#f8fafc'
   const border = positivo ? 'rgba(16,185,129,0.40)' : 'var(--color-border)'
   const color = positivo ? '#059669' : 'var(--color-muted)'
-  const beneficiadosTop = (escenario.deltas_beneficiados || []).slice(0, 3)
-  const restoBenef = Math.max(0, (escenario.deltas_beneficiados || []).length - 3)
+  const total = (escenario.deltas_beneficiados || []).length
+  const beneficiados = verTodos
+    ? (escenario.deltas_beneficiados || [])
+    : (escenario.deltas_beneficiados || []).slice(0, 3)
+  const restoBenef = Math.max(0, total - 3)
 
   return (
     <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: '12px 10px' }}>
@@ -336,9 +344,9 @@ function EscenarioCard({ lado, equipo, equipoElim, escenario, userIdActual, rond
       <div style={{ fontSize: 11, color: 'var(--color-text)', marginBottom: 8, lineHeight: 1.4 }}>
         <strong>{equipoElim}</strong> queda eliminado en {RONDA_LABEL[ronda] || ronda}
       </div>
-      {beneficiadosTop.length > 0 && (
+      {beneficiados.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-          {beneficiadosTop.map(b => {
+          {beneficiados.map(b => {
             const esVos = b.user_id === userIdActual
             return (
               <span key={b.user_id} style={{
@@ -352,14 +360,35 @@ function EscenarioCard({ lado, equipo, equipoElim, escenario, userIdActual, rond
               </span>
             )
           })}
-          {restoBenef > 0 && (
-            <span style={{ color: 'var(--color-muted)', fontSize: 10, padding: '2px 4px' }}>
-              +{restoBenef}
-            </span>
+          {!verTodos && restoBenef > 0 && (
+            <button
+              type="button"
+              onClick={() => setVerTodos(true)}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: '#b45309', fontSize: 10, fontWeight: 700, padding: '2px 4px',
+                textDecoration: 'underline',
+              }}
+            >
+              +{restoBenef} más ▼
+            </button>
+          )}
+          {verTodos && total > 3 && (
+            <button
+              type="button"
+              onClick={() => setVerTodos(false)}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'var(--color-muted)', fontSize: 10, fontWeight: 700, padding: '2px 4px',
+                textDecoration: 'underline',
+              }}
+            >
+              ver menos ▲
+            </button>
           )}
         </div>
       )}
-      {!beneficiadosTop.length && (
+      {!beneficiados.length && (
         <div style={{ fontSize: 10, color: 'var(--color-muted)', fontStyle: 'italic', marginBottom: 8 }}>
           Nadie sumaría en este escenario.
         </div>
@@ -369,64 +398,6 @@ function EscenarioCard({ lado, equipo, equipoElim, escenario, userIdActual, rond
           Nuevo puesto: <strong style={{ color: positivo ? '#b45309' : 'var(--color-text)' }}>#{escenario.nueva_posicion_yo}</strong>
         </div>
       )}
-    </div>
-  )
-}
-
-function PartidoCompacto({ partido }) {
-  const gL = partido.escenarios.gana_local
-  const gV = partido.escenarios.gana_visitante
-  const maxD = Math.max(gL.delta_yo, gV.delta_yo)
-  return (
-    <div style={{
-      background: 'white', border: '1px solid var(--color-border)',
-      borderRadius: 12, padding: '12px 14px', marginBottom: 10,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontSize: 11 }}>
-        <span style={{ color: '#b45309', fontWeight: 700, letterSpacing: 1 }}>
-          {RONDA_CHIP[partido.ronda]} · #{partido.orden}
-        </span>
-        <span style={{ color: 'var(--color-muted)' }}>{partido.fecha || 'sin fecha'}</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{partido.equipo_local}</span>
-          <Bandera codigo={partido.equipo_local} width={28} height={18} />
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--color-muted)', fontWeight: 700 }}>VS</div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Bandera codigo={partido.equipo_visitante} width={28} height={18} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{partido.equipo_visitante}</span>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        <PillEscenario delta={gL.delta_yo} label={`SI GANA ${partido.equipo_local}`} />
-        <PillEscenario delta={gV.delta_yo} label={`SI GANA ${partido.equipo_visitante}`} />
-      </div>
-      {maxD > 0 && (
-        <div style={{ marginTop: 8, fontSize: 10, color: 'var(--color-muted)', textAlign: 'center' }}>
-          Podés sumar hasta <strong style={{ color: '#059669' }}>+{maxD}</strong> pts
-        </div>
-      )}
-    </div>
-  )
-}
-
-function PillEscenario({ delta, label }) {
-  const positivo = delta > 0
-  return (
-    <div style={{
-      background: positivo ? 'rgba(16,185,129,0.06)' : '#f8fafc',
-      border: `1px solid ${positivo ? 'rgba(16,185,129,0.30)' : 'var(--color-border)'}`,
-      borderRadius: 6, padding: 8, textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 9, color: positivo ? '#059669' : 'var(--color-muted)', letterSpacing: 1, fontWeight: 700 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: positivo ? '#059669' : 'var(--color-muted)', marginTop: 2 }}>
-        {delta > 0 ? `+${delta}` : '+0'}
-      </div>
     </div>
   )
 }
@@ -469,7 +440,6 @@ function JugadosHoy({ items }) {
               </span>
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 40, textAlign: 'right' }}>{p.equipo_visitante}</span>
               <Bandera codigo={p.equipo_visitante} width={22} height={14} />
-              {/* Sprint2 (2026-06-27): pts sumados por el user actual */}
               {p.pts_sumaste_yo != null && (
                 <span style={{
                   marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '3px 10px',
