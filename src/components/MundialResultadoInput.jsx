@@ -204,7 +204,11 @@ function InputNumero({ resultado, onChange, disabled, placeholder }) {
 function InputNumeroExacto(p)   { return <InputNumero {...p} placeholder="Número exacto real" /> }
 function InputNumeroPorBanda(p) { return <InputNumero {...p} placeholder="Número real" /> }
 
-// ── multi_equipo: chips + dropdown contra catálogo, hasta n_equipos ────────
+// ── multi_equipo: chips + dropdown contra catálogo ─────────────────────────
+// Sprint fix-admin-multi (2026-06-27): el admin puede cargar TODOS los
+// eliminados reales (16 en 16avos, 8 en 8vos, 4 en 4tos) sin límite. El
+// N sugerido de la pregunta se muestra como referencia pero NO restringe.
+// El scoring backend (puntosMultiEquipo) ya hace intersección.
 function InputMultiEquipo({ cfg, resultado, onChange, disabled, equiposCatalogo }) {
   const n = cfg.n_equipos || 0
   const equiposActuales = Array.isArray(resultado.equipos) ? resultado.equipos : []
@@ -212,11 +216,10 @@ function InputMultiEquipo({ cfg, resultado, onChange, disabled, equiposCatalogo 
 
   const enUso = new Set(equiposActuales)
   const disponibles = equiposCatalogo.filter(eq => !enUso.has(eq.codigo))
-  const completo = equiposActuales.length >= n
   const getInfo = (codigo) => equiposCatalogo.find(e => e.codigo === codigo)
 
   const agregar = () => {
-    if (!seleccionado || completo) return
+    if (!seleccionado) return
     onChange({ equipos: [...equiposActuales, seleccionado] })
     setSeleccionado('')
   }
@@ -227,7 +230,12 @@ function InputMultiEquipo({ cfg, resultado, onChange, disabled, equiposCatalogo 
   return (
     <div>
       <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 8 }}>
-        <strong>{equiposActuales.length}</strong> de <strong>{n}</strong> equipos cargados
+        <strong>{equiposActuales.length}</strong> equipos cargados
+        {n > 0 && (
+          <span style={{ marginLeft: 6, fontSize: 11 }}>
+            (sugerido para el user: {n} · admin puede cargar todos los eliminados reales)
+          </span>
+        )}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10, minHeight: 28 }}>
         {equiposActuales.length === 0 && (
@@ -259,7 +267,7 @@ function InputMultiEquipo({ cfg, resultado, onChange, disabled, equiposCatalogo 
           )
         })}
       </div>
-      {!completo && !disabled && (
+      {!disabled && (
         <div style={{ display: 'flex', gap: 6 }}>
           <select
             value={seleccionado}
