@@ -443,7 +443,11 @@ export default function AdminMundialFixture({ torneoId, modo = 'full' }) {
                         </div>
                         {/* Sprint reorden-modal (2026-06-27): ⚽ inline aquí, antes de tarjetas */}
                         {f.existente && f.equipo_local && f.equipo_visitante && (
-                          <button type="button" onClick={() => setPartidoModal(f)}
+                          <button type="button" onClick={() => setPartidoModal({
+                            /* Sprint A fix-modal (2026-06-27): pasar solo identidad */
+                            id: f.id, ronda: f.ronda, grupo: f.grupo, orden: f.orden,
+                            equipo_local: f.equipo_local, equipo_visitante: f.equipo_visitante,
+                          })}
                             title="Abrir modal de carga completa (goleadores, tarjetas, estado)"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', flexShrink: 0 }}>
                             ⚽
