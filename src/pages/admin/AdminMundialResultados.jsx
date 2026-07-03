@@ -142,6 +142,56 @@ export default function AdminMundialResultados({ torneoId, estado }) {
   const cargados = useMemo(() => Object.keys(resultados).length, [resultados])
   const total    = preguntas.length
 
+  // Feature B (2026-07-03) — clasificación por estado de carga:
+  //   'cargada'  : tiene resultado y (no es multi_equipo o equipos.length >= n_equipos)
+  //   'parcial'  : SOLO multi_equipo con equipos.length < cfg.n_equipos
+  //   'pendiente': sin resultado guardado
+  // El chequeo de parcial se apoya en cfg de la pregunta, que se parsea de
+  // config_json (mismo formato que se usa más abajo en el render).
+  function parseCfg(p) {
+    try { return JSON.parse(p.config_json) || {} } catch { return {} }
+  }
+  function estadoCarga(p) {
+    const r = resultados[p.id]
+    if (!r) return 'pendiente'
+    if (p.tipo_pregunta === 'multi_equipo') {
+      const cfg = parseCfg(p)
+      const n = Number(cfg.n_equipos)
+      const cargadas = Array.isArray(r.equipos) ? r.equipos.length : 0
+      if (Number.isFinite(n) && n > 0 && cargadas < n) return 'parcial'
+    }
+    return 'cargada'
+  }
+  function faltantesMultiEquipo(p) {
+    // devuelve { cargadas, total } SOLO para parciales; sino null
+    if (p.tipo_pregunta !== 'multi_equipo') return null
+    const r = resultados[p.id]
+    if (!r) return null
+    const cfg = parseCfg(p)
+    const n = Number(cfg.n_equipos)
+    const cargadas = Array.isArray(r.equipos) ? r.equipos.length : 0
+    if (!Number.isFinite(n) || n <= 0) return null
+    if (cargadas >= n) return null
+    return { cargadas, total: n }
+  }
+
+  const [filtroEstado, setFiltroEstado] = useState('todas')
+  const preguntasFiltradas = useMemo(() => {
+    if (filtroEstado === 'todas') return preguntas
+    return preguntas.filter(p => estadoCarga(p) === filtroEstado)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preguntas, resultados, filtroEstado])
+
+  const conteoEstados = useMemo(() => {
+    const c = { cargada: 0, parcial: 0, pendiente: 0 }
+    for (const p of preguntas) {
+      const e = estadoCarga(p)
+      if (c[e] !== undefined) c[e]++
+    }
+    return c
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preguntas, resultados])
+
   function handleChange(preguntaId, nuevoResultado) {
     setEdicion(prev => ({ ...prev, [preguntaId]: nuevoResultado }))
   }
@@ -263,6 +313,42 @@ export default function AdminMundialResultados({ torneoId, estado }) {
         <span><strong>{cargados}</strong> de <strong>{total}</strong> resultados cargados</span>
       </div>
 
+      {/* Feature B — filtros por estado de carga. "Parcial" solo se
+          computa para multi_equipo con equipos.length < cfg.n_equipos. */}
+      {preguntas.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap',
+          fontSize: 12,
+        }}>
+          {[
+            { key: 'todas',     label: 'Todas',     n: total },
+            { key: 'cargada',   label: 'Cargadas',  n: conteoEstados.cargada },
+            { key: 'parcial',   label: 'Parciales', n: conteoEstados.parcial },
+            { key: 'pendiente', label: 'Pendientes', n: conteoEstados.pendiente },
+          ].map(tab => {
+            const activo = filtroEstado === tab.key
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFiltroEstado(tab.key)}
+                style={{
+                  padding: '5px 12px', borderRadius: 99, cursor: 'pointer',
+                  border: activo ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                  background: activo ? 'var(--color-primary)' : 'white',
+                  color: activo ? 'white' : 'var(--color-text)',
+                  fontWeight: activo ? 600 : 500, fontSize: 12,
+                }}
+              >
+                {tab.label} <span style={{
+                  fontSize: 11, opacity: 0.75, marginLeft: 4,
+                }}>{tab.n}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {preguntas.length === 0 ? (
         <div style={{
           padding: '32px 16px', textAlign: 'center',
@@ -271,10 +357,12 @@ export default function AdminMundialResultados({ torneoId, estado }) {
           No hay preguntas activas en este torneo.
         </div>
       ) : (
-        preguntas.map(p => {
+        preguntasFiltradas.map(p => {
           let cfg = null
           try { cfg = JSON.parse(p.config_json) } catch { cfg = {} }
           const tieneCargado = !!resultados[p.id]
+          const parcialInfo  = faltantesMultiEquipo(p) // null si no aplica
+          const esParcial    = !!parcialInfo
           return (
             <div key={p.id} className="card" style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -284,10 +372,21 @@ export default function AdminMundialResultados({ torneoId, estado }) {
                 }}>
                   #{p.numero}
                 </span>
-                {tieneCargado && (
+                {tieneCargado && !esParcial && (
                   <span title="Resultado cargado" style={{
                     color: 'var(--color-success)', fontSize: 14, fontWeight: 700, lineHeight: 1,
                   }}>✓</span>
+                )}
+                {esParcial && (
+                  <span
+                    title={`Faltan ${parcialInfo.total - parcialInfo.cargadas} equipo(s) para completar`}
+                    style={{
+                      fontSize: 11, fontWeight: 700, color: '#a16207',
+                      background: 'rgba(234,179,8,0.15)', padding: '2px 8px', borderRadius: 99,
+                    }}
+                  >
+                    ⚠ Parcial {parcialInfo.cargadas}/{parcialInfo.total}
+                  </span>
                 )}
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, flex: 1 }}>
                   {p.enunciado}
@@ -719,7 +818,7 @@ function BloqueCanonizacion({ torneoId, pregunta, editable, onUsarComoResultado 
                     <tr style={{ background: 'rgba(0,0,0,0.03)' }}>
                       <th style={canonTh}>Respuesta (original)</th>
                       <th style={canonTh}>Cant.</th>
-                      <th style={canonTh}>Usuarios</th>
+                                <th style={canonTh}>Usuarios</th>
                       <th style={canonTh}>Agrupar como (canónica)</th>
                       <th style={canonTh}>Vista</th>
                     </tr>
