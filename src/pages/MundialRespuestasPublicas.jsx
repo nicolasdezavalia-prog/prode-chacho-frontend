@@ -183,6 +183,7 @@ const RESPUESTAS_PUBLICAS_CSS = `
 .rp-badge--incorrecto { background: rgba(220,38,38,0.10);  color: var(--color-danger); }
 .rp-badge--parcial    { background: rgba(59,130,246,0.12); color: var(--color-primary); }
 .rp-badge--pendiente  { background: rgba(234,179,8,0.15);  color: #a16207; }
+.rp-badge--eliminado  { background: rgba(220,38,38,0.14);  color: #991b1b; }
 .rp-pts {
   font-size: 10px;
   font-weight: 700;
@@ -257,6 +258,7 @@ const ESTADO_LABELS = {
   incorrecto: 'Incorrecto',
   parcial:    'Parcial',
   pendiente:  'Pendiente',
+  eliminado:  'Eliminado',
 }
 
 export default function MundialRespuestasPublicas() {
@@ -394,6 +396,11 @@ export default function MundialRespuestasPublicas() {
     if (estado === 'pendiente') {
       ptsLabel = null
       ptsClass = ''
+    } else if (estado === 'eliminado') {
+      // Fix "ELIMINADO" (2026-07-07): mostramos el motivo (ronda de eliminación
+      // o "no es AFC") como sub-texto debajo del chip rojo.
+      ptsLabel = cell.eliminado_motivo || null
+      ptsClass = 'rp-pts--muted'
     } else if (pts === null) {
       ptsLabel = 'pendiente'
       ptsClass = 'rp-pts--muted'

@@ -122,6 +122,10 @@ export default function MundialFixtureImpacto() {
 
 function HeroTuJornada({ data }) {
   const u = data.user_actual, j = data.jornada
+  // Fix "HOY ESTÁS" (2026-07-07): la card superior muestra el ranking OFICIAL
+  // (resultados YA cargados por el admin), no el proyectado. Si aún no hay
+  // resultados cargados, cae en null → mostramos "—".
+  const uOficial = data.user_actual_oficial
   return (
     <div style={{
       background: 'white', border: '1px solid var(--color-border)',
@@ -140,7 +144,7 @@ function HeroTuJornada({ data }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-        <HeroMetric label="HOY ESTÁS" valor={u ? `#${u.posicion}` : '—'} sub={u ? `${u.pts} pts` : ''} />
+        <HeroMetric label="HOY ESTÁS" valor={uOficial ? `#${uOficial.posicion}` : '—'} sub={uOficial ? `${uOficial.pts} pts` : 'sin resultados cargados'} />
         <HeroMetric label="PODÉS SUMAR" valor={`+${j.max_pts_posible}`} sub={`${j.partidos_por_venir} partidos`} color="#059669" tint="rgba(16,185,129,0.10)" />
         <HeroMetric label="PODRÍAS QUEDAR" valor={j.posicion_optimista ? `#${j.posicion_optimista}` : '—'} sub={j.explicacion_optimista ? 'con aciertos' : ''} color="#b45309" tint="rgba(251,191,36,0.14)" />
       </div>
