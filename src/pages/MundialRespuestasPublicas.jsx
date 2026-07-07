@@ -216,6 +216,7 @@ const RESPUESTAS_PUBLICAS_CSS = `
 }
 .rp-chip--ok  { background: rgba(22,163,74,0.10);  color: var(--color-success); border-color: rgba(22,163,74,0.25); }
 .rp-chip--bad { background: rgba(220,38,38,0.08);  color: var(--color-danger);  border-color: rgba(220,38,38,0.22); }
+.rp-chip--pend { background: rgba(0,0,0,0.03); color: var(--color-muted); border-color: rgba(0,0,0,0.10); }
 /* IMPORTANTE: estos backgrounds deben ser OPACOS. Si se usa rgba con alpha
    bajo, el header sticky deja pasar las celdas que scrollean por debajo y
    el texto del nombre se mezcla. Mantener colores planos azulados. */
@@ -372,7 +373,7 @@ export default function MundialRespuestasPublicas() {
         {detalleItems.map((it, i) => (
           <span
             key={`${it.codigo}-${i}`}
-            className={`rp-chip ${it.correcto ? 'rp-chip--ok' : 'rp-chip--bad'}`}
+            className={`rp-chip ${it.correcto === true ? 'rp-chip--ok' : it.correcto === false ? 'rp-chip--bad' : 'rp-chip--pend'}`}
           >
             {fmtEquipo(it.codigo) || it.codigo}
           </span>
