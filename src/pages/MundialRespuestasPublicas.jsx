@@ -636,6 +636,15 @@ export default function MundialRespuestasPublicas() {
                     <span className="rp-q-text" title={truncado ? undefined : p.enunciado}>
                       {displayText}
                     </span>
+                    {/* Puntaje que vale la pregunta (Feature 2026-07-07). */}
+                    {p.pts_display && (
+                      <div style={{
+                        fontSize: 10, color: 'var(--color-muted)',
+                        marginTop: 2, fontWeight: 500,
+                      }}>
+                        {p.pts_display}
+                      </div>
+                    )}
                     {/* Sprint vista respuestas: chip(s) con la respuesta oficial. */}
                     <ChipResultadoOficial resultado={p.resultado_oficial} equiposByCodigo={equiposByCodigo} />
                     <ChipResultadoProyectado resultado={p.resultado_proyectado} equiposByCodigo={equiposByCodigo} />
